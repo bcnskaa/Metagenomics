@@ -15,7 +15,7 @@ verbose = False
 def main(argv):
     try:
         # Parse options from command lines
-        cmd_opts, cmd_args = getopt.getopt(sys.argv[1:], "hi:v", ["help", "infile="])
+        cmd_opts, cmd_args = getopt.getopt(sys.argv[1:], "hig:v", ["help", "infile=", "gi_list="])
     except getopt.GetoptError as e:
         print str(e)
         print_usage()
@@ -25,6 +25,8 @@ def main(argv):
     
     outfn = None    # output file name
     infn = None     # input file name
+    gi_infn = None  # input file of gi list
+    
     #verbose = False
     
     # Parse command line
@@ -36,19 +38,26 @@ def main(argv):
             sys.exit()
         elif opt in ("-o", "--outfile"):
             outfn = arg
+        elif opt in ("-g", "--gi_list"):
+            gi_infn = arg
+            
+            if(not os.path.isfile(gi_infn)):
+                print(gi_infn + " is not found.")
+                sys.exit()                 
         elif opt in ("-i", "--infile"):
             infn = arg
             
             if(not os.path.isfile(infn)):
                 print(infn + " is not found.")
-                sys.exit()
-            
+                sys.exit()       
         else:
             assert False, "unrecognized option"
         
     res = import_blast_m6_results(infn)
+    gi_list = import_gi(gi_infi)
     
     print "Size of result =", len(res)
+
 
     # Retrieve best hits
     besthits = report_besthit(res)
@@ -64,7 +73,14 @@ def main(argv):
         print k, ":", v[1], " bitscore=", v[11]
 
 
-
+def import_gi(gi_infilename):
+    gi_list = {}
+    with open(gi_infilename, "r") as infile:
+        for line in infile:
+            infos = (line.replace("\n","")).split("\t")
+            gi_list[info[0]] = infos[1]
+        infile.close()
+    return gi_list
 
 # Import the blast -m6 result into a dictionary of lists using query ids as keys
 def import_blast_m6_results(infilename):
@@ -80,6 +96,7 @@ def import_blast_m6_results(infilename):
         for row in input_data:
             row[11] = float(row[11])
             blast_res[row[0]].append(row)
+        infile.close()
             
     return blast_res
 

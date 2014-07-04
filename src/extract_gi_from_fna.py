@@ -3,19 +3,27 @@ import sys
 
 
 def main(argv):
-    if len(argv) != 1:
+    if len(argv) != 2:
         print_usage()
         sys.exit(1);
         
     infile = argv[0]
+    outfile = argv[1]
     
     headers = extract_fasta_header(infile)
 
     print "Number of header=", len(headers)
 
     gi_headers = parse_headers(headers)
-    print [":".join([k, gi_headers[k], "\n"]) for k in gi_headers.keys()]
+    #print [":".join([k, gi_headers[k], "\n"]) for k in gi_headers.keys()]
 
+    # export the gi and name to an outfile
+    with open(outfile, "w") as outfile:
+        for gi in gi_headers.keys():
+            outfile.write("\t".join([gi, gi_headers[gi], "\n"]))
+        #outfile.write(["\t".join([gi, gi_headers[gi]]) for gi in gi_headers.keys()])
+        outfile.close()
+    
 
 def print_usage():
     print("NA")
