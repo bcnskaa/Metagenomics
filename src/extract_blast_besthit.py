@@ -17,6 +17,7 @@ def main(argv):
         # Parse options from command lines
         cmd_opts, cmd_args = getopt.getopt(sys.argv[1:], "hig:v", ["help", "infile=", "gi_list="])
     except getopt.GetoptError as e:
+        print "Error on parsing command line"
         print str(e)
         print_usage()
         
@@ -51,7 +52,7 @@ def main(argv):
                 print(infn + " is not found.")
                 sys.exit()       
         else:
-            assert False, "unrecognized option"
+            assert False, " unrecognized option"
         
     res = import_blast_m6_results(infn)
     gi_list = import_gi(gi_infi)
