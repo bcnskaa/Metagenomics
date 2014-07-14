@@ -1,7 +1,7 @@
 import os.path
 import sys
 
-
+#
 def main(argv):
     if len(argv) != 2:
         print_usage()

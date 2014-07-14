@@ -17,7 +17,9 @@ import extract_gi_from_fna
 #
 # To-do: 
 #  - Cutoff values
-#  -  
+#      - Length
+#      - Identity
+#      - bit-score
 verbose = False
 def main(argv):
     
@@ -113,6 +115,8 @@ def assign_species(subject_id, gi_list):
         return "NA"
 
 
+
+
 # Input
 def extract_gi(subject_id):
 #def extract_gi(subject_ids):
@@ -130,7 +134,6 @@ def extract_gi(subject_id):
         return items[1]
     else:
         return "NA"
-
     
 
 def import_gi(gi_infilename):
@@ -160,8 +163,28 @@ def import_blast_m6_results(infilename):
             row[11] = float(row[11])
             blast_res[row[0]].append(row)
         infile.close()
-            
+        
     return blast_res
+
+
+def import_blast_m6_results_with_filter(infilename, thres_aln_len, thres_bitscore, thres_identity, flag_nr_query):
+   if verbose:
+        print("Checking if input file is a valid BLAST -m6 format.")
+    
+    blast_res = defaultdict(list)
+    
+    print("Reading from ", infilename)
+    
+    # infilename should be a tab-delimited csv file
+    with open(infilename, "r") as infile:
+        input_data = csv.reader(infile, delimiter='\t')
+        
+        for row in input_data:
+            row[11] = float(row[11])
+            blast_res[row[0]].append(row)
+        infile.close()
+        
+    return blast_res  
 
 
 # Report the best hit for every query id 
