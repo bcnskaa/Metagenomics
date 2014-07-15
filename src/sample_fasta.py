@@ -52,6 +52,7 @@ def import_fasta(infile):
     return fasta_objs
 
 
+# To be completed
 def do_sample(fasta_objs, resample_n, resample_seq_size):
     resample_fasta_objs = {}
     

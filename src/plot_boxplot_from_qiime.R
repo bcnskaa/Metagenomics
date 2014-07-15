@@ -4,7 +4,7 @@ library(reshape)
 
 # Prepare for impoting data
 kingdoms <- c("bacteria", "archaea");
-alpha_diversities <- c("PD_whole_tree", "chao1", "fisher_alpha", "shannon");
+alpha_diversities <- c("PD_whole_tree", "chao1", "fisher_alpha", "shannon", "observed_species");
 
 # Discard some columns from the datasets
 col_to_be_removed <- c("X", "sequences.per.sample", "iteration", "H.GZ", "H.SHX")
@@ -120,35 +120,27 @@ for(kingdom in kingdoms)
 		#p <- ggplot(ss, aes(factor(variable), value)) + geom_jitter();
 		#p + geom_boxplot(aes(fill=factor(alpha_diversity))) + theme(axis.text.x = element_text(angle = 90, hjust = 1));
 		dev.off();
-		rm(ss);
-		
-		#melt_ss <- melt(ss, id=c("sample", "experiment", "temperature"))
-		ss <- cbind(ss, id=paste(ss$sample, ss$experiment, ss$temperature, sep=":"))
+
+		# Combined place
 		pdf(paste("combined_place.", alpha_diversity, ".", kingdom,".boxplot.pdf", sep=""), width=4, height=6);
 		print(qplot(factor(sample), value, data = ss, geom = "boxplot") + geom_jitter(position=position_jitter(w=0.1, h=0.1)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)))
 		dev.off();
-		rm(ss);	
 		
-	}
-}
-
-
-# Combined place
-for(kingdom in kingdoms)
-{
-	for(alpha_diversity in alpha_diversities)
-	{
-		ss <- melt_dfs[melt_dfs$kingdom == kingdom & melt_dfs$alpha_diversity == alpha_diversity, ];
-		
-		#melt_ss <- melt(ss, id=c("sample", "experiment", "temperature"))
-		ss <- cbind(ss, id=paste(ss$sample, ss$experiment, ss$temperature, sep=":"))
-		pdf(paste("combined_place.", alpha_diversity, ".", kingdom,".boxplot.pdf", sep=""), width=4, height=6);
-		print(qplot(factor(sample), value, data = ss, geom = "boxplot") + geom_jitter(position=position_jitter(w=0.1, h=0.1)))
+		# Combined place
+		pdf(paste("combined_experiment.", alpha_diversity, ".", kingdom,".boxplot.pdf", sep=""), width=4, height=6);
+		print(qplot(factor(experiment), value, data = ss, geom = "boxplot") + geom_jitter(position=position_jitter(w=0.1, h=0.1)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)))
 		dev.off();
-		rm(ss);
+		
+		
+		# Combined place
+		pdf(paste("combined_temperature.", alpha_diversity, ".", kingdom,".boxplot.pdf", sep=""), width=4, height=6);
+		print(qplot(factor(temperature), value, data = ss, geom = "boxplot") + geom_jitter(position=position_jitter(w=0.1, h=0.1)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)))
+		dev.off();
+		rm(ss);	
+
+		
 	}
 }
-
 
 
 
