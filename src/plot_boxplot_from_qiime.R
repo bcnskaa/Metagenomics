@@ -2,6 +2,43 @@ library(ggplot2)
 library(reshape)
 
 
+
+# Collapse and melt a list of dataframes into a single dataframe
+melt_df <- function(df_list, new_class_label="class", ignore_na=TRUE) {
+	library(reshape);
+	
+	class_labels <- names(df_list);
+	
+	melted_df <- data.frame();
+	
+	# Go through all labels
+	for(label in class_labels) {
+		print(paste("Processing ", label, "...", sep=""));
+		
+		cur_df <- df_list[[label]];
+		cur_df <- cbind(cur_df, iteration=seq(1, nrow(cur_df)))
+		
+		# Melt cur_df by holding iteration as an id
+		mdf <- melt(cur_df, id=c("iteration"));
+		
+		# 
+		mdf <- cbind(mdf, X______X_____X=rep(label, nrow(mdf)));
+		
+		if(dim(melted_df)[1] == 0)
+		{
+			melted_df <- mdf;
+		} else {
+			melted_df <- rbind(melted_df, mdf);
+		}
+	}
+	
+	colnames(melted_df)[colnames(melted_df) == "X______X_____X"] <- new_class_label;
+	
+	return(melted_df);
+}
+
+
+
 # Prepare for impoting data
 kingdoms <- c("bacteria", "archaea");
 alpha_diversities <- c("PD_whole_tree", "chao1", "fisher_alpha", "shannon", "observed_species");
@@ -33,11 +70,13 @@ for(kingdom in kingdoms)
 
 		# Discard columns
 		data <- data[,-which(colnames(data) %in% col_to_be_removed)]
-	
+		
 		# Insert data into list
 		dfs[[id]] <- data;
 	}
 }
+
+
 
 
 
@@ -126,13 +165,13 @@ for(kingdom in kingdoms)
 		print(qplot(factor(sample), value, data = ss, geom = "boxplot") + geom_jitter(position=position_jitter(w=0.1, h=0.1)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)))
 		dev.off();
 		
-		# Combined place
+		# Combined experiment
 		pdf(paste("combined_experiment.", alpha_diversity, ".", kingdom,".boxplot.pdf", sep=""), width=4, height=6);
 		print(qplot(factor(experiment), value, data = ss, geom = "boxplot") + geom_jitter(position=position_jitter(w=0.1, h=0.1)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)))
 		dev.off();
 		
 		
-		# Combined place
+		# Combined temperature
 		pdf(paste("combined_temperature.", alpha_diversity, ".", kingdom,".boxplot.pdf", sep=""), width=4, height=6);
 		print(qplot(factor(temperature), value, data = ss, geom = "boxplot") + geom_jitter(position=position_jitter(w=0.1, h=0.1)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)))
 		dev.off();
@@ -143,41 +182,3 @@ for(kingdom in kingdoms)
 }
 
 
-
-
-
-
-
-# Collapse a list of dataframes into a single dataframe
-melt_df <- function(df_list, new_class_label="class", ignore_na=TRUE) {
-	library(reshape);
-	
-	class_labels <- names(df_list);
-	
-	melted_df <- data.frame();
-	
-	# Go through all labels
-	for(label in class_labels) {
-		print(paste("Processing ", label, "...", sep=""));
-		
-		cur_df <- df_list[[label]];
-		cur_df <- cbind(cur_df, iteration=seq(1, nrow(cur_df)))
-		
-		# Melt cur_df by holding iteration as an id
-		mdf <- melt(cur_df, id=c("iteration"));
-		
-		# 
-		mdf <- cbind(mdf, X______X_____X=rep(label, nrow(mdf)));
-		
-		if(dim(melted_df)[1] == 0)
-		{
-			melted_df <- mdf;
-		} else {
-			melted_df <- rbind(melted_df, mdf);
-		}
-	}
-	
-	colnames(melted_df)[colnames(melted_df) == "X______X_____X"] <- new_class_label;
-	
-	return(melted_df);
-}

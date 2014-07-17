@@ -37,10 +37,10 @@ SAMPLE_ID=$1
 
 
 # paired-end sequence id
-SEQ_FQ1=$1
-SEQ_FQ2=$2
-#SEQ_FQ1="$SAMPLE_ID\_1.fq"
-#SEQ_FQ2="$SAMPLE_ID\_2.fq"
+#SEQ_FQ1=$1
+#SEQ_FQ2=$2
+SEQ_FQ1="$SAMPLE_ID\_1.fq"
+SEQ_FQ2="$SAMPLE_ID\_2.fq"
 
 
 #############################
@@ -49,7 +49,7 @@ SEQ_FQ2=$2
 TOOLS_HOME=$HOME/sk/tools
 SEQTK_HOME=$TOOLS_HOME/seqtk
 METAPHLAN_HOME=$TOOLS_HOME/Metaphlan
-
+VELVET_HOME=$TOOLS_HOME/velvet
 
 ##########################################################
 # Stage 0 - Preprocessing
@@ -91,6 +91,11 @@ eval "cat $input_filename | $METAPHLAN_HOME/metaphlan.py --bowtie2db $METAPHLAN_
 
 
 # Generate 
+
+
+# Using MetaVelvet-SL to reconstruct scaffolds
+$VELVET_HOME/velveth $SAMPLE_ID\_MetaVelvet_SL 100 -shortPaired -fastq [read file] 
+
 
 
 ##########################################################

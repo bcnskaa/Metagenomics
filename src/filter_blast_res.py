@@ -9,7 +9,7 @@ from collections import defaultdict
 # Main 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"hqi:o:b:l:p:k:")
+        opts, args = getopt.getopt(argv,"hqsi:o:b:l:p:k:")
     except getopt.GetoptError:
         print_usage()
         sys.exit(2)
@@ -20,7 +20,11 @@ def main(argv):
     t_bitscore = 0.0
     t_identity = 0.0
     flag_unique_query = False
+    flag_unique_subject = False
+    nr_sid_outfn = None
+    # used with -k option
     sid_desc_fn = None
+
     
     for opt, arg in opts:
         if opt == '-h':
@@ -33,6 +37,11 @@ def main(argv):
         elif opt == "-q":
             flag_unique_query = True
             print "Export the best hit for every query id"
+        elif opt == "-s":
+            #nr_sid_outfn = arg
+            flag_unique_subject = True
+            #print "Non-redundant subject id will be dumped to ", nr_sid_outfn
+            #print "Non-redundant subject id will be dumped"
         elif opt == "-b":
             t_bitscore = float(arg)
             print "Bit-score Threshold: ", t_bitscore
@@ -51,11 +60,38 @@ def main(argv):
             sys.exit(0)
 
     # Make sure infilename and outfilename are specified
-    if (infn is None and outfn is None):
+    #if (infn is None and outfn is None):
+    if (infn is None):
         print_usage()
         sys.exit(0)
     
-    #
+    # Make sure outfilename is not same to infilename!
+    if(infn == outfn):
+        print "infile and outfile are the same!"
+        sys.exit(0)
+    
+    
+    # outputfilename is not specified, we name it! 
+    if(outfn is None):
+        outfn = infn + "."
+        if t_bitscore > 0.0:
+            outfn += "b" + `t_bitscore`
+        if t_aln_len > 0:  
+            outfn += "l" + `t_aln_len`
+        if t_identity > 0:  
+            outfn += "p" + `t_identity`
+        if flag_unique_query:  
+            outfn += "q"
+    
+    # Specify an outfilename for dumping unique subject id
+    if flag_unique_subject:
+        nr_sid_outfn = outfn + ".sid"
+        print "Non-redundant subject id will be dumped to", nr_sid_outfn
+    
+    # finalize the name of outfile
+    outfn += ".bla"
+    
+    # import the blast results
     res = import_blast_res(infn, t_aln_len, t_bitscore, t_identity)
     
     # Export best hit for every query id
@@ -65,32 +101,50 @@ def main(argv):
     # Read description for subject ids if provided
     if sid_desc_fn is not None:
         sid_desc = import_subject_id_desc(sid_desc_fn)
+
+
+    nr_sids = []
     
-    
-    
-    # Export the filtered results to outfile
+    # Export the filtered results to an outfile
     print "Exporting filtered results to", outfn
     export_n = 0
     with open(outfn, "w") as out:
         for qid, hits in res.items():
             
-            
-                
+            # Deal with unique query id
             if flag_unique_query:
                 export_n = export_n + 1
                 # Replace sid with its description defined in description list
                 if sid_desc_fn is not None:
                     hits[1] = sid_desc[hits[1]]
+                
+                # Chomp first whitespace character (if exists)
+                hits[1] = hits[1].lstrip()
                     
+                # Collect the sid and dump them later
+                if nr_sid_outfn is not None:
+                    if hits[1] not in nr_sids:
+                        nr_sids.append(hits[1])
+                        #print hits[1]
+                            
                 #print "\t".join(hits)
                 out.write("".join(["\t".join(hits), "\n"]))
-            else:
+            else:  # Deal with all query id
                 export_n = export_n + len(hits)
                 for hit in hits:
                     # Replace sid with its description defined in description list
                     if sid_desc_fn is not None:
                         hit[1] = sid_desc[hit[1]]
                 
+                    # Chomp first whitespace character (if exists)
+                    hit[1] = hit[1].lstrip()
+                    
+                    # Collect the sid and dump them later
+                    if nr_sid_outfn is not None:
+                        if hit[1] not in nr_sids:
+                            nr_sids.append(hit[1])
+                            #print hit[1]
+                        
                     #print "\t".join(hit)
                     out.write("".join(["\t".join(hit), "\n"]))
                 #print "\n".join(["\t".join(hit) for hit in hits])
@@ -98,6 +152,15 @@ def main(argv):
             #[out.write("\t".join([r, "\n"])) for r in res[qid]]
     print export_n, "exported"
 
+
+    # Sort and dump non-redundant to stdout
+    if nr_sid_outfn is not None:
+        # Sort the sids
+        nr_sids.sort();
+        #print "\n".join(nr_sids);
+        with open(nr_sid_outfn, "w") as nr_sid_out:
+            nr_sid_out.write("\n".join(nr_sids))
+        
 
 
 # Report the best hit for every query id 
@@ -121,7 +184,7 @@ def import_subject_id_desc(infilename):
     # infilename should be a tab-delimited csv file
     with open(infilename, "r") as infile:
         
-        # read line       
+        # read line
         for line in infile:
             line = line.replace("\n", "")
             [sid, desc] = line.split("\t")
@@ -141,12 +204,13 @@ def print_usage():
     print(" ")
     print("Usage:")
     print("  python filter_blast_res.py -i BLAST-RESULT-INFILE -o FILTER-OUTFILE [-q] [-b BITSCORE-CUTOFF] [-l ALIGNMENT-LENGTH-CUTOFF] [-p PERCENTAGE-IDENTITY]")
-    print("      -i         Input file generated by BLAST with -m6 option")
-    print("      -o         Output file")
+    print("      -i STRING  Input file generated by BLAST with -m6 option")
+    print("      -o STRING  Output file [optional]")
     print("      -h         Report the best hit for every query id [optional, default=disable]")
     print("      -b FLOAT   Bit-score threshold for filtering [optional, default=0.0]")
     print("      -l INT     Alignment length threshold for filtering [optional, default=0]")
     print("      -p FLOAT   Identity percentage threshold for filtering [optional, default=0.0]")
+    print("      -s STRING  Dump non-redundant subject id")
     print(" ")
     print(" ") 
     print("Ver 0.2")
