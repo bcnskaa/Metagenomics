@@ -54,9 +54,11 @@ def import_fasta(infile):
 
 # To be completed
 def do_sample(fasta_objs, resample_n, resample_seq_size):
-    resample_fasta_objs = {}
+    # Invoke DWGSIM package to simulate reads data from resample fasta sequences
+    print "do_sample()"
     
-    
+# 
+def 
 
 def print_usage():
     print("Usage:")

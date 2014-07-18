@@ -98,6 +98,75 @@ $VELVET_HOME/velveth $SAMPLE_ID\_MetaVelvet_SL 100 -shortPaired -fastq [read fil
 
 
 
+# ************************************************
+# For MetaVelvet-SL
+# ************************************************
+set TOOLS_HOME = $HOME"/tools"
+set VELVET_HOME = $TOOLS_HOME"/velvet"
+set METAVELVET_HOME = $TOOLS_HOME"/MetaVelvet-SL"
+set WD = "/disk/rdisk08/jiapchen/sk/pipelines/assembling/lab"
+set SVMLIB_HOME=$TOOLS_HOME/libsvm
+set MODEL="SoilFeatureAll.range"
+
+#Must 'cd' to the working directory of the script as shown below to run your job
+cd $WD
+
+# Go through all the lab samples, P1, P2, P3 and P4
+#foreach f (`ls *_1.trimmed.fq`)
+foreach f (`ls P4_1.trimmed.fq`)
+  set id = "`echo $f | sed -e "s/_1.trimmed.fq//g"`"
+  set ifn1 = $id"_1.trimmed.fq"
+  set ifn2 = $id"_2.trimmed.fq"
+  set outdir = $WD"/metavelvet/"$id
+
+  set kmer = 31
+  set insert_size = 160
+  
+  
+  # Create de Bruijn graph using velvet 
+  set cmd = "$VELVET_HOME/velveth $outdir $kmer -shortPaired -fastq $ifn1 $ifn2 "
+  echo "************************************************"
+  echo $cmd
+  eval $cmd
+  
+  echo "************************************************"
+  set cmd = "$VELVET_HOME/velvetg $outdir -ins_length $insert_size -read_trkg yes -exp_cov auto"
+  echo $cmd
+  eval $cmd
+
+
+  #  Extract candidates of chimera nodes
+  echo "************************************************"
+  set cmd = "$METAVELVET_HOME/meta-velvete $outdir -ins_length $insert_size"
+  echo $cmd
+  eval $cmd
+
+
+  # Extract feature 
+  echo "************************************************"
+  set cmd = "perl $METAVELVET_HOME/LearningModelFeatures/FeatureExtractPredict.perl $outdir/meta-velvetg.subgraph__TitleChimeraNodeCandidates $outdir/Features $outdir/Features3Class $outdir/ChimeraNodeName"
+  echo $cmd
+  eval $cmd
+  
+  # Doing classification using pretrained model 
+  echo "************************************************"
+  set cmd = "$SVMLIB_HOME/svm-scale -r $SVMLIB_HOME/tools/LibraryPretrainedClassification/$MODEL.range $outdir/Features3Class > $outdir/Features3Class.scale"
+  echo $cmd
+  eval $cmd
+  
+  # Doing classification using pretrained model 
+  echo "************************************************"
+  set cmd = "$SVMLIB_HOME/svm-predict $outdir/Features3Class.scale $SVMLIB_HOME/tools/LibraryPretrainedClassification/$MODEL.range $outdir/P3/ClassificationPredict"
+  echo $cmd
+  eval $cmd
+  
+  
+  
+end
+
+
+
+
 ##########################################################
 # Stage 2 - Functional Analysis
 ##########################################################
