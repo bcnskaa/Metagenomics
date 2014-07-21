@@ -101,19 +101,19 @@ $VELVET_HOME/velveth $SAMPLE_ID\_MetaVelvet_SL 100 -shortPaired -fastq [read fil
 # ************************************************
 # For MetaVelvet-SL
 # ************************************************
-set TOOLS_HOME = $HOME"/tools"
+set TOOLS_HOME = $HOME"/sk/tools"
 set VELVET_HOME = $TOOLS_HOME"/velvet"
 set METAVELVET_HOME = $TOOLS_HOME"/MetaVelvet-SL"
 set WD = "/disk/rdisk08/jiapchen/sk/pipelines/assembling/lab"
 set SVMLIB_HOME=$TOOLS_HOME/libsvm
-set MODEL="SoilFeatureAll.range"
+set MODEL="SoilFeatureAll"
 
 #Must 'cd' to the working directory of the script as shown below to run your job
 cd $WD
 
 # Go through all the lab samples, P1, P2, P3 and P4
-#foreach f (`ls *_1.trimmed.fq`)
-foreach f (`ls P4_1.trimmed.fq`)
+foreach f (`ls *_1.trimmed.fq`)
+#foreach f (`ls P4_1.trimmed.fq`)
   set id = "`echo $f | sed -e "s/_1.trimmed.fq//g"`"
   set ifn1 = $id"_1.trimmed.fq"
   set ifn2 = $id"_2.trimmed.fq"
@@ -156,14 +156,17 @@ foreach f (`ls P4_1.trimmed.fq`)
   
   # Doing classification using pretrained model 
   echo "************************************************"
-  set cmd = "$SVMLIB_HOME/svm-predict $outdir/Features3Class.scale $SVMLIB_HOME/tools/LibraryPretrainedClassification/$MODEL.range $outdir/P3/ClassificationPredict"
+  set cmd = "$SVMLIB_HOME/svm-predict $outdir/Features3Class.scale $SVMLIB_HOME/tools/LibraryPretrainedClassification/$MODEL.model $outdir/P3/ClassificationPredict"
   echo $cmd
   eval $cmd
   
-  
-  
+  # Doing assembly using pretrained model 
+  echo "************************************************"
+  set cmd = "$METAVELVET_HOME/meta-velvetg $outdir/meta-velvetg.subgraph__TitleChimeraNodeCandidates $outdir/Features $outdir/Features3Class $outdir/ChimeraNodeName"
+  echo $cmd
+  eval $cmd
+    
 end
-
 
 
 

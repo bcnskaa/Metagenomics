@@ -25,7 +25,7 @@ def main(argv):
     # used with -k option
     sid_desc_fn = None
 
-    
+
     for opt, arg in opts:
         if opt == '-h':
             print_usage()
