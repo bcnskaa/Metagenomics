@@ -168,6 +168,7 @@ foreach f (`ls *_1.trimmed.fq`)
     
 end
 
+# perl /home/jiapchen/sk/tools/MetaVelvet-SL/LearningModelFeatures/BLAST_map/eval.pl -i /disk/rdisk08/jiapchen/sk/pipelines/assignments/lab/models/P2_model/meta-velvetg.subgraph__ChimeraNodeCandidates -n P2_model -d P2_model_all_refgenomes.fna -p P2_model -L 120
 
 
 ##########################################################

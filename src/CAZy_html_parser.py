@@ -13,19 +13,21 @@ do
 wget -r -l 1 --random-wait -A b[0-9]*.html http://www.cazy.org/b$i.html
 done
 
-# https://gist.github.com/jstvz/1386797
+# Adopted and modified based on works pulled from https://gist.github.com/jstvz/1386797
 """
 
 cazy_dict = {}
 
+# Set working directory
+WorkingDir = ""
+RawHTMLDir = "/raw_html"
 
- 
-os.chdir('data/html')
+os.chdir(WorkingDir + RawHTMLDir)
 for filename in glob.iglob('*.html'):
     print filename
     fam_list = []
     fh = open(filename, 'rb')
-    fh_out_str = '/media/haldane/trab/data/cazy/data/csv/' + filename.strip('.html') + '.xls'
+    fh_out_str = WorkingDir + filename.strip('.html') + '.xls'
     fh_out = open(fh_out_str, 'wb')
     soup = BeautifulSoup(fh)
     
