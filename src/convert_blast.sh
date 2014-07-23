@@ -15,9 +15,6 @@ echo "Reading from $infile"
 #    echo "$i"
 # done
 
-# Clear the outfile
-echo "" > $outfile
-
 while read line;
 do
   IFS=$'\t'

@@ -8,13 +8,19 @@
 # Flow of the Pipeline
 # 	Stage 0 - Preprocessing
 # 		1. Filter raw fastq datasets
+#		2. Quality checking
+#		3. Low complexity filter (LCF)
 # 
 #	Stage 1 - Taxonomic Mappings and Sequence Assembly
-# 		1. Construction of a preliminary taxonomic profile using 16s rRNA sequences
-# 		2. Inference of ORFs/genes
+# 		1. Construction of a preliminary taxonomic profile using 16s amplicon dataset
+# 		2. Prediction of ORFs/genes directly from reads
 # 		3. Mapping and assemblies of short reads
-#			a. de novo
-#			b. guided by 16s taxonomic profiles  
+#			a. de novo (idba_ud, metavelvet)
+#			b. guided by reference library based on 16s taxonomic profiles (metavelvet-SL)
+#		4. Binning (contigs with length >800bp)
+#			a. Sequence similarity of contigs to reference genomes (blastn)
+#			b. Yield contigs with best hits to reference genomes
+#			c. Classify contigs to 
 #
 #	Stage 2 - Functional Analysis
 #		1. Taxonomic analysis
