@@ -34,7 +34,8 @@
 # User input argument
 # Sample id
 SAMPLE_ID=$1
-
+# Working directory
+WD=
 
 # paired-end sequence id
 #SEQ_FQ1=$1
@@ -174,6 +175,20 @@ end
 ##########################################################
 # Stage 2 - Functional Analysis
 ##########################################################
+
+
+
+
+# Binning using ESOM
+set WORKING_DIR=""
+set FASTA_DIR=""
+set FASTA_EXT="fa"
+set TETRA_ESOM_HOME=""
+
+# Calculate the ESOM
+perl $TETRA_ESOM_HOME"/"esomWrapper.pl -path $FASTA_DIR -ext $FASTA_EXT -scripts $TETRA_ESOM_HOME
+
+
 
 
 
