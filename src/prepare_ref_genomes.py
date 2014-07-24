@@ -20,8 +20,12 @@ READ_LENGTH=90
 
 # Main 
 def main(argv):
+    global COVERAGE
+    global READ_ERROR_RATE
+    global READ_LENGTH
+    
     try:
-        opts, args = getopt.getopt(argv,"hi:o:p:")
+        opts, args = getopt.getopt(argv,"hi:o:p:c:e:l:")
     except getopt.GetoptError:
         print_usage()
         sys.exit(2)
@@ -41,6 +45,13 @@ def main(argv):
             outfn_prefix = arg
         elif opt == "-p":
             lib_path = arg
+        elif opt == "-c":
+            COVERAGE = int(arg)
+            #print("New coverage:", COVERAGE)
+        elif opt == "-l":
+            READ_LENGTH = int(arg)
+        elif opt == "-e":
+            READ_ERROR_RATE = float(arg)       
         else:
             print("Unrecognized option", opt)
             print_usage()
@@ -86,6 +97,7 @@ def main(argv):
 
 # Build read library from recruited reference genomes
 def contruct_referenece_genome_library(selected_ids, db, output_prefix):
+    
     # Temporary folders for storing reference genomes
     TMP_DIR = "./" + str(time.time()) + ".tmp"
     
@@ -260,11 +272,15 @@ def print_usage():
     print("This simple script generates a reference genomes read library of prokaryotic species based on given subject ids.")
     print(" ")
     print("Usage:")
-    print("  python prepare_ref_genomes.py -i SID-INFILE -o LIB-OUTFILE [-p PATH-TO-NCBI-BACTERIAL-LIB]")
+    print("  python prepare_ref_genomes.py -i SID-INFILE -o LIB-OUTFILE [-p PATH-TO-NCBI-BACTERIAL-LIB] [-l READ-LEN] [-e READ-ERROR-RATE] [-c COVERAGE]")
     print("      -i STRING  A .sid file exported from filter_blast_res.py with -s option.")
     print("                 The subject ids or sids are expect in 'genus+species+strain' format. (required)")
     print("      -o STRING  Prefix of an output library file. (required)")
     print("      -p STRING  Path to the NCBI Complete Bacterial Library [optional, default=" + NCBI_BACTERIAL_DB_PATH + "]")
+    print("      -l INT     Read length [optional, default=" + str(READ_LENGTH) + "]")
+    print("      -e FLOAT   Read error rate [optional, default=" + str(READ_ERROR_RATE) + "]")
+    print("      -c INT     Coverage [optional, default=" + str(COVERAGE) + "]")
+   
     print(" ")
     print(" ") 
     print("Version 0.1")
