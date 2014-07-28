@@ -6,6 +6,7 @@ use Bio::SeqIO;
 if(@ARGV != 1)
 {
 	print "Missing argument\n"
+	print "Usage: " . $ARGV[0] . " FASTA-FILES\n"
 	exit
 }
 

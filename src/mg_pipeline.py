@@ -14,8 +14,7 @@ IDBA_UD_HOME=""
 # Main 
 def main(argv):
     blastn()
-    
-    
+
 
 def blastn():
     print_status("calling blastn()")

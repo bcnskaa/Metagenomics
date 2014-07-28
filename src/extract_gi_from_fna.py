@@ -23,10 +23,12 @@ def main(argv):
             outfile.write("\t".join([gi, gi_headers[gi], "\n"]))
         #outfile.write(["\t".join([gi, gi_headers[gi]]) for gi in gi_headers.keys()])
         outfile.close()
-    
-
+  
+  
+#  
 def print_usage():
     print("NA")
+
 
 # FASTA header
 def extract_fasta_header(fasta_fn):

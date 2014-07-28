@@ -1,8 +1,13 @@
 #!/bin/bash
 
 
+# If subject ids have patterns like these:
+# gi|123467|NC_12345.7|
+# This script will extract the gi id and replace the original subject id
+
 infile=$1
 outfile=$2
+
 
 
 echo "Reading from $infile"

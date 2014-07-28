@@ -50,6 +50,7 @@ SEQ_FQ1="$SAMPLE_ID\_1.fq"
 SEQ_FQ2="$SAMPLE_ID\_2.fq"
 
 
+
 #############################
 # Environmental variables
 #############################
@@ -57,6 +58,8 @@ TOOLS_HOME=$HOME/sk/tools
 SEQTK_HOME=$TOOLS_HOME/seqtk
 METAPHLAN_HOME=$TOOLS_HOME/Metaphlan
 VELVET_HOME=$TOOLS_HOME/velvet
+
+
 
 ##########################################################
 # Stage 0 - Preprocessing
@@ -136,12 +139,13 @@ foreach f (`ls *_1.trimmed.fq`)
   echo $cmd
   eval $cmd
   
+  
   echo "************************************************"
   set cmd = "$VELVET_HOME/velvetg $outdir -ins_length $insert_size -read_trkg yes -exp_cov auto"
   echo $cmd
   eval $cmd
-
-
+  
+  
   #  Extract candidates of chimera nodes
   echo "************************************************"
   set cmd = "$METAVELVET_HOME/meta-velvete $outdir -ins_length $insert_size"
@@ -172,7 +176,7 @@ foreach f (`ls *_1.trimmed.fq`)
   set cmd = "$METAVELVET_HOME/meta-velvetg $outdir/meta-velvetg.subgraph__TitleChimeraNodeCandidates $outdir/Features $outdir/Features3Class $outdir/ChimeraNodeName"
   echo $cmd
   eval $cmd
-    
+  
 end
 
 # perl /home/jiapchen/sk/tools/MetaVelvet-SL/LearningModelFeatures/BLAST_map/eval.pl -i /disk/rdisk08/jiapchen/sk/pipelines/assignments/lab/models/P2_model/meta-velvetg.subgraph__ChimeraNodeCandidates -n P2_model -d P2_model_all_refgenomes.fna -p P2_model -L 120
@@ -182,9 +186,6 @@ end
 # Stage 2 - Functional Analysis
 ##########################################################
 
-
-
-
 # Binning using ESOM
 set WORKING_DIR=""
 set FASTA_DIR=""
@@ -193,12 +194,5 @@ set TETRA_ESOM_HOME=""
 
 # Calculate the ESOM
 perl $TETRA_ESOM_HOME"/"esomWrapper.pl -path $FASTA_DIR -ext $FASTA_EXT -scripts $TETRA_ESOM_HOME
-
-
-
-
-
-
-
 
 
