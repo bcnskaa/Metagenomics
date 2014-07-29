@@ -5,18 +5,18 @@ use Bio::SeqIO;
 
 if(@ARGV != 1)
 {
-	print "Missing argument\n"
-	print "Usage: " . $ARGV[0] . " FASTA-FILES\n"
-	exit
+	print "Missing argument\n";
+	print "Usage: " . $ARGV[0] . " FASTA-FILES\n";
+	exit;
 }
 
 # Read in command arguments
 my $infn = $ARGV[0];
 
-unless (-e $ifn)
+unless (-e $infn)
 {
-	print $ifn . " does not exist.\n"
-	exit
+	print $infn . " does not exist.\n";
+	exit;
 }
 
 

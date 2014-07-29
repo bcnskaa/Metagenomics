@@ -192,7 +192,16 @@ set FASTA_DIR=""
 set FASTA_EXT="fa"
 set TETRA_ESOM_HOME=""
 
+# Filter the sequence shorter than 2500bp
+
+
 # Calculate the ESOM
 perl $TETRA_ESOM_HOME"/"esomWrapper.pl -path $FASTA_DIR -ext $FASTA_EXT -scripts $TETRA_ESOM_HOME
+
+
+
+
+
+
 
 
