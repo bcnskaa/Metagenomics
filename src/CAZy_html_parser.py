@@ -17,8 +17,23 @@ done
 # Adopted and modified based on works pulled from https://gist.github.com/jstvz/1386797
 """
 
-
-
+# Given a list of CAZY gene, this function will pick sequence 
+def pick_CAZY_seq(cazy_list_fn, sequence_fn, outfn=None):
+    # First import CAZY gene list
+    with open(cazy_list_fn, "r") as IN:
+        lines = IN.read()
+        IN.close()
+        
+    
+    lines = lines.splitlines()
+    cazy_list = {[line.split("\t")][4] : line for line in lines if line.count("\t") == 4}    
+    
+    
+    
+    
+    
+    
+# Obsolete routine
 def process_raw_html(rawHTMLDir, WorkingDir, cazy_outfn):
     cazy_dict = {}
 
@@ -68,6 +83,7 @@ def process_raw_html(rawHTMLDir, WorkingDir, cazy_outfn):
                     link_out = col.find("a", {"class" : "nav2"}, href=True)['href']
                     family_abbrv = link_out.split('/')[-1].strip('.html')
                     fam_list.append((family_abbrv , count))
+                    
         # Write the dict to a new csv filename
         cazy_dict[org_name] = dict(fam_list)
         first_keys = ['Organism', 'NCBI_TaxID', 'Org_Lin']  # cazy_dict[org_name].keys()
