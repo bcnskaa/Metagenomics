@@ -21,7 +21,7 @@ def export_freq_table(outfn, freq_table_dict):
             OUT.write("\t".join([key, values, "\n"]))
             #[tt[key] for key in sorted(tt.keys())]
 
-
+# 
 def calculate_freq_table(sequence, pattern_list=['A', 'C', 'G', 'T'], kmer_len=4):
     # Generate a list of k-mer
     seq_tuple = [sequence[i:i + kmer_len] for i in range(1, len(sequence) - (kmer_len - 1))]

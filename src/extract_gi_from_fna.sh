@@ -12,9 +12,9 @@ infile=$1
 
 
 # Generate a GI info list of all_faa.faa
-#cat all_faa.faa | grep ">" | sed 's/ \[/|/g' | sed 's/\]//g' | sed 's/| /\|/g' | cut -d'|' -f2,4,5,6 | sed 's/|/\t/g' > all_faa.lst
+cat all_faa.faa | grep ">" | sed 's/ \[/|/g' | sed 's/\]//g' | sed 's/| /\|/g' | cut -d'|' -f2,4,5,6 | sed 's/|/\t/g' > all_faa.gi.lst
 # Convert all_faa.faa headers into gi headers
-#cat all_faa.faa | cut -d'|' -f1,2 | sed 's/gi|//g' > all_faa.gi.faa &
+cat all_faa.faa | cut -d'|' -f1,2 | sed 's/gi|//g' > all_faa.gi.faa &
 
 
 

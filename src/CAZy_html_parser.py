@@ -17,20 +17,15 @@ done
 # Adopted and modified based on works pulled from https://gist.github.com/jstvz/1386797
 """
 
-# Given a list of CAZY gene, this function will pick sequence 
+# Given a list of CAZY gene, this function will pick sequences shown on the list
 def pick_CAZY_seq(cazy_list_fn, sequence_fn, outfn=None):
     # First import CAZY gene list
     with open(cazy_list_fn, "r") as IN:
         lines = IN.read()
         IN.close()
-        
     
     lines = lines.splitlines()
     cazy_list = {[line.split("\t")][4] : line for line in lines if line.count("\t") == 4}    
-    
-    
-    
-    
     
     
 # Obsolete routine
