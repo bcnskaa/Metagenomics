@@ -3,8 +3,17 @@ from itertools import islice
 from random import randint
 
 
+# Require biopython
+# To run this script, path to biopython has to be included in PYTHONPATH
+from Bio import SeqIO
+
+
+
 def calculate_freq_from_fasta(fasta_fn):
     print "calculate_freq_from_fasta()"
+    seqDB = SeqIO.read(fasta_fn, "fasta")
+
+
 
 # seqs = {"".join([str(randint(0,9)) for i in range(1,10)]):generate_random_seq() for i in range(1, 10)}
 # tbl = {k:calculate_freq_table(seq) for k, seq in seqs.items()}

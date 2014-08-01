@@ -5,6 +5,11 @@ from collections import defaultdict
 
 from utils.blastres import *
 
+# Require biopython
+# To run this script, path to biopython has to be included in PYTHONPATH
+from Bio import SeqIO
+
+
 # Main 
 def main(argv):
     try:
@@ -79,20 +84,33 @@ def main(argv):
 # 
 def pick_fasta(fastafn, outfn, list):
     print "Picking fasta from a list of", len(list), "items"
-    with open(fasta_fn, "r") as infile, open(outfn, "w") as outfile:
-        while line in ins:
-            line.replace("\n", "")
-            
-            # Check if this sequence is on the list
-            if line.startswith(">"):
-                if line.replace(">", "") in list:
-                    outfile.write(">" + line + "\n")
-                    flag = True
-                else:
-                    flag = False
-            else:
-                if cflag:
-                    outfile.write(line + "\n")
+    
+
+    if len(seqDB) == 0:
+        return
+        
+    with open(outfn, "w") as outfile:
+        for seq in SeqIO.parse(fastafn, "fasta"):
+            if seq.id in list:
+                outfile.write(">" + seq.id + "\n")
+                outfile.write(seq.id + "\n")
+                
+    
+    
+#     with open(fasta_fn, "r") as infile, open(outfn, "w") as outfile:
+#         while line in ins:
+#             line.replace("\n", "")
+#             
+#             # Check if this sequence is on the list
+#             if line.startswith(">"):
+#                 if line.replace(">", "") in list:
+#                     outfile.write(">" + line + "\n")
+#                     flag = True
+#                 else:
+#                     flag = False
+#             else:
+#                 if cflag:
+#                     outfile.write(line + "\n")
 
 
 # # Read a list of selected fasta id
