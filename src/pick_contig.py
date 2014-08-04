@@ -96,7 +96,7 @@ def pick_fasta(fastafn, outfn, list):
             if seq.id in list:
                 print "extracting", seq.id, "..."
                 outfile.write(">" + seq.id + "\n")
-                outfile.write(seq.id + "\n")
+                outfile.write(seq.seq + "\n\n")
     
     
 #     with open(fasta_fn, "r") as infile, open(outfn, "w") as outfile:
