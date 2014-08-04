@@ -187,7 +187,7 @@ def import_subject_id_desc(infilename):
         # read line
         for line in infile:
             line = line.replace("\n", "")
-            [sid, desc] = line.split("\t")
+            [sid, desc] = line.split("\t", 1)
             #print sid, "=", desc
             sid_desc[sid] = desc
         
@@ -221,6 +221,8 @@ def import_blast_res(infilename, thres_aln_len, thres_bitscore, thres_identity):
     # 
     blast_res = defaultdict(list)
     
+    line_n = 0
+    
     print "Importing from", infilename
     
     # infilename should be a tab-delimited csv file
@@ -231,11 +233,18 @@ def import_blast_res(infilename, thres_aln_len, thres_bitscore, thres_identity):
         for row in input_data:
             flag_discard = False
             
-            # cast into corresponding data types
-            bit_score = float(row[11])
-            percentage_identity = float(row[2])
-            alignment_length = float(row[3])
+            # Track the current position
+            line_n = line_n + 1
             
+            try:
+                # cast into corresponding data types
+                bit_score = float(row[11])
+                percentage_identity = float(row[2])
+                alignment_length = float(row[3])
+            except ValueError:
+                print row[11], "is not a value. Discarded."
+                flag_discard = True
+
             
             # Check if values exceed threshold values
             if (thres_aln_len is not None and alignment_length < thres_aln_len):

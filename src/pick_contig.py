@@ -3,10 +3,11 @@ import sys
 import getopt
 from collections import defaultdict
 
+# 
 from utils.blastres import *
 
 # Require biopython
-# To run this script, path to biopython has to be included in PYTHONPATH
+# To run this script, path to biopython libraries has to be included in PYTHONPATH
 from Bio import SeqIO
 
 
@@ -18,6 +19,7 @@ def main(argv):
         print_usage()
         sys.exit(2)
         
+    
     blastfn = None
     infn = None
     outfn = None
@@ -40,6 +42,7 @@ def main(argv):
             print_usage()
             sys.exit(0)
 
+
     # Make sure everything is provided
     if((infn is None and blastfn is None) or outfn is None or fastafn is None):
         print("Missing argument")
@@ -58,7 +61,6 @@ def main(argv):
 #         while res in IN:
 #             print "result:", res, "."
 
-    
     if blastfn is not None:
         print "blast file=", blastfn
         res = ""
@@ -70,6 +72,7 @@ def main(argv):
         print "blastres=", len(blastres)
         list = BlastParser.getSubjectIDs(blastres)
     
+    
     print "Number of element in", infn, "=", len(list)
     
     # 
@@ -78,23 +81,22 @@ def main(argv):
         sys.exit(0)
     
     # Picking
-    #pick_fasta(fastafn, outfn, list)
-
+    pick_fasta(fastafn, outfn, list)
+    
+    
 
 # 
 def pick_fasta(fastafn, outfn, list):
-    print "Picking fasta from a list of", len(list), "items"
-    
+    print "Picking fasta sequence(s) from", fastafn, "based on the list", len(list), "..."
 
-    if len(seqDB) == 0:
-        return
         
     with open(outfn, "w") as outfile:
         for seq in SeqIO.parse(fastafn, "fasta"):
+            
             if seq.id in list:
+                print "extracting", seq.id, "..."
                 outfile.write(">" + seq.id + "\n")
                 outfile.write(seq.id + "\n")
-                
     
     
 #     with open(fasta_fn, "r") as infile, open(outfn, "w") as outfile:

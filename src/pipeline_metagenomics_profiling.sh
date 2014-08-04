@@ -121,6 +121,7 @@ set MODEL="SoilFeatureAll"
 #Must 'cd' to the working directory of the script as shown below to run your job
 cd $WD
 
+
 # Go through all the lab samples, P1, P2, P3 and P4
 foreach f (`ls *_1.trimmed.fq`)
 #foreach f (`ls P4_1.trimmed.fq`)
@@ -186,11 +187,20 @@ end
 # Stage 2 - Functional Analysis
 ##########################################################
 
+
+# Using Prodigal to predict ORFs from the contig data
+
+
+
+
+
+
 # Binning using ESOM
 set WORKING_DIR=""
 set FASTA_DIR=""
 set FASTA_EXT="fa"
 set TETRA_ESOM_HOME=""
+
 
 # Filter the sequence shorter than 2500bp
 
