@@ -3,7 +3,7 @@
 ########################################################################################
 #
 # This is a pipeline script for reconstruction of biological pathways from NGS-based
-# metagenomic data. Data from Illumina and SOLiD can be handled in this pipeline.
+# metagenomic datasets. Data from Illumina and SOLiD can be handled in this pipeline.
 #
 # Flow of the Pipeline
 # 	Stage 0 - Preprocessing
@@ -40,6 +40,7 @@
 # User input argument
 # Sample id
 SAMPLE_ID=$1
+
 # Working directory
 WD=
 
@@ -54,11 +55,11 @@ SEQ_FQ2="$SAMPLE_ID\_2.fq"
 #############################
 # Environmental variables
 #############################
-TOOLS_HOME=$HOME/sk/tools
+TOOLS_HOME=$HOME/tools
 SEQTK_HOME=$TOOLS_HOME/seqtk
 METAPHLAN_HOME=$TOOLS_HOME/Metaphlan
 VELVET_HOME=$TOOLS_HOME/velvet
-
+FASTQC_HOME=$TOOLS_HOME/FastQC
 
 
 ##########################################################
@@ -77,6 +78,11 @@ $SEQTK_HOME/seqtk trimfq $inputfile_2 > $outputfile_2
 
 
 # Generate FASTQC report
+inputfile_1=$outputfile_1
+inputfile_2=$outputfile_2
+outputfile_1=${inputfile_1/.fq/trimmed.fq}
+outputfile_2=${inputfile_2/.fq/trimmed.fq}
+$FASTQC_HOME/fastqc $f --outdir=fastqc_reports
 
 
 ##########################################################
