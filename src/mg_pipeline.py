@@ -11,13 +11,13 @@ import inspect
 
 
 # Global variables
-TOOLS_HOME=""
-IDBA_UD_HOME=""
-FASTQC_HOME=""
-SEQTK_HOME=""
-FASTQ_MCF_HOME=""
-MAXBIN_HOME=""
-BOWTIE2_HOME=""
+TOOLS_HOME = "/home/siukinng"
+IDBA_UD_HOME = TOOLS_HOME + "/"
+FASTQC_HOME = TOOLS_HOME + "/"
+SEQTK_HOME = TOOLS_HOME + "/"
+FASTQ_MCF_HOME = TOOLS_HOME + "/"
+MAXBIN_HOME = TOOLS_HOME + "/"
+BOWTIE2_HOME = TOOLS_HOME + "/"
 
 
 
@@ -27,13 +27,14 @@ def main(argv):
 
 
 def blastn():
-    print_status("Preparing settings for blastn")
-    
+    print_status("Initializing for blastn")
+
+# I
 def blastp():
-    print_status("Preparing settings for blastp")
+    print_status("Initializing for blastp")
     
 def blastx():
-    print_status("calling blastx()")    
+    print_status("Initializing blastx()")    
 
 def filter_blast():
     print_status("filtering blast results")    
@@ -45,7 +46,7 @@ def prepare_reference_genome():
 
 
 def run_ESOM():
-    print_status("Preparing for ESOM")    
+    print_status("Initializing ESOM")    
       
 
 
@@ -57,7 +58,7 @@ def preprocess():
 
 # IDBA-UD
 def run_idba_ud():
-    print_status("run IDBA-UD")
+    print_status("Initializing IDBA-UD")
 
 # 
 def parse_opt():

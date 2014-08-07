@@ -71,5 +71,5 @@ for (my $j = 0;$j < @seq_lens;$j++){
 
 
 #print "seq_n=", $seq_n, " mean_len=", $total_seq_len / $seq_n, " max_len=", $max_seq_len, " min_len=", $min_seq_len, $n50, $n90"\n"; 
-print "seq_n=", $seq_n, " mean_len=", $total_seq_len / $seq_n, " max_len=", $max_seq_len, " min_len=", $min_seq_len, " N50=", $n50, " N90=", $n90, "\n"; 
+print "$infn\tseq_n=", $seq_n, " mean_len=", $total_seq_len / $seq_n, " max_len=", $max_seq_len, " min_len=", $min_seq_len, " N50=", $n50, " N90=", $n90, "\n"; 
 

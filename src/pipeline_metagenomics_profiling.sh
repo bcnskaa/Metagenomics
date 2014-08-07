@@ -218,6 +218,15 @@ perl $TETRA_ESOM_HOME"/"esomWrapper.pl -path $FASTA_DIR -ext $FASTA_EXT -scripts
 
 
 
+# Extract marker gene ids
+# cat P1_contig-MaxBin.marker | grep -e "Total" | cut -f19- | sed -e "s/\t/\n/g"
+
+# Extract marker gene description from the corresponding HMM file
+# for id in `cat marker_ids.lst`;do desc=`grep "DESC" /home/siukinng/db/Markers/TIGRFAM/HMM/$id.HMM`;echo -e "$id\t${desc/DESC /}"; done 
+
+
+
+
 
 
 
