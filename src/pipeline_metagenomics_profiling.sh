@@ -60,7 +60,9 @@ SEQTK_HOME=$TOOLS_HOME/seqtk
 METAPHLAN_HOME=$TOOLS_HOME/Metaphlan
 VELVET_HOME=$TOOLS_HOME/velvet
 FASTQC_HOME=$TOOLS_HOME/FastQC
+FASTQ_MCF_HOME=$TOOLS_HOME/fastq-mcf
 
+ADAPTOR_SEQS="/home/siukinng/db/Sequencing/adaptors.fa"
 
 ##########################################################
 # Stage 0 - Preprocessing
@@ -76,13 +78,23 @@ outputfile_2=${inputfile_2/.fq/trimmed.fq}
 $SEQTK_HOME/seqtk trimfq $inputfile_1 > $outputfile_1
 $SEQTK_HOME/seqtk trimfq $inputfile_2 > $outputfile_2
 
-
 # Generate FASTQC report
+$FASTQC_HOME/fastqc $inputfile_1 --outdir=fastqc_reports
+$FASTQC_HOME/fastqc $inputfile_2 --outdir=fastqc_reports
+$FASTQC_HOME/fastqc $outputfile_1 --outdir=fastqc_reports
+$FASTQC_HOME/fastqc $outputfile_2 --outdir=fastqc_reports
+
+
+# Quality filter using fastq-mcf
 inputfile_1=$outputfile_1
 inputfile_2=$outputfile_2
-outputfile_1=${inputfile_1/.fq/trimmed.fq}
-outputfile_2=${inputfile_2/.fq/trimmed.fq}
-$FASTQC_HOME/fastqc $f --outdir=fastqc_reports
+outputfile_1=${inputfile_1/.fq/cleaned.fq}
+outputfile_2=${inputfile_2/.fq/cleaned.fq}
+$FASTQ_MCF_HOME/fastq-mcf -o $outputfile_1 -o $outputfile_2 -l 16 -q 15 -w 4 -x 10 $ADAPTOR_SEQS $inputfile_1 $inputfile_2
+
+# Generate FASTQC report
+$FASTQC_HOME/fastqc $outputfile_1 --outdir=fastqc_reports
+$FASTQC_HOME/fastqc $outputfile_2 --outdir=fastqc_reports
 
 
 ##########################################################
