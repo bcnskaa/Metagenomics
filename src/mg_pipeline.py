@@ -32,7 +32,7 @@ CUR_WD = "."
 ADAPTOR_SEQS = HOME + "/db/Sequencing/adaptors.fa"
 
 
-
+VERBOSE_ONLY = True
 
 # Main 
 def main(argv):
@@ -49,6 +49,8 @@ def main(argv):
     read_fns = run_fastq_mcf(read_1_processed_fn, read_2_processed_fn, ADAPTOR_SEQS)
     run_idba_ud(read_fns[0], read_fns[1])
     
+    
+    
 
 ######### Preprocessing 
 
@@ -56,13 +58,14 @@ def main(argv):
 def preprocess(read_fn): 
     print_status("Preprocessing " + read_fn)
     
-    #run_FastQC(read_fn)
+    run_FastQC(read_fn)
     
     processed_outfn = read_fn.replace("."+FASTQ_EXT, ".trimmed."+FASTQ_EXT)
-    #run_seqtk(read_fn, processed_outfn)
+    
+    run_seqtk(read_fn, processed_outfn)
     
     # Generate FastQC reports after trimming
-    #run_FastQC(processed_outfn)    
+    run_FastQC(processed_outfn)    
     
     # Return my new name
     return processed_outfn
@@ -80,7 +83,8 @@ def run_FastQC(read_fn, report_outdir="fastqc_report"):
     print_status(cmd)
     
     #subprocess.Popen(cmd, shell=True)
-    os.system(cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)
 
 
 def run_seqtk(read_fn, trimmed_read_fn):
@@ -88,7 +92,9 @@ def run_seqtk(read_fn, trimmed_read_fn):
     
     cmd = SEQTK_HOME + "/seqtk trimfq " + read_fn + " > " + trimmed_read_fn
     print_status(cmd)
-    os.system(cmd)
+    
+    if VERBOSE_ONLY:
+        os.system(cmd)
 
 
 # http://onetipperday.blogspot.hk/2012/08/three-ways-to-trim-adaptorprimer.html
@@ -103,45 +109,69 @@ def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=16, min_tri
     cmd = FASTQ_MCF_HOME + "/fastq-mcf -o " + str(read_1_outfn) + " -o " + str(read_2_outfn) + " -l " + str(min_read_len) + " -q " + str(min_trim_quality) + " -w " + str(trim_win_len) + " -x " + str(N_percent) + " " + adaptor_seq_fn + " " + read_1_fn + " " + read_2_fn
     
     print_status(cmd)
-    os.system(cmd)
+   
+    if not VERBOSE_ONLY:
+        os.system(cmd)
     
     return [read_1_outfn, read_2_outfn]
     
 
 ####### Assemble stage #########
-# IDBA-UD
-
-def run_idba_ud(read_1_fn, read_2_fn, outdir="idba_ud", min_contig=1200, mink=20, maxk=80, step=10, num_threads=16):
-    print_status("Initializing IDBA-UD")
-    
+# For using IDBA-UD, it is required to merge both pair-end files into one single files 
+def merge_pair_end_seq(read_1_fn, read_2_fn, outdir="idba_ud", merged_read_fn=None):
     print_status("Merging mate files")
     
-    outfn = read_1_fn.replace("." + FASTQ_EXT, "") + read_2_fn.replace("." + FASTQ_EXT, "") + "." + FASTQ_EXT
-    cmd = IDBA_UD_HOME + "/bin/fq2fa --merge --filter " + read_1_fn + " " + read_2_fn + " " + outfn
-    print_status(cmd)
-    os.system(cmd)
+    if merged_read_fn is None:
+        merged_read_fn = read_1_fn.replace("." + FASTQ_EXT, "") + read_2_fn.replace("." + FASTQ_EXT, "") + "." + FASTA_EXT
     
-    if not os.path.isfile(outfn):
-        print_status("Problem on merging mate files")
-        return False
+    cmd = IDBA_UD_HOME + "/bin/fq2fa --merge --filter " + read_1_fn + " " + read_2_fn + " " + merged_read_fn
+    print_status(cmd)
+   
+    if not VERBOSE_ONLY:    
+        os.system(cmd)
+    
+    if not os.path.isfile(merged_read_fn):
+        print_status("Problem on merging pair-end mate files")
+        return None
+    
+    return merged_read_fn
+
+       
+# IDBA-UD
+def run_idba_ud(merged_read_fn, idb_ud_outdir="idba_ud", min_contig=1200, mink=20, maxk=80, step=10, num_threads=16):
+    print_status("Initializing IDBA-UD")
     
     print_status("Provoking IDBA_UD")
-    cmd = IDBA_UD_HOME + "/bin/idba_ud --long_read " + outfn + " -o " + outdir + " --mink " + str(mink) + " --maxk " + str(maxk) + " --num_threads " + str(num_threads) + " --min_contig " + str(min_contig) + " --pre_correction --step " + str(step)
+    
+    
+    # Check sure that the constant kShortSequence in short_sequence.h is modified to some value larger than the default 128
+    cmd = IDBA_UD_HOME + "/bin/idba_ud --read " + merged_read_fn + " -o " + idb_ud_outdir + " --mink " + str(mink) + " --maxk " + str(maxk) + " --num_threads " + str(num_threads) + " --min_contig " + str(min_contig) + " --pre_correction --step " + str(step)
     print_status(cmd)
-    os.system(cmd)
+   
+    if not VERBOSE_ONLY:
+        os.system(cmd)
 
-    return True
+    #return True
+    if os.path.isfile(idb_ud_outdir + "/end"):
+        return True
+    else:
+        return False
+
+
+def postprocess_idba_ud(idb_ud_outdir):
     
-    
-    
+
 ####### Binning #############
+# Check sure that bash, "source /home/siukinng/.bashrc", "set PERL5LIB=/usr/lib/perl5/site_perl/5.8.8:"$PERL5LIB" is included in the qsub script  
 def run_MaxBin(contig_fn, merged_read_fn, thread=16):
     print_status("Initializing MaxBin")    
     outfn = contig_fn.replace("."+FASTA_EXT, ".maxbin")
     
     cmd = MAXBIN_HOME + "/run_MaxBin.pl -contig " + contig_fn + " -out " + outfn + " -thread " + str(thread) + " -plotmarker -reads " + merged_read_fn
     print_status(cmd)
-    os.system(cmd)
+    
+    if VERBOSE_ONLY:
+        os.system(cmd)
     
     return outfn
 
@@ -206,7 +236,7 @@ def sumarize_read(read_fn):
 
 
 # Assert 
-def assert_process():
+def assert_process(fn_to_be_asserted):
     print_status("assert_process()")
 
 
