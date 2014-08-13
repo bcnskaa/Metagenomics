@@ -8,7 +8,7 @@ use Bio::SeqIO;
 
 if(@ARGV != 1)
 {
-	print "Missing argument\n";
+	print "This script gives a statistics summary of all fasta sequence of a given file\n";
 	print "Usage: " . $ARGV[0] . " FASTA-FILES\n";
 	exit;
 }
