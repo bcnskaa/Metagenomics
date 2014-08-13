@@ -11,8 +11,9 @@ from subprocess import call
 
 ID_DELIM_CHR = "_"
 
-NCBI_BACTERIAL_DB_PATH="/home/jiapchen/sk/lib/BacteriaDB/all.fna"
-DWGSIM_HOME="~/sk/tools/dwgsim"
+#NCBI_BACTERIAL_DB_PATH="/home/jiapchen/sk/lib/BacteriaDB/all_fna"
+NCBI_BACTERIAL_DB_PATH="/home/siukinng/db/BacteriaDB/all_fna"
+DWGSIM_HOME="/home/siukinng/tools/dwgsim"
 COVERAGE=10
 READ_ERROR_RATE=0.001
 READ_LENGTH=90
@@ -137,8 +138,9 @@ def contruct_referenece_genome_library(selected_ids, db, output_prefix):
     cmd = "cat " + TMP_DIR + "/*.fna >> " + output_prefix + "_all_refgenomes.fna"
     os.system(cmd)
     
-    
-    # Remove the temporary folder
+    # Rename the temporary folder to output_prefix
+    cmd = "mv " + TMP_DIR + " " + output_prefix
+    os.system(cmd)
 
 
 

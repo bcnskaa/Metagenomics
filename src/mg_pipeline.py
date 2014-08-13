@@ -1,10 +1,38 @@
 #!/share/apps/Python-2.7.4/bin/python
 
 """
+ This pipeline script is in a highly integrated and automatic manner designed for analyzing paired-end metagenomic data generated
+ by next-generated sequencing platforms . After installing all dependencies (first-time only), the only input from end-user is two
+ paired-end read files. 
+ 
+ The following dependencies are needed for using this pipeline:
+     1. BBMap
+     2. NCBI BLAST+
+     3. BOWTIE
+     4. EMIRGE
+     5. ESOM
+     6. Fastq-MCF
+     7. FastQC
+     8. HMMER3
+     9. IDBA_UD
+    10. MaxBin
+    11. Perl (bioperl)
+    12. Prodigal
+    13. Python (biopython)
+    14. R (ggplot2, reshape2, ??)
+    15. Samtool
+    16. Seqtk
+    17. Tetra-ESOM
 
-
+ In addition to the above dependencies, this pipeline is also expected the following databases available:
+     1. NCBI bacterial genomes (genomic + protein sequences)
+     2. NCBI 16s ribosomal database
+     3. CAZy database
+     4. dbCAN
+     5. EMIRGE 16s database
+    
+  
 """
-
 import os
 import sys
 import getopt
@@ -20,22 +48,28 @@ import time
 from time import strftime
 from datetime import datetime
 import math
+import numpy
 
 
 # Global variables
 HOME = "/home/siukinng"
 TOOLS_HOME = HOME + "/tools"
 SCRIPTS_HOME = TOOLS_HOME + "/scripts"
-IDBA_UD_HOME = TOOLS_HOME + "/idba_ud"
-FASTQC_HOME = TOOLS_HOME + "/FastQC"
-SEQTK_HOME = TOOLS_HOME + "/seqtk"
-FASTQ_MCF_HOME = TOOLS_HOME + "/fastq-mcf"
-MAXBIN_HOME = TOOLS_HOME + "/MaxBin"
-BOWTIE2_HOME = TOOLS_HOME + "/"
-PRODIGAL_HOME = TOOLS_HOME + "/Prodigal"
-BLAST_HOME = TOOLS_HOME + "/blast"
-EMIRGE_HOME = TOOLS_HOME + "/EMIRGE"
+
+# Paths to individual packages' home directories
 BBMAP_HOME = TOOLS_HOME + "/BBMap"
+BLAST_HOME = TOOLS_HOME + "/blast"
+BOWTIE2_HOME = TOOLS_HOME + "/"
+EMIRGE_HOME = TOOLS_HOME + "/EMIRGE"
+ESOM_HOME = TOOLS_HOME + "/ESOM"
+FASTQ_MCF_HOME = TOOLS_HOME + "/fastq-mcf"
+FASTQC_HOME = TOOLS_HOME + "/FastQC"
+HMMER_HOME = TOOLS_HOME + "/hmmer"
+IDBA_UD_HOME = TOOLS_HOME + "/idba_ud"
+MAXBIN_HOME = TOOLS_HOME + "/MaxBin"
+PRODIGAL_HOME = TOOLS_HOME + "/Prodigal"
+SEQTK_HOME = TOOLS_HOME + "/seqtk"
+TETRA_ESOM_HOME = TOOLS_HOME + "/tetra-ESOM"
 
 
 FASTQ_EXT = "fq"
@@ -56,7 +90,11 @@ NCBI16S_GI_IDX = DB_HOME + "Markers/ncbi16s/16SMicrobial.idx"
 EMIRGE_16S_DB = EMIRGE_HOME + "/db/SSURef_111_candidate_db.fasta"
 
 CAZY_DB = DB_HOME + "/Markers/CAZy/CAZy_id.lst.retrieved.faa"
+DBCAN_HOME = DB_HOME + "/Markers/dbCAN"
+DBCAN_HMM = DBCAN_HOME + "/dbCAN-fam-HMMs.txt.v3.txt"  # CAZy HMM profile 
 
+# Folder contains all prokayotic genomes available in NCBI
+NCBI_BACTERIAL_GENEOMES_DB = DB_HOME + "/BacterialDB/all_fna"
 
 VERBOSE_ONLY = True
 
@@ -68,6 +106,7 @@ LOG_FILE = open(LOG_FN, "w")
 MARKER_OUTDIR = "Markers"
 RESULT_OUTDIR = "Reports"
 
+HMMER_OUTDIR = MARKER_OUTDIR + "/HMMER"
 
 # Fastq Statistics
 
@@ -116,6 +155,11 @@ def main(argv):
     maxbin_outdir = run_MaxBin(contig_fn, merged_read_fn)
     #run_idba_ud(read_fns[0], read_fns[1])
     
+    # Filter and manage the output files from MaxBin
+    postprocess_MaxBin(maxbin_outdir)
+    
+    
+    
     prodigal_info = run_Prodigal(contig_fn)
     # {"source_fn":fna_infn, "outdir":prodigal_outdir, "prodigal_outfn":outfn, "protein_outfn":faa_outfn, "nucleotide_outfn":fna_outfn}
 
@@ -126,14 +170,21 @@ def main(argv):
     else:
         print_status("Warning: Predictive protein sequence is not available from Prodigal, step of mapping to CAZy database is skipped.")
         
+    # Scan predicted aminoacid sequences for CAZy domains 
+    running_HMMER_search(DBCAN_HMM, prodigal_info["protein_outfn"])
+
+
+        
     # Blast any 16s sequence fragments existed in newly assembled contig sequences
     blastn(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR + "/ncbi16s")
     
     
+    # Based on the 16s blast result, we construct a reference genome library
+    prepare_reference_genome()
+    
+    # 
+    
     running_EMIRGE(read_fns[0], read_fns[1])
-    
-    
-
 
     # Close the log stream
     if LOG:
@@ -158,6 +209,7 @@ def preprocess(read_fn):
     # Return my new name
     return processed_outfn
     
+  
     
 def run_FastQC(read_fn, report_outdir="fastqc_report"):
     print_status("Processing " + read_fn)    
@@ -175,6 +227,7 @@ def run_FastQC(read_fn, report_outdir="fastqc_report"):
         os.system(cmd)
 
 
+
 def run_seqtk(read_fn, trimmed_read_fn):
     print_status("Processing " + read_fn)    
     
@@ -183,6 +236,7 @@ def run_seqtk(read_fn, trimmed_read_fn):
     
     if not VERBOSE_ONLY:
         os.system(cmd)
+
 
 
 # http://onetipperday.blogspot.hk/2012/08/three-ways-to-trim-adaptorprimer.html
@@ -284,6 +338,7 @@ def merge_paired_end_seq(read_1_fn, read_2_fn, outdir="idba_ud", merged_read_fn=
     
     return merged_read_fn
 
+
        
 # IDBA-UD
 def run_idba_ud(merged_read_fn, idba_ud_outdir="idba_ud", min_contig=1200, mink=20, maxk=80, step=10, num_threads=16):
@@ -312,8 +367,10 @@ def run_idba_ud(merged_read_fn, idba_ud_outdir="idba_ud", min_contig=1200, mink=
         return False
 
 
+
 """
- This routine verifies the 
+ This routine verifies if IDBA_UD completes successfully and generates 
+ statistics on assembled contig sequences.
 """
 def postprocess_idba_ud(idba_ud_outdir="idba_ud"):
     print_status("Processing outputs from IDBA_UD stage")
@@ -331,6 +388,7 @@ def postprocess_idba_ud(idba_ud_outdir="idba_ud"):
     else:
         raise OSError, "Contig file does not exist at " + idba_ud_outdir + " . IDBA_UD stage is not completed properly."
         return None
+
 
 
 ####### Binning #############
@@ -353,11 +411,13 @@ def run_MaxBin(contig_fn, merged_read_fn, maxbin_outdir="MaxBin", maxbin_outpref
     return maxbin_outdir
 
 
+
 """
- 
+ Filter binning groups
 """
-def postprocess_MaxBin(maxbin_outdir):
+def postprocess_MaxBin(maxbin_outdir, total_contig_len=1000000, marker_gene_yield=50.0):
     print_status("Processing outputs from MaxBin")  
+    
     
     
 
@@ -395,8 +455,9 @@ def run_Prodigal(fna_infn, p_opt="meta", prodigal_outdir="Prodigal", out_prefix=
     return {"source_fn":fna_infn, "outdir":prodigal_outdir, "prodigal_outfn":outfn, "protein_outfn":faa_outfn, "nucleotide_outfn":fna_outfn}
 
 
+
 # Contig binning using ESOM 
-def run_ESOM():
+def run_tetraESOM():
     print_status("Initializing ESOM")    
     
 
@@ -417,7 +478,7 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
         if len(query_fn.split("/")) > 0:
             tmp = query_id.split("/")
             query_id = tmp[len(tmp) - 1]
-            query_id = (query_id[::-1].split(".", 1)[1])[::-1]
+            query_id = (query_id[::-1].split(".", 1)[1])[::-1]  # Extract the first part
                   
         outfn = query_id + "-" + subject_id + ".bla"
 
@@ -426,7 +487,6 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
         if not os.path.exists(outdir):
             print_status("Output directory, " + outdir + ", does not exist, we will create it.")
             os.makedirs(outdir)     
-
 
     cmd = BLAST_HOME + "/bin/" + blast_program + " -db " + db_fn + " -outfmt " + str(outfmt) + " -num_threads " + str(num_threads) + " -evalue " + str(evalue) + " -query " + query_fn + " -out " + outdir + "/" + outfn
     print_status("command: " + cmd)
@@ -437,10 +497,13 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
     
     return outfn
  
+ 
     
 def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
     blast(query_fn, db_fn, outdir, outfn, outfmt, num_threads, blast_program="blastp")
+    
+    
     
 def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
@@ -451,13 +514,15 @@ def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16):
 def blastx():
     print_status("Initializing blastx()")    
 
+
+
 """
  Based on given threshold values, this routine will invoke filter_blast_res.py.
 """
 def filter_blast_results(blast_fn, identity=80.0, length=100, subject_id_desc_fn=None, nr_query=True): 
     print_status("Filtering BLAST result") 
     print_status("Filtering thresholds: " + " Identity=" + str(identity) + " Alignment Length=" + str(length)) 
-    
+
     
 
 """
@@ -480,45 +545,102 @@ def running_EMIRGE(read_1_fn, read_2_fn, DIR=MARKER_OUTDIR+"/EMIRGE", ssu_fn=EMI
     
     cmd = EMIRGE_HOME + "/bin/emirge.py " + DIR + " -1 " + read_1_fn + " -2 " + read_2_fn + " -f " + ssu_fn + " -b " + ssu_bowtie_fn + " -l " + str(read_summary["max_read_length"]) + " -i " + str(int(math.ceil(read_summary["insert_size_mean"]))) + " -s " + str(int(math.ceil(read_summary["insert_size_sd"])))
     
+    # Special care is needed for processing quality values of the data generated from Illumina platforms
     if platform_illumina:
         cmd = cmd + " --phred33"
     
     print_status("command: " + cmd)
       
+    if not VERBOSE_ONLY:
+        os.system(cmd)  
+    
+
+
+"""
+ This routine scans protein sequences against protein HMM profiles
+"""
+def running_HMMER_scan(prot_faa_fn, hmm_profile_fn, outdir=HMMER_OUTDIR):
+    print_status("Initializing HMMER3 hmmscan")
+    
+
+"""
+ This routine searches protein HMM profiles against a protein sequence database. 
+ ~/tools/hmmer/bin/hmmsearch 
+ -o contig.fa.prodigal-dbCAN.hmm.out 
+ -A contig.fa.prodigal-dbCAN.hmm.aln 
+ --tblout contig.fa.prodigal-dbCAN.hmm.seq.tbl 
+ --domtblout contig.fa.prodigal-dbCAN.hmm.dom.tbl 
+ --pfamtblout contig.fa.prodigal-dbCAN.hmm.pfam.tbl 
+ ~/db/Markers/dbCAN/dbCAN-fam-HMMs.txt.v3.txt contig.fa.prodigal.faa
+ 
+"""
+def running_HMMER_search(hmm_profile_fn, prot_faa_fn, outdir=HMMER_OUTDIR, outfn_prefix=None, tblout_fn=None, domtblout_fn=None, pfamtblout_fn=None, alignment_outfn=None):
+    print_status("Initializing HMMER3 hmmsearch")
+ 
+    if not os.path.isfile(hmm_profile_fn):
+        print_status("Unable to read from " + hmm_profile_fn + ", hmmsearch is skipped.")
+        return None
+
+    # Number of profiles in the file
+    cmd = "cat " + hmm_profile_fn + " | grep -c \"NAME\""
+    hmm_profile_count = int(subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.read())
+    
+    # Length of profiles
+    cmd = "cat " + hmm_profile_fn + " | grep -c \"LENG\" | cut -d ' ' -f3"
+    hmm_lens = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.read()
+    hmm_lens = [int(len.strip()) for len in hmm_lens.splitlines()]
+    
+    # Number of sequences recruited in each profile
+    cmd = "cat " + hmm_profile_fn + " | grep \"NSEQ\" | cut -d ' ' -f3"
+    hmm_nseqs = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.read()
+    hmm_nseqs = [int(nseq.strip()) for nseq in hmm_nseqs.splitlines()] 
+    
+    
+    print_status("< Statistics of Query HMM Profiles [" + hmm_profile_fn + "] >")
+    print_status("   Number of HMM profiles: " + str(hmm_profile_count))
+    print_status("   Length of Profiles (residue): Mean=" + str(numpy.mean(hmm_lens)) + " Min=" + str(min(hmm_lens)) + " Max=" + str(max(hmm_lens)))
+    print_status("   NSEQ in Profile: Mean=" + str(numpy.mean(hmm_nseqs)) + " Min=" + str(min(hmm_nseqs)) + " Max=" + str(max(hmm_nseqs)))
+ 
+
+    if outfn_prefix is None:
+        outfn_prefix = prot_faa_fn.replace("."+FASTA_PROT_EXT, "")
+   
+    if alignment_outfn is None:
+        alignment_outfn = outdir + "/" + outfn_prefix + ".aln"        
+    if tblout_fn is None:
+        tblout_fn = outdir + "/" + outfn_prefix + ".tbl"
+    if domtblout_fn is None:
+        domtblout_fn = outdir + "/" + outfn_prefix + ".dom.tbl"
+    if pfamtblout_fn is None:
+        pfamtblout_fn = outdir + "/" + outfn_prefix + ".pfam.tbl"
+    
+    outfn = outdir + "/" + outfn_prefix + ".out"         
+    
+    cmd = HMMER_HOME + "/bin/hmmsearch " + " -o " + outfn + " -A " + alignment_outfn + " --tblout " + tblout_fn + " --domtblout " + domtblout_fn + " --pfamtblout " + pfamtblout_fn + " " + hmm_profile_fn + " " + prot_faa_fn
+    print_status("command: " + cmd)
+      
     #if not VERBOSE_ONLY:
     #    os.system(cmd)  
     os.system(cmd)
-    
- 
-"""
- 
-"""
-def running_HMMER(query_fn, hmm_fn):
-    print_status("Initializing HMMER3")
-    
-    
-    
-def filter_blast():
-    print_status("filtering blast results")    
+
+    # Make sure 
+    if assert_proc(outfn) and assert_proc(alignment_outfn) and assert_proc(tblout_fn) and assert_proc(domtblout_fn) and assert_proc(pfamtblout_fn):
+        print_status("HMMsearch completed!")
+        return True
+    else:
+        return False
   
-
-      
-
-def prepare_reference_genome():
-    print_status("Preparing reference genomes")        
-
+"""
+ 
+"""
+def prepare_reference_genome(sid_list, output_prefix=None, bacterialdb_path=NCBI_BACTERIAL_GENEOMES_DB):
+    print_status("Preparing reference genomes")
+    
+    
+    
 
 ####### CAZy Specific stage #########
-
-
-
-
-
-
 ####### Auxillary routines #########
-
-
-# 
 def parse_opt():
     print_status("calling parsing opts")
 
@@ -535,19 +657,23 @@ def print_usage():
     print("Ver 0.2")
 
 
+def create_link():
+    print_status("create_link")
+
 
 # Assert 
-def assert_process(fn_to_be_asserted):
-    print_status("assert_process()")
-
+def assert_proc(fn_to_be_asserted):
+    return os.path.isfile(fn_to_be_asserted) and os.stat(fn_to_be_asserted)[stat.ST_SIZE] != 0
+        
 
 # 
 def import_settings():
-    print_status("importing settings")
+    print_status("Importing settings not yet implemented")
 
-
+# Output message to a log file
 def log(log_msg):
-    print_status(log_msg)
+    if LOG:
+        LOG_FILE.write(msg + "\n")
 
 
 # Print status
@@ -557,8 +683,8 @@ def print_status(msg):
     
     print msg
     
-    if LOG:
-        LOG_FILE.write(msg + "\n")
+    log(msg)
+
     
 
 # Invoke the main function
