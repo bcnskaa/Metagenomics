@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+# 2014 SKWoolf bcnskaa AT gmail DOT com
+
 use lib "/home/siukinng/tools/lib/PerlLib/lib/perl5/site_perl/5.8.8";
 use lib "/home/siukinng/tools/lib/PerlLib";
 use Bio::DB::EUtilities;

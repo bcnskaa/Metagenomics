@@ -1,3 +1,4 @@
+# 2014 SKWoolf bcnskaa AT gmail DOT com
 from __future__ import division
 import itertools
 import sys

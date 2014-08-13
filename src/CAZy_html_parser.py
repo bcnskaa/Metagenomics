@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# 2014 SKWoolf bcnskaa AT gmail DOT com
 import csv, os, glob
 import pickle
 import sys

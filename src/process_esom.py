@@ -1,4 +1,7 @@
 #!/share/apps/Python-2.7.4/bin/python
+
+# 2014 SKWoolf bcnskaa AT gmail DOT com
+
 import os
 import sys
 import getopt

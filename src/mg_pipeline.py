@@ -1,5 +1,7 @@
 #!/share/apps/Python-2.7.4/bin/python
 
+# 2014 SKWoolf bcnskaa AT gmail DOT com
+
 """
  This pipeline script is in a highly integrated and automatic manner designed for analyzing paired-end metagenomic data generated
  by next-generated sequencing platforms . After installing all dependencies (first-time only), the only input from end-user is two

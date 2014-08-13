@@ -1,4 +1,7 @@
 #!/usr/bin/perl -w 
+
+# 2014 SKWoolf bcnskaa AT gmail DOT com
+
 use strict;
 use Bio::SeqIO;
 

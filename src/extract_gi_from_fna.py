@@ -1,3 +1,4 @@
+# 2014 SKWoolf bcnskaa AT gmail DOT com
 import os.path
 import sys
 

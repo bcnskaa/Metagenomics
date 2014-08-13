@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# 2014 SKWoolf bcnskaa AT gmail DOT com
+# In progress
 ########################################################################################
 #
 # This is a pipeline script for reconstruction of biological pathways from NGS-based
