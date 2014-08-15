@@ -6,34 +6,39 @@
 prepare_esom_entity <- function(path_to_esom_dir) 
 {	
 	# We are about to import class definitions
-	cls_fn <- list.files(path=path_to_esom_dir, pattern=".cls");	
+	cls_fn <- list.files(path=path_to_esom_dir, pattern="cls");	
 
 	if(length(cls_fn) != 1)
 	{
 		print(paste("Unable to read class definition from ", path_to_esom_dir, sep=""));
-		return(NULL);
+		#return(NULL);
 	}
-	cls_fns <- cls_fns[0];
+	#cls_fn <- cls_fn[0];
 	
-	print_msg(paste("Reading class definition from", cls_fns);
-	cls_lines <- readLines(cls_fns);
+	print_msg(paste("Reading class definition from", cls_fn));
+	fh<-file(cls_fn);
+	open(fh, "r");
+	cls_lines <- readLines(fh);
+	close(fh);
 	print_msg(paste("Number of lines read:", length(cls_lines)));
 	
 	
 	# Import class names
-	names_fn <- list.files(path=path_to_esom_dir, pattern=".names");	
+	names_fn <- list.files(path=path_to_esom_dir, pattern="names");	
 	
 	if(length(names_fn) != 1)
 	{
 		print(paste("Unable to read class names from ", path_to_esom_dir, sep=""));
 		return(NULL);
 	}
-	names_fn <- names_fn[0];
+	#names_fn <- names_fn[0];
 	
 	print_msg(paste("Reading class names from", names_fn);
-	names_lines <- readLines(names_fn);
+	fh<-file(names_fn);
+	open(fh, "r");
+	names_lines <- readLines(fh);
+	close(fh);
 	print_msg(paste("Number of lines read:", length(names_lines)));
-	
 	
 	
 	# create a dataframe for holding class definition
@@ -53,6 +58,8 @@ prepare_esom_entity <- function(path_to_esom_dir)
 			
 		}
 	}
+	
+	
 	
 	
 	return(fns);

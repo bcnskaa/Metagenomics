@@ -52,6 +52,8 @@ from datetime import datetime
 import math
 import numpy
 
+# To run this script, path to biopython libraries has to be included in PYTHONPATH
+from Bio import SeqIO
 
 # Global variables
 HOME = "/home/siukinng"
@@ -379,7 +381,7 @@ def run_idba_ud(merged_read_fn, idba_ud_outdir="idba_ud", min_contig=1200, mink=
  This routine verifies if IDBA_UD completes successfully and generates 
  statistics on assembled contig sequences.
 """
-def postprocess_idba_ud(idba_ud_outdir="idba_ud"):
+def postprocess_idba_ud(idba_ud_outdir="idba_ud", report_outdir=RESULT_OUTDIR):
     print_status("Processing outputs from IDBA_UD stage")
     
     # If everything goes well, idba_ud produces a dummy file, "end"
@@ -391,6 +393,10 @@ def postprocess_idba_ud(idba_ud_outdir="idba_ud"):
         contig_summary = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.read()
         print_status("Contig Summary:")
         print_status("\t" + contig_summary)
+        
+        # Summarize statistics of every sequence inside contig.fa in a tabular format to a file under RESULT_OUTDIR
+        
+        
         return idba_ud_outdir + "/contig.fa"
     else:
         raise OSError, "Contig file does not exist at " + idba_ud_outdir + " . IDBA_UD stage is not completed properly."

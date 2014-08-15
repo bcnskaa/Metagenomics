@@ -54,6 +54,7 @@ while(my $seq = $in->next_seq() ){
   $seq_n += 1;
 }
 
+
 # Sort the sequence length
 @seq_lens = sort{$b<=>$a} @seq_lens;
 
