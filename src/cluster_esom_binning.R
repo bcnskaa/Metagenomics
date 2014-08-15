@@ -33,7 +33,7 @@ prepare_esom_entity <- function(path_to_esom_dir)
 	}
 	#names_fn <- names_fn[0];
 	
-	print_msg(paste("Reading class names from", names_fn);
+	print_msg(paste("Reading class names from", names_fn));
 	fh<-file(names_fn);
 	open(fh, "r");
 	names_lines <- readLines(fh);

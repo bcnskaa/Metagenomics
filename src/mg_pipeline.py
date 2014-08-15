@@ -54,6 +54,9 @@ import numpy
 
 # To run this script, path to biopython libraries has to be included in PYTHONPATH
 from Bio import SeqIO
+from Bio import SeqUtils
+
+
 
 # Global variables
 HOME = "/home/siukinng"
@@ -100,7 +103,6 @@ DBCAN_HMM = DBCAN_HOME + "/dbCAN-fam-HMMs.txt.v3.txt"  # CAZy HMM profile
 # Folder contains all prokaryotic genomes available in NCBI
 NCBI_BACTERIAL_GENEOMES_DB = DB_HOME + "/BacterialDB/all_fna"
 
-VERBOSE_ONLY = True
 
 LOG = True
 LOG_FN= "pipeline.log"
@@ -112,7 +114,7 @@ RESULT_OUTDIR = "Reports"
 
 HMMER_OUTDIR = MARKER_OUTDIR + "/HMMER"
 
-
+VERBOSE_ONLY = False
 
 
 # Main 
@@ -178,10 +180,10 @@ def main(argv):
         blastp(prodigal_info["protein_outfn"], CAZY_DB, outdir=MARKER_OUTDIR + "/CAZy")
     else:
         print_status("Warning: Predictive protein sequence is not available from Prodigal, step of mapping to CAZy database is skipped.")
-        
+    
+    
     # Scan predicted aminoacid sequences for CAZy domains 
     running_HMMER_search(DBCAN_HMM, prodigal_info["protein_outfn"])
-
 
         
     # Blast any 16s sequence fragments existed in newly assembled contig sequences
@@ -191,17 +193,19 @@ def main(argv):
     # Based on the 16s blast result, we construct a reference genome library
     prepare_reference_genome()
     
+    
     # 
+     
     
     running_EMIRGE(read_fns[0], read_fns[1])
 
     # Close the log stream
     if LOG:
         LOG_FILE.close()
-    
+
+
 
 ######### Preprocessing 
-
 # Preprocess FASTQ
 def preprocess(read_fn): 
     print_status("Preprocessing " + read_fn)
@@ -217,9 +221,10 @@ def preprocess(read_fn):
     
     # Return my new name
     return processed_outfn
-    
+
+
   
-    
+# run_FastQC   
 def run_FastQC(read_fn, report_outdir="fastqc_report"):
     print_status("Processing " + read_fn)    
     
@@ -237,6 +242,7 @@ def run_FastQC(read_fn, report_outdir="fastqc_report"):
 
 
 
+#  
 def run_seqtk(read_fn, trimmed_read_fn):
     print_status("Processing " + read_fn)    
     
@@ -333,7 +339,7 @@ def merge_paired_end_seq(read_1_fn, read_2_fn, outdir="idba_ud", merged_read_fn=
     print_status("Merging mate files")
     
     if merged_read_fn is None:
-        merged_read_fn = read_1_fn.replace("." + FASTQ_EXT, "") + read_2_fn.replace("." + FASTQ_EXT, "") + "." + FASTA_EXT
+        merged_read_fn = read_1_fn.replace("." + FASTQ_EXT, "") + "-" + read_2_fn.replace("." + FASTQ_EXT, "") + "." + FASTA_EXT
     
     cmd = IDBA_UD_HOME + "/bin/fq2fa --merge --filter " + read_1_fn + " " + read_2_fn + " " + merged_read_fn
     print_status("command: " + cmd)
@@ -348,7 +354,7 @@ def merge_paired_end_seq(read_1_fn, read_2_fn, outdir="idba_ud", merged_read_fn=
     return merged_read_fn
 
 
-       
+###### 
 # IDBA-UD
 def run_idba_ud(merged_read_fn, idba_ud_outdir="idba_ud", min_contig=1200, mink=20, maxk=80, step=10, num_threads=16):
     print_status("Initializing IDBA-UD")
@@ -397,14 +403,45 @@ def postprocess_idba_ud(idba_ud_outdir="idba_ud", report_outdir=RESULT_OUTDIR):
         # Summarize statistics of every sequence inside contig.fa in a tabular format to a file under RESULT_OUTDIR
         
         
+        # Compress large interim files
+        cmd = "bzip2 -9 " + idba_ud_outdir + "/contig-* " + idba_ud_outdir + "/align-* " + idba_ud_outdir + "/graph-* " + idba_ud_outdir + "/local-* " + idba_ud_outdir + "/kmer"   
+        print_status("Compressing IDBA_UD interim files")
+        
+        if not VERBOSE_ONLY:
+            os.system(cmd)
+        
+        
         return idba_ud_outdir + "/contig.fa"
     else:
         raise OSError, "Contig file does not exist at " + idba_ud_outdir + " . IDBA_UD stage is not completed properly."
         return None
 
 
+####### Binning ###########
+# Summary of fasta sequences
+def summarize_fasta(fasta_fn, outtbl_fn=None):
+    print_status("Summarizing " + fasta_fn) 
+    
+    # if outfile does not specify, we name it
+    if outtbl_fn is None:
+        outtbl_fn = fasta_fn + ".summary"
 
-####### Binning #############
+    seq_n = 0
+    
+    # Go through every fasta sequences
+    with open(fasta_fn, "r") as infile, open(outtbl_fn, "w") as outfile:
+        outfile.write("ID\tLEN\tGC\n")
+        for seq in SeqIO.parse(infile, "fasta"):
+            print "Processing " + seq.id
+            txt = seq.id + "\t" + str(len(seq.seq)) + "\t" + str(SeqUtils.GC(seq.seq)) + "\n"
+            outfile.write(txt)
+            seq_n += 1
+    
+    print_status("Sequence processed: " + str(seq_n))
+
+
+
+####### Binning ###########
 """
  Check sure that bash, "source /home/siukinng/.bashrc", "set PERL5LIB=/usr/lib/perl5/site_perl/5.8.8:"$PERL5LIB" is included in the qsub script  
 """
@@ -414,10 +451,12 @@ def run_MaxBin(contig_fn, merged_read_fn, maxbin_outdir="MaxBin", maxbin_outpref
     cmd = MAXBIN_HOME + "/run_MaxBin.pl -contig " + contig_fn + " -out " + maxbin_outdir + "/" + maxbin_outprefix + " -thread " + str(thread) + " -plotmarker -reads " + merged_read_fn
     print_status("command: " + cmd)
     
+    # 
     if not os.path.exists(maxbin_outdir):
         print_status("Output directory, " + maxbin_outdir + ", does not exist, we will create it.")
         os.makedirs(maxbin_outdir)
     
+    # 
     if not VERBOSE_ONLY:
         os.system(cmd)
 
@@ -686,7 +725,7 @@ def import_settings():
 # Output message to a log file
 def log(log_msg):
     if LOG:
-        LOG_FILE.write(msg + "\n")
+        LOG_FILE.write(log_msg + "\n")
 
 
 # Print status
