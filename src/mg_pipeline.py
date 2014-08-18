@@ -516,7 +516,8 @@ def run_tetraESOM():
 
 ####### Functional annotation stage #########
 # BLASTN
-def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, evalue=0.01, blast_program="blastn"):
+# -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, evalue=1e-10, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, blast_program="blastn"):
     print_status("Initializing for " + blast_program)
 
     # Name the outfile
@@ -539,8 +540,8 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
         if not os.path.exists(outdir):
             print_status("Output directory, " + outdir + ", does not exist, we will create it.")
             os.makedirs(outdir)     
-
-    cmd = BLAST_HOME + "/bin/" + blast_program + " -db " + db_fn + " -outfmt " + str(outfmt) + " -num_threads " + str(num_threads) + " -evalue " + str(evalue) + " -query " + query_fn + " -out " + outdir + "/" + outfn
+            
+    cmd = BLAST_HOME + "/bin/" + blast_program + " -db " + db_fn + " -outfmt " + str(outfmt) + " -num_threads " + str(num_threads) + " -evalue " + str(evalue) + " -best_hit_score_edge " + str(best_hit_score_edge) + " -best_hit_overhang " + str(best_hit_overhang) + " -perc_identity " + str(perc_identity) + " -max_target_seqs " + str(max_target_seqs) + " -query " + query_fn + " -out " + outdir + "/" + outfn
     print_status("command: " + cmd)
       
     #if not VERBOSE_ONLY:
@@ -551,15 +552,15 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
  
  
     
-def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16):
+def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
-    blast(query_fn, db_fn, outdir, outfn, outfmt, num_threads, blast_program="blastp")
+    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, blast_program="blastp")
     
     
     
-def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16):
+def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
-    blast(query_fn, db_fn, outdir, outfn, outfmt, num_threads, blast_program="blastn")
+    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, blast_program="blastn")
     
     
         
