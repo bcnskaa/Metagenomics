@@ -182,10 +182,14 @@ def main(argv):
         print_status("Warning: Predictive protein sequence is not available from Prodigal, step of mapping to CAZy database is skipped.")
     
     
-    # Scan predicted aminoacid sequences for CAZy domains 
-    running_HMMER_search(DBCAN_HMM, prodigal_info["protein_outfn"])
-
-        
+    # Scan predicted protein sequences for CAZy domains 
+    if(running_HMMER_search(DBCAN_HMM, prodigal_info["protein_outfn"])):
+        # Parse the output files from HMMER3
+    else:
+        # 
+    
+    
+    
     # Blast any 16s sequence fragments existed in newly assembled contig sequences
     blastn(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR + "/ncbi16s")
     
@@ -617,6 +621,15 @@ def running_HMMER_scan(prot_faa_fn, hmm_profile_fn, outdir=HMMER_OUTDIR):
     
 
 """
+ This routine processes output files from HMMER3 scan
+  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
+"""
+def postprocess_HMMER_scan(outdir=HMMER_OUTDIR):
+    print_status("Parsing HMMER3 hmmscan outfiles")
+    
+    
+
+"""
  This routine searches protein HMM profiles against a protein sequence database. 
  ~/tools/hmmer/bin/hmmsearch 
  -o contig.fa.prodigal-dbCAN.hmm.out 
@@ -682,7 +695,19 @@ def running_HMMER_search(hmm_profile_fn, prot_faa_fn, outdir=HMMER_OUTDIR, outfn
         return True
     else:
         return False
-  
+
+
+
+"""
+ This routine processes output files from HMMER3 scan
+"""
+def postprocess_HMMER_search(outdir=HMMER_OUTDIR):
+    print_status("Parsing HMMER3 hmmsearch outfiles")
+    
+    
+
+
+
 """
  
 """
@@ -690,7 +715,13 @@ def prepare_reference_genome(sid_list, output_prefix=None, bacterialdb_path=NCBI
     print_status("Preparing reference genomes")
     
     
+"""
+ This routine detects and estimates the percentage of reads originated from a host genome (human)
+"""
+def detect_host_genome(read_fn, host="human"):
+    print_status("Preparing reference genomes")
     
+       
 
 ####### CAZy Specific stage #########
 ####### Auxillary routines #########
