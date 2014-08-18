@@ -624,9 +624,13 @@ def running_HMMER_scan(prot_faa_fn, hmm_profile_fn, outdir=HMMER_OUTDIR):
  This routine processes output files from HMMER3 scan
   cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
-def postprocess_HMMER_scan(outdir=HMMER_OUTDIR):
+def postprocess_HMMER_scan(outdir=HMMER_OUTDIR, mean_posterior_prob=0.8):
     print_status("Parsing HMMER3 hmmscan outfiles")
     
+    # Select HMM hits with mean posterior probability higher than the threshold
+    # Estimate the domain number of each protein sequence
+    # Concatenate all hit domains
+    # 
     
 
 """
