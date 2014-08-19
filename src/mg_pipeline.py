@@ -622,7 +622,7 @@ def running_HMMER_scan(prot_faa_fn, hmm_profile_fn, outdir=HMMER_OUTDIR):
 
 """
  This routine processes output files from HMMER3 scan
-  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
+  
 """
 def postprocess_HMMER_scan(outdir=HMMER_OUTDIR, mean_posterior_prob=0.8):
     print_status("Parsing HMMER3 hmmscan outfiles")
@@ -704,12 +704,14 @@ def running_HMMER_search(hmm_profile_fn, prot_faa_fn, outdir=HMMER_OUTDIR, outfn
 
 """
  This routine processes output files from HMMER3 scan
+ cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
-def postprocess_HMMER_search(outdir=HMMER_OUTDIR):
+def postprocess_HMMER_search(outdir=HMMER_OUTDIR, mean_posterior_prob=0.8):
     print_status("Parsing HMMER3 hmmsearch outfiles")
     
-    
-
+    # 1. Consolidate the queries sharing a same query id and having mean posterior probability higher than a threshold (default=0.8)
+    # 2. Summary statistics of domain counts
+    # 3. Domain models of every query sequence
 
 
 """
