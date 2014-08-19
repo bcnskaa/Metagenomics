@@ -185,8 +185,9 @@ def main(argv):
     # Scan predicted protein sequences for CAZy domains 
     if(running_HMMER_search(DBCAN_HMM, prodigal_info["protein_outfn"])):
         # Parse the output files from HMMER3
+        post_process_HMMER_search()
     else:
-        # 
+        print_status("Unable to process outputs from HMMER search")
     
     
     

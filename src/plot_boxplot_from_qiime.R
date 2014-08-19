@@ -8,7 +8,6 @@ library(reshape)
 melt_df <- function(df_list, new_class_label="class", ignore_na=TRUE) {
 	library(reshape);
 	
-	
 	class_labels <- names(df_list);
 	
 	melted_df <- data.frame();
@@ -40,21 +39,24 @@ melt_df <- function(df_list, new_class_label="class", ignore_na=TRUE) {
 }
 
 # Usage: 
+# 
 main <- function(path, mean_replicate=False)
 {
-# Prepare for importing data
+	# Prepare for importing data
 	kingdoms <- c("bacteria", "archaea");
 	alpha_diversities <- c("PD_whole_tree", "chao1", "fisher_alpha", "shannon", "observed_species");
 	
-# Discard some columns from the datasets
+	# Discard some columns from the datasets
 	col_to_be_removed <- c("X", "sequences.per.sample", "iteration", "H.GZ", "H.SHX")
 	sample_to_be_ignored <- "gDNA"
-# Characters used to delimit id
+	
+	# Characters used to delimit id
 	ids_delim_chars <- "[.|_]";
-# flag: take a mean value from replicates
+
+	# flag: take a mean value from replicates
 	flag_mean = T
 	
-# Data split into two kingdoms, import them separately
+	# Data split into two kingdoms, import them separately
 	dfs<- list()
 	for(kingdom in kingdoms)
 	{
@@ -81,49 +83,45 @@ main <- function(path, mean_replicate=False)
 		}
 	}
 	
-	
-	
-	
-	
-# Reshape dataframe
+	# Reshape dataframe
 	melt_dfs <- melt_df(dfs);
 	
-# Discard rows with n/a values
+	# Discard rows with n/a values
 	melt_dfs <- melt_dfs[-which(melt_dfs$value == "n/a"), ]
 	
-# Discard rows containing patterns enlisted in sample_to_be_ignored
+	# Discard rows containing patterns enlisted in sample_to_be_ignored
 	melt_dfs <- melt_dfs[-which(grepl("gDNA", melt_dfs$variable) == TRUE), ]
 	
 	
-# split variable column into something meaningful
-# As strsplit looking for regexp pattern, we have to put the period into a bracket or to include a fixed flag
+	# split variable column into something meaningful
+	# As strsplit looking for regexp pattern, we have to put the period into a bracket or to include a fixed flag
 	library(stringr)
 	meta_info <- str_split_fixed(paste(melt_dfs$class, melt_dfs$variable, sep="."), "[.]", 6);
 	
-# Rename the colnames into something meaningful
+	# Rename the colnames into something meaningful
 	colnames(meta_info) <- c("kingdom", "alpha_diversity", "sample", "experiment", "temperature", "replicate_id");
 	
-# Merge the new columns into data.frame
+	# Merge the new columns into data.frame
 	melt_dfs <- cbind(melt_dfs, meta_info);
 	
-# Tidy up ids by removing redundant columns
+	# Tidy up ids by removing redundant columns
 	melt_dfs <- melt_dfs[, -which(colnames(melt_dfs) %in% c("iteration", "class"))]
 	
-# Cast values into correct datatype 
+	# Cast values into correct datatype 
 	melt_dfs$value <- as.double(melt_dfs$value);
 	
-# Factorize values 
+	# Factorize values 
 	melt_dfs$variable <- factor(melt_dfs$variable);
 	melt_dfs$alpha_diversity <- factor(melt_dfs$alpha_diversity);
 	
 	
-# Plot a histogram of observed values
+	# Plot a histogram of observed values
 	pdf("all_values.histogram.pdf")
 	hist(as.double(melt_dfs$value), breaks=100, col="steelblue", xlab="Alpha Diversity (Combined all)", main="Spectrum of Alpha Diversity")
 	dev.off();
 	
 	
-# Prepare important variables
+	# Prepare important variables
 	kingdoms <- as.character(unique(melt_dfs$kingdom))
 	alpha_diversities <- as.character(unique(melt_dfs$alpha_diversity));
 	experiments <- as.character(unique(melt_dfs$experiment));
@@ -131,12 +129,11 @@ main <- function(path, mean_replicate=False)
 	temperatures <- as.character(unique(melt_dfs$temperature))
 	
 	
-# Combined all and fixed in default variables
+	# Combined all and fixed in default variables
 	for(kingdom in kingdoms)
 	{
 		# Filter data from selected kingdom
 		ss <- melt_dfs[melt_dfs$kingdom == kingdom, ];
-		
 		
 		pdf(paste("all_values.", kingdom,".boxplot.pdf", sep=""), width=20, height=5);
 		print(qplot(factor(variable), value, data = ss, geom = "boxplot", fill=factor(alpha_diversity)))
@@ -148,7 +145,7 @@ main <- function(path, mean_replicate=False)
 	}
 	
 	
-# Combined replicates 
+	# Combined replicates 
 	for(kingdom in kingdoms)
 	{
 		# Go through all alpha diversities

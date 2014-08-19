@@ -3,7 +3,7 @@
 
 #
 #
-prepare_esom_entity <- function(path_to_esom_dir) 
+process_esom <- function(path_to_esom_dir, output_prefix=character(0), output_dir=character(0), selected_ids=character(0)) 
 {	
 	# We are about to import class definitions
 	cls_fn <- list.files(path=path_to_esom_dir, pattern="cls");	
@@ -141,7 +141,37 @@ prepare_esom_entity <- function(path_to_esom_dir)
 	rm(cls_lines, bm_lines);
 	
 	
+	pdf_fn <- character(0);
+	outdir <- character(0);
+	if(length(output_dir) > 0)
+	{
+		outdir <- paste(output_dir, "/", sep="");
+	}
 	
+	if(length(output_prefix) > 0)
+	{
+		pdf_fn <- paste(outdir, output_prefix, ".mtx.pdf" ,sep="")
+	}
+	
+	if(length(selected_ids) > 0)
+	{
+		row_ids <- selected_ids;
+	}
+	
+	# Calculate the distribution differernces
+	distance_mtx <- group_diff(esom, row_ids=row_ids, mtx_pdf_fn=pdf_fn, pdf_title=output_prefix);
+
+	# Estimate grouping
+	hist(distance_mtx[distance_mtx >= 0])
+	fitdist(abs((distance_mtx[distance_mtx >= 0] / max(distance_mtx)) - 1) , "gamma")
+	for(id in row_ids) {
+		cat(paste(id, "\n", sep="")); 
+		cat(rownames(distance_mtx)[which(distance_mtx[,id] < 0.175 & distance_mtx[,id] >= 0)]);
+		cat("\n")
+	}
+	
+	
+
 	
 	return(fns);
 }
@@ -164,6 +194,105 @@ estimate_centroid <- function(esom_bm)
 	
 	return(centroids);
 }
+
+# Calculate the differences of bestmatches
+#
+# Cartesian coordinates of bestmatches are first separated into x and y components. Distribution of each components
+# are then constructed
+# 
+# http://stackoverflow.com/questions/5453336/plot-correlation-matrix-into-a-graph
+# Use: group_diff(esom_bm, row_ids=unique(esom_bm$class_name)[grep("contig", unique(esom_bm$class_name))])
+group_diff <- function(esom_bm, row_ids=character(0), distance_thres=0.1, mtx_pdf_fn=character(0), pdf_title=character(0), step_size=5, compare_myself=F, na.value=-1)
+{
+	require(lattice);
+	
+	class_names <- as.character(unique(esom_bm$class_name));
+	class_n <- length(class_names);
+	
+	xrange <- range(esom_bm$x);
+	yrange <- range(esom_bm$y);
+	
+	#break_n_x <- 100;  
+	#break_n_y <- 100;
+	breaks_x <- c(seq(range(esom_bm$x)[1], range(esom_bm$x)[2], step_size), max(esom_bm$x));
+	breaks_y <- c(seq(range(esom_bm$y)[1], range(esom_bm$y)[2], step_size), max(esom_bm$y));
+	
+	# Creat an empty distance matrix
+	#distance_mtx <- data.frame(matrix(-1, class_n, class_n));
+	#colnames(distance_mtx) <- class_names;
+	#rownames(distance_mtx) <- class_names;
+	distance_mtx <- matrix(rep(na.value, class_n*class_n), nrow=class_n, ncol=class_n, dimnames = list(class_names, class_names))
+	
+	print_msg("Calculating distance matrix");
+	
+	# Go through all the matrix
+	for(i in 1 : (class_n - 1))
+	{
+		query_name <- class_names[i];
+		query_subset <- esom_bm[esom_bm$class_name == query_name,];
+		
+		query_hist_x <- hist(query_subset$x, breaks=breaks_x, plot=F);
+		query_hist_y <- hist(query_subset$y, breaks=breaks_y, plot=F);
+		
+		# Go through all the classes
+		for(j in i: class_n)
+		{
+			if(!compare_myself){
+				if(i == j)
+					next;
+			}
+			
+			subject_name <- class_names[j];
+			subject_subset <- esom_bm[esom_bm$class_name == subject_name,];
+	
+			subject_hist_x <- hist(subject_subset$x, breaks=breaks_x, plot=F);
+			subject_hist_y <- hist(subject_subset$y, breaks=breaks_y, plot=F);
+			
+			x_diff <- sum(abs(query_hist_x$density - subject_hist_x$density));
+			y_diff <- sum(abs(query_hist_y$density - subject_hist_y$density));
+			
+			#print_msg(paste(query_name, " vs ", subject_name, ": x_diff=", x_diff, ", y_diff=", y_diff, sep=""));
+		
+			#distance_mtx[query_name, subject_name] <- (x_diff + y_diff) / 2;
+			#distance_mtx[subject_name, query_name] <- (x_diff + y_diff) / 2;
+			distance_mtx[query_name, subject_name] <- max(c(x_diff, y_diff));
+			distance_mtx[subject_name, query_name] <- max(c(x_diff, y_diff));	
+		}
+	}
+	
+	
+	print_msg(paste("Selected row: ", length(row_ids), sep=""));
+	if(length(row_ids) > 0)
+	{
+		print_msg(paste("Selecting rows", sep=""));
+		distance_mtx <- distance_mtx[, colnames(distance_mtx) %in% row_ids];
+	}
+	
+	pdf_w <- 0.2 * nrow(distance_mtx);
+	pdf_h <- 0.3 * ncol(distance_mtx);
+	
+	print_msg("Generating distance matrix");
+	if(length(mtx_pdf_fn) > 0)
+	{
+		print_msg(paste("Result will be exported to ", mtx_pdf_fn, sep=""));
+		pdf(mtx_pdf_fn, width=pdf_w, height=pdf_h);
+	}
+	
+	# Create a color scale
+	rgb.palette <- colorRampPalette(c("yellow", "blue"), space = "rgb");
+	#levelplot(distance_mtx, main="", xlab="", ylab="", col.regions=rgb.palette(120), at=seq(0,1,0.01), scales=list(x=list(rot=90)))
+	pp <- levelplot(distance_mtx, main=pdf_title, xlab="", ylab="", scales=list(x=list(cex=.8, rot=90),y=list(cex=.8)), at=seq(0,max(distance_mtx),0.01), col.regions=heat.colors)
+	if(length(mtx_pdf_fn) > 0)
+	{
+		print(pp);
+		dev.off();
+	}
+	pp;
+	
+	
+	return(distance_mtx);
+}
+
 
 
 print_msg <- function(msg)
