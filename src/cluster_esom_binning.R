@@ -170,10 +170,185 @@ process_esom <- function(path_to_esom_dir, output_prefix=character(0), output_di
 		cat("\n")
 	}
 	
-	
 
 	
 	return(fns);
+}
+
+
+
+# 
+plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_sizes, gc_contents, pdf_fn=character(0), pdf_title=character(0))
+{
+	require(ggplot2);
+	require(reshape2);
+	
+
+	rgb.palette <- colorRampPalette(c("yellow", "blue"), space = "rgb");
+	#levelplot(distance_mtx, main="", xlab="", ylab="", col.regions=rgb.palette(120), at=seq(0,1,0.01), scales=list(x=list(rot=90)))
+	#plot_mtx <- levelplot(distance_mtx, main="Distance", xlab="", ylab="", scales=list(x=list(cex=.8, rot=90),y=list(cex=.8)), at=seq(0,max(distance_mtx),0.01), col.regions=heat.colors)
+	
+	melt_distance_mtx <- melt(distance_mtx);
+	colnames(melt_distance_mtx) <- c("x", "y", "distance");
+	#plot_mtx <- ggplot(melt_distance_mtx, aes(x, y, fill=distance)) + geom_tile();
+	plot_mtx <- ggplot(melt_distance_mtx, aes(x, y, fill=distance)) + 
+			theme_bw() + 
+			geom_tile() + scale_fill_gradientn(guide = FALSE, colours = c("red", "orange", "yellow", "white"), values=c(0,0.3, 0.6,1), limits=c(0,max(melt_distance_mtx$distance))) + 
+			theme(plot.margin = unit(c(0,0.1,-0.25,-0.25), "cm")) + 
+			#theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.ticks = element_blank()) +
+			theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5, size=8), axis.text.y = element_text(size=8), axis.title.x = element_blank(), axis.title.y = element_blank());
+	
+			#theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8), axis.text.y = element_text(size=8), axis.title.x = element_blank(), axis.title.y = element_blank());
+	
+	print_msg(paste("Ploting distance matrix", sep=""));
+	
+	g1_xlab <- get_grob_xlab(plot_mtx);
+	g1_ylab <- get_grob_ylab(plot_mtx);
+	plot_mtx <- plot_mtx + labs(x=NULL, y=NULL) + theme(axis.text = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.ticks = element_blank());
+	g1 <- ggplotGrob(plot_mtx);
+	
+	
+	plot_abundances <- generate_binning_hist(data.frame(name=names(abundances), value=as.double(abundances)));
+	#plot_abundances <- ggplot(data=data.frame(name=names(abundances), value=as.double(abundances)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("Abundance") +
+	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
+			
+	print_msg(paste("Ploting bin groups' abundances", sep=""));
+	g2 <- ggplotGrob(plot_abundances);
+	
+	plot_completeness <- generate_binning_hist(data.frame(name=names(completeness), value=as.double(completeness)));
+	#plot_completeness <- ggplot(data=data.frame(name=names(completeness), value=as.double(completeness)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("Completeness") +
+	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
+	
+	print_msg(paste("Ploting bin groups' completeness", sep=""));
+	g3 <- ggplotGrob(plot_completeness);
+	
+	plot_genome_sizes <- generate_binning_hist(data.frame(name=names(genome_sizes), value=as.double(genome_sizes)));
+	#plot_genome_sizes <- ggplot(data=data.frame(name=names(genome_sizes), value=as.double(genome_sizes)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("Genome Size") +
+	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
+	
+	print_msg(paste("Ploting bin groups' genome_sizes", sep=""));
+	g4 <- ggplotGrob(plot_genome_sizes);
+	
+	plot_gc_contents <- generate_binning_hist(data.frame(name=names(gc_contents), value=as.double(gc_contents)));
+	# Slight leave some space to the right
+	#plot_gc_contents <- plot_gc_contents + theme(plot.margin = unit(c(0.1,0.1,0.1,-0.3), "cm"));
+	plot_gc_contents <- plot_gc_contents + theme(plot.margin = unit(c(0.0,0.0,-0.25,-0.3), "cm"));
+
+
+	#plot_gc_contents <- ggplot(data=data.frame(name=names(gc_contents), value=as.double(gc_contents)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("GC%") + 
+	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
+	print_msg(paste("Ploting bin groups' gc_contents", sep=""));
+	g5 <- ggplotGrob(plot_gc_contents);
+	
+
+	#plots <- list(plot_mtx, plot_abundances, plot_completeness, plot_genome_sizes, plot_gc_contents);
+	gplots <- list(g1_ylab, g1,g2,g3,g4,g5,g1_xlab);
+	
+	print_msg(paste("Number of plots=", length(gplots), sep=""));
+	
+	# For setting up a plot layout system
+	require(gtable);
+	
+	print_msg(paste("Preparing Layout...", sep=""));
+	
+	#glayout <- lapply(1:length(plots), function(i) ggplotGrob(plots[i]));
+	
+	#print_msg(paste("Number of glayout=", length(glayout), sep=""));
+	
+	
+	gtable <- gtable(widths=unit(rep(1,12), "null"), heights=unit(rep(1,7), "null"));
+	gtable <- gtable_add_grob(gtable, gplots, l=c(1,2,9,10,11,12,2), r=c(1,8,9,10,11,12,8), t=c(1,1,1,1,1,1,6), b=c(5,5,5,5,5,5,6));
+	
+	
+	if(length(pdf_fn) > 0)
+	{
+		pdf_w <- (0.2 * nrow(distance_mtx)) + (2 * 4);
+		pdf_h <- 0.3 * ncol(distance_mtx);
+			
+		print_msg(paste("Plots will be exported to ", pdf_fn, sep=""));
+		pdf(pdf_fn, width=pdf_w, height=pdf_h);
+		
+		grid.newpage();
+		grid.draw(gtable);
+		#print(pp);
+		
+		dev.off();
+	} else {
+		print_msg(paste("Plots will be exported to ", pdf_fn, sep=""));
+		grid.newpage();
+		grid.draw(gtable);
+	}
+}
+
+
+generate_binning_hist <- function(df)
+{
+	gp <- ggplot(data=df, aes(y=value, x=name)) + 
+			theme_bw() + 
+			geom_bar(stat="identity") + coord_flip() + #ggtitle("GC%") + 
+			theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.ticks = element_blank()) + 
+			theme(plot.margin = unit(c(0,0.1,-0.25,-0.2), "cm")) + 
+			labs(x=NULL, y=NULL) + 
+			theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
+	return (gp);
+}
+
+
+#
+# 
+#
+get_grob_object <- function(ggplot_object, grob_label="guide-box")
+{
+	#require(gridExtra)
+	tmp <- ggplot_gtable(ggplot_build(ggplot_object))
+	selected_idx <- grep(grob_label, sapply(tmp$grobs, function(x) x$name))
+	print(selected_idx)
+	if(length(selected_idx) > 0)
+	{
+		obj <- tmp$grobs[[selected_idx]]
+		return(obj);
+	} else {
+		return(NULL);
+	}
+}
+
+
+get_grob_xlab <- function(ggplot_object)
+{
+	#require(gridExtra)
+	tmp <- ggplot_gtable(ggplot_build(ggplot_object))
+	selected_idx <- grep("axis.title.x", sapply(tmp$grobs, function(x) x$name))
+	print(selected_idx)
+	if(length(selected_idx) > 0)
+	{
+		obj <- tmp$grobs[[selected_idx - 1]]
+		return(obj);
+	} else {
+		return(NULL);
+	}
+	
+	#return(get_grob_object(ggplot_object, "axis.title.x"));
+}
+
+get_grob_ylab <- function(ggplot_object)
+{
+	#require(gridExtra)
+	tmp <- ggplot_gtable(ggplot_build(ggplot_object))
+	selected_idx <- grep("axis.title.y", sapply(tmp$grobs, function(x) x$name))
+	print(selected_idx)
+	if(length(selected_idx) > 0)
+	{
+		obj <- tmp$grobs[[2]]
+		return(obj);
+	} else {
+		return(NULL);
+	}
+}
+
+
+get_grob_legend_guide <- function(ggplot_object)
+{
+	return(get_grob_object(ggplot_object, "guide-box"));
 }
 
 
@@ -202,7 +377,8 @@ estimate_centroid <- function(esom_bm)
 # 
 # http://stackoverflow.com/questions/5453336/plot-correlation-matrix-into-a-graph
 # Use: group_diff(esom_bm, row_ids=unique(esom_bm$class_name)[grep("contig", unique(esom_bm$class_name))])
-group_diff <- function(esom_bm, row_ids=character(0), distance_thres=0.1, mtx_pdf_fn=character(0), pdf_title=character(0), step_size=5, compare_myself=F, na.value=-1)
+#group_diff <- function(esom_bm, row_ids=character(0), distance_thres=0.1, mtx_pdf_fn=character(0), pdf_title=character(0), step_size=5, compare_myself=F, na.value=-1)
+group_diff <- function(esom_bm, row_ids=character(0), distance_thres=0.1, step_size=5, compare_myself=F, na.value=-1)		
 {
 	require(lattice);
 	
@@ -268,25 +444,25 @@ group_diff <- function(esom_bm, row_ids=character(0), distance_thres=0.1, mtx_pd
 		distance_mtx <- distance_mtx[, colnames(distance_mtx) %in% row_ids];
 	}
 	
-	pdf_w <- 0.2 * nrow(distance_mtx);
-	pdf_h <- 0.3 * ncol(distance_mtx);
+	#pdf_w <- 0.2 * nrow(distance_mtx);
+	#pdf_h <- 0.3 * ncol(distance_mtx);
 	
 	print_msg("Generating distance matrix");
-	if(length(mtx_pdf_fn) > 0)
-	{
-		print_msg(paste("Result will be exported to ", mtx_pdf_fn, sep=""));
-		pdf(mtx_pdf_fn, width=pdf_w, height=pdf_h);
-	}
+#	if(length(mtx_pdf_fn) > 0)
+#	{
+#		print_msg(paste("Result will be exported to ", mtx_pdf_fn, sep=""));
+#		pdf(mtx_pdf_fn, width=pdf_w, height=pdf_h);
+#	}
 	
 	# Create a color scale
 	rgb.palette <- colorRampPalette(c("yellow", "blue"), space = "rgb");
 	#levelplot(distance_mtx, main="", xlab="", ylab="", col.regions=rgb.palette(120), at=seq(0,1,0.01), scales=list(x=list(rot=90)))
 	pp <- levelplot(distance_mtx, main=pdf_title, xlab="", ylab="", scales=list(x=list(cex=.8, rot=90),y=list(cex=.8)), at=seq(0,max(distance_mtx),0.01), col.regions=heat.colors)
-	if(length(mtx_pdf_fn) > 0)
-	{
-		print(pp);
-		dev.off();
-	}
+#	if(length(mtx_pdf_fn) > 0)
+#	{
+#		print(pp);
+#		dev.off();
+#	}
 	pp;
 	
 	
