@@ -2,9 +2,11 @@
 
 
 #
-#
+#process_esom("/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/ESOM/ESOM_GZ-xyl_S2", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/MaxBin", "GZ-xyl_S2", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/ESOM");
+#process_esom("/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-cell_S1/ESOM/ESOM_GZ-cell_S1", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-cell_S1/MaxBin", "GZ-cell_S1", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-cell_S1/ESOM");
+
 #process_esom <- function(path_to_esom_dir, maxbin_fn, output_prefix=character(0), output_dir=character(0), selected_ids=character(0)) 
-process_esom <- function(path_to_esom_dir, maxbin_fn, output_prefix=character(0), output_dir=character(0)) 
+process_esom <- function(path_to_esom_dir, maxbin_dir, output_prefix=character(0), output_dir=character(0)) 
 {
 	pdf_fn <- character(0);
 	outdir <- character(0);
@@ -20,7 +22,7 @@ process_esom <- function(path_to_esom_dir, maxbin_fn, output_prefix=character(0)
 	
 	
 	# Import MaxBin summary of binned contigs	
-	maxbin_summary <- import_maxbin(maxbin_fn);
+	maxbin_summary <- import_maxbin(maxbin_dir);
 	selected_ids <- names(maxbin_summary[["Abundance"]])
 	
 	# Calculate the distribution differernces
@@ -35,22 +37,52 @@ process_esom <- function(path_to_esom_dir, maxbin_fn, output_prefix=character(0)
 		cat("\n")
 	}
 	
-
-	
-	plot_esom_binning(distance_mtx, maxbin_summary[["Abundance"]], maxbin_summary[["Completeness"]], maxbin_summary[["Genome.size"]], maxbin_summary[["GC.content"]], pdf_fn=character(0), pdf_title=character(0))	
+	plot_esom_binning(distance_mtx, maxbin_summary[["Abundance"]], maxbin_summary[["Completeness"]], maxbin_summary[["Genome.size"]], maxbin_summary[["GC.content"]], maxbin_summary[["Contig.abundance"]], title=output_prefix, pdf_fn=pdf_fn, pdf_title=output_prefix)	
 }
 
 
 
-import_maxbin <- function(maxbin_summary_fn)
+#
+#print_msg <- function(msg)
+#{
+#	cat(paste(msg, "\n", sep=""));
+#}
+#
+#maxbin <- import_maxbin("/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/MaxBin");
+#library(ggplot2);
+#ca <- maxbin[["Contig.abundance"]]
+#selected_ids <- unique(ca$Bin.name)
+#selected_ids <- selected_ids[-4]
+#ca <- ca[which(ca$Bin.name %in% selected_ids),]
+#
+#ggplot(ca, aes(group=Bin.name, Contig.abundance)) + geom_boxplot();
+#
+
+#import_maxbin <- function(maxbin_summary_fn)
+import_maxbin <- function(maxbin_dir)
 {
+	maxbin_summary_fn <- list.files(path=maxbin_dir, full.names=T, pattern="summary");	
+	
+	print_msg(paste("Importing MaxBin group info from", maxbin_summary_fn));
+	maxbin_df <- list();
+	
+	# Maxbin summary
 	maxbin_summary <- read.table(maxbin_summary_fn, header=T, sep="\t", stringsAsFactors=F);
 	maxbin_summary$Completeness <- as.double(gsub("%", "", maxbin_summary$Completeness));
 	maxbin_summary$Abundance <- maxbin_summary$Abundance/sum(maxbin_summary$Abundance);
-	maxbin_summary$Bin.name <- gsub(".fa", "", gsub(".fasta", "", maxbin_summary$Bin.name));
+
 	
+	# Bin name
+	Bin.name <- gsub(".fa", "", gsub(".fasta", "", maxbin_summary$Bin.name));
 	
-	maxbin_df <- list();
+	# Backup the file names
+	tmp <- as.character(maxbin_summary$Bin.name);
+	names(tmp) <- Bin.name;
+	maxbin_df[["File"]] <- tmp;
+	
+
+	# Maxbin Summary
+	maxbin_summary$Bin.name <- Bin.name;
 	
 	tmp <- as.array(maxbin_summary$Abundance);
 	names(tmp) <- maxbin_summary$Bin.name;
@@ -69,11 +101,50 @@ import_maxbin <- function(maxbin_summary_fn)
 	maxbin_df[["GC.content"]] <- tmp;
 
 	
+	# Import contig abundance information
+	maxbin_contig_abund_fn <- list.files(path=maxbin_dir, full.names=T, pattern="abund");	
+	maxbin_contig_abund <- read.table(maxbin_contig_abund_fn, header=F, sep="\t", stringsAsFactors=F);
+	maxbin_contig_abund <- cbind(maxbin_contig_abund, list(rep("", nrow(maxbin_contig_abund))), stringsAsFactors=FALSE);
+	colnames(maxbin_contig_abund) <- c("Contig.name", "Contig.abundance", "Bin.name");
+	#maxbin_contig_abund$Bin.name<-droplevels(maxbin_contig_abund$Bin.name);
+	
+	# Import contig information of bin groups from their sequences
+	for(i in 1 : length(maxbin_df[["File"]]))
+	{
+		fn <- paste(maxbin_dir, "/", maxbin_df[["File"]][i], sep="");
+		bin_name <- names(maxbin_df[["File"]])[i];
+		
+		print_msg(paste("Collecting information for ", bin_name, " from ", fn, sep=""));
+		
+		seq_n <- 0;
+		con  <- file(fn, open = "r")
+		while (length(line <- readLines(con, n = 1, warn = FALSE)) > 0) {
+			if(grepl("^>", line))
+			{
+				contig_name <- gsub("\n", "", gsub(">","", line));
+				#print(contig_name);
+				maxbin_contig_abund$Bin.name[which(maxbin_contig_abund$Contig.name == contig_name)] <- bin_name;
+				seq_n <- seq_n + 1;
+			}
+		} 
+		
+		close(con)
+		
+		print_msg(paste("Sequence read: ", seq_n, sep=""));
+		
+	}
+	
+	
+	maxbin_df[["Contig.abundance"]] <- as.data.frame(maxbin_contig_abund);
+	
+	
 	return(maxbin_df);
 }
 
 
 
+
+# distance_mtx <- create_esom_mtx("/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/ESOM/ESOM_GZ-xyl_S2");
 #create_esom_mtx <- function(path_to_esom_dir, output_prefix=character(0), output_dir=character(0), selected_ids=character(0)) 
 create_esom_mtx <- function(path_to_esom_dir, selected_ids=character(0)) 
 {	
@@ -228,12 +299,14 @@ create_esom_mtx <- function(path_to_esom_dir, selected_ids=character(0))
 
 
 #
-plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_sizes, gc_contents, pdf_fn=character(0), pdf_title=character(0))
+plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_sizes, gc_contents, contig_abundance, title=character(0), pdf_fn=character(0), pdf_title=character(0))
 {
 	require(ggplot2);
 	require(reshape2);
 	require(grid);
 
+	
+	#############################################################
 	rgb.palette <- colorRampPalette(c("yellow", "blue"), space = "rgb");
 	#levelplot(distance_mtx, main="", xlab="", ylab="", col.regions=rgb.palette(120), at=seq(0,1,0.01), scales=list(x=list(rot=90)))
 	#plot_mtx <- levelplot(distance_mtx, main="Distance", xlab="", ylab="", scales=list(x=list(cex=.8, rot=90),y=list(cex=.8)), at=seq(0,max(distance_mtx),0.01), col.regions=heat.colors)
@@ -245,7 +318,7 @@ plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_siz
 			theme_bw() + 
 			geom_tile() + scale_fill_gradientn(guide = FALSE, colours = c("red", "orange", "yellow", "white"), values=c(0.15,0.5, 0.6,1), limits=c(0,max(melt_distance_mtx$distance))) + 
 			theme(plot.margin = unit(c(0,0.1,-0.25,-0.25), "cm")) + 
-			#labs(title="ESOM Distances") + theme(plot.title = element_text(size = 8,  colour = "gray40")) +
+			#ggtitle("ESOM Distances") + theme(plot.title = element_text(size = 8,  colour = "gray40")) +
 			#theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.ticks = element_blank()) +
 			theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5, size=8), axis.text.y = element_text(size=8), axis.title.x = element_blank(), axis.title.y = element_blank());
 	
@@ -255,50 +328,94 @@ plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_siz
 	g1_xlab <- get_grob_xlab(plot_mtx);
 	g1_ylab <- get_grob_ylab(plot_mtx);
 	g1_ylab <- g1_ylab;
+	
+	# 1 - blank, 2 - ylab, 3 - blank, 4 - mtx, 5 - xlab, 6 - blank, 7 - 
+	if(length(title) > 0)
+	{
+		title <- paste("ESOM Distance Matrix: ", title, "\n", sep="");
+	} else {
+		title <- "ESOM Distance Matrix\n";
+	}
+	
+	dummy_for_g1_title <- generate_binning_hist(data.frame(name=names(abundances), value=as.double(abundances)), title, "steelblue4");
+	g1_title <- get_grob_object_by_idx(dummy_for_g1_title, 6);
+	
+	
 	plot_mtx <- plot_mtx + labs(x=NULL, y=NULL) + theme(axis.text = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.ticks = element_blank());
+	#plot_mtx <- plot_mtx + labs(title=NULL) + theme(plot.title = element_blank());
+	
 	g1 <- ggplotGrob(plot_mtx);
 	
+	plot_abundances <- generate_binning_hist(data.frame(name=names(abundances), value=as.double(abundances)), "Relative\nAbundance", "mediumorchid");
 	
-	
-	plot_abundances <- generate_binning_hist(data.frame(name=names(abundances), value=as.double(abundances)), "Abundance", "steelblue4");
-	
+	#############################################################
+	print_msg(paste("Ploting bin groups' abundances", sep=""));
 	g2_xlab <- get_grob_xlab(plot_abundances);
+	# 1 - blank, 2 - ylab, 3 - blank, 4 - plot, 5 - xlab, 6 - y_title, 7 - NULL, 8 - 
+	g2_title <- get_grob_object_by_idx(plot_abundances, 6);
+	
 	plot_abundances <- plot_abundances + theme(axis.ticks = element_blank(), axis.text.x = element_blank(),axis.title.x = element_blank());
 	plot_abundances <- plot_abundances + labs(x=NULL, y=NULL);
+	plot_abundances <- plot_abundances + labs(title=NULL) + theme(plot.title = element_blank());
 	#plot_abundances <- ggplot(data=data.frame(name=names(abundances), value=as.double(abundances)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("Abundance") +
 	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
 			
-	print_msg(paste("Ploting bin groups' abundances", sep=""));
+
 	g2 <- ggplotGrob(plot_abundances);
 
-	plot_completeness <- generate_binning_hist(data.frame(name=names(completeness), value=as.double(completeness)), "Completeness", "steelblue3");
+	#############################################################
+	print_msg(paste("Ploting bin groups' completeness", sep=""));
+	plot_completeness <- generate_binning_hist(data.frame(name=names(completeness), value=as.double(completeness)), "Completeness", "olivedrab2");
 	#plot_completeness <- ggplot(data=data.frame(name=names(completeness), value=as.double(completeness)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("Completeness") +
 	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
 	g3_xlab <- get_grob_xlab(plot_completeness);
+	g3_title <- get_grob_object_by_idx(plot_completeness, 6);
+	
 	plot_completeness <- plot_completeness + theme(axis.ticks = element_blank(), axis.text.x = element_blank(),axis.title.x = element_blank());
 	plot_completeness <- plot_completeness + labs(x=NULL, y=NULL);
-	print_msg(paste("Ploting bin groups' completeness", sep=""));
+	plot_completeness <- plot_completeness + labs(title=NULL) + theme(plot.title = element_blank());
+	
 	g3 <- ggplotGrob(plot_completeness);
 	
 	
+	#############################################################
+	print_msg(paste("Ploting bin groups' contig abundance", sep=""));
+	plot_contig_abundance <- generate_boxplot(contig_abundance, "Contig\nAbundance");
+	g6_xlab <- get_grob_xlab(plot_contig_abundance);
+	g6_title <- get_grob_object_by_idx(plot_contig_abundance, 6);
 	
-	plot_genome_sizes <- generate_binning_hist(data.frame(name=names(genome_sizes), value=as.double(genome_sizes)), "Genome Size", "steelblue2");
+	plot_contig_abundance <- plot_contig_abundance + theme(axis.ticks = element_blank(), axis.text.x = element_blank(),axis.title.x = element_blank());
+	plot_contig_abundance <- plot_contig_abundance + labs(x=NULL, y=NULL);
+	plot_contig_abundance <- plot_contig_abundance + labs(title=NULL) + theme(plot.title = element_blank());
+	g6 <- ggplotGrob(plot_contig_abundance);
+	
+	
+	#############################################################
+	print_msg(paste("Ploting bin groups' genome_sizes", sep=""));
+	plot_genome_sizes <- generate_binning_hist(data.frame(name=names(genome_sizes), value=as.double(genome_sizes)), "Genome\nSize(Mb)", "firebrick1");
 	g4_xlab <- get_grob_xlab(plot_genome_sizes);
+	g4_title <- get_grob_object_by_idx(plot_genome_sizes, 6);
+	
 	#plot_genome_sizes <- ggplot(data=data.frame(name=names(genome_sizes), value=as.double(genome_sizes)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("Genome Size") +
 	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
 	
-	print_msg(paste("Ploting bin groups' genome_sizes", sep=""));
+
 	plot_genome_sizes <- plot_genome_sizes + theme(axis.ticks = element_blank(), axis.text.x = element_blank(),axis.title.x = element_blank());
 	plot_genome_sizes <- plot_genome_sizes + labs(x=NULL, y=NULL);
+	plot_genome_sizes <- plot_genome_sizes + labs(title=NULL) + theme(plot.title = element_blank());
 	g4 <- ggplotGrob(plot_genome_sizes);
 	
 	
-	
+	#############################################################
+	print_msg(paste("Ploting bin groups' gc_contents", sep=""));
 	plot_gc_contents <- generate_binning_hist(data.frame(name=names(gc_contents), value=as.double(gc_contents)), "GC%", "steelblue1");
 	g5_xlab <- get_grob_xlab(plot_gc_contents);
+	g5_title <- get_grob_object_by_idx(plot_gc_contents, 6);
+	
 	plot_gc_contents <- plot_gc_contents + theme(axis.ticks = element_blank(), axis.text.x = element_blank(),axis.title.x = element_blank());
 	plot_gc_contents <- plot_gc_contents + labs(x=NULL, y=NULL);
-			
+	plot_gc_contents <- plot_gc_contents + labs(title=NULL) + theme(plot.title = element_blank());
+	
 	# Slight leave some space to the right
 	#plot_gc_contents <- plot_gc_contents + theme(plot.margin = unit(c(0.1,0.1,0.1,-0.3), "cm"));
 	plot_gc_contents <- plot_gc_contents + theme(plot.margin = unit(c(0.0,0.1,-0.25,-0.3), "cm"));
@@ -306,12 +423,11 @@ plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_siz
 
 	#plot_gc_contents <- ggplot(data=data.frame(name=names(gc_contents), value=as.double(gc_contents)), aes(y=value, x=name)) + geom_bar(stat="identity") + coord_flip() + #ggtitle("GC%") + 
 	#theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank());
-	print_msg(paste("Ploting bin groups' gc_contents", sep=""));
 	g5 <- ggplotGrob(plot_gc_contents);
 	
 
 	#plots <- list(plot_mtx, plot_abundances, plot_completeness, plot_genome_sizes, plot_gc_contents);
-	gplots <- list(g1_ylab, g1,g2,g3,g4,g5,g1_xlab, g2_xlab, g3_xlab, g4_xlab, g5_xlab);
+	gplots <- list(g1_ylab, g1,g2,g3,g4,g5,g6, g1_xlab, g2_xlab, g3_xlab, g4_xlab, g5_xlab, g6_xlab, g1_title, g2_title, g3_title, g4_title, g5_title, g6_title);
 	
 	print_msg(paste("Number of plots=", length(gplots), sep=""));
 	
@@ -325,14 +441,14 @@ plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_siz
 	#print_msg(paste("Number of glayout=", length(glayout), sep=""));
 	
 	
-	gtable <- gtable(widths=unit(rep(1,12), "null"), heights=unit(rep(1,8), "null"));
-	gtable <- gtable_add_grob(gtable, gplots, l=c(1,2,9,10,11,12,2,9,10,11,12), r=c(1,8,9,10,11,12,8,9,10,11,12), t=c(2,2,2,2,2,2,7,7,7,7,7), b=c(6,6,6,6,6,6,8,7,7,7,7));
+	gtable <- gtable(widths=unit(rep(1,13), "null"), heights=unit(rep(1,9), "null"));
+	gtable <- gtable_add_grob(gtable, gplots, l=c(1,2,9,10,11,12,13, 2,9,10,11,12,13, 2,9,10,11,12,13), r=c(1,8,9,10,11,12,13, 8,9,10,11,12,13, 8,9,10,11,12,13), t=c(2,2,2,2,2,2,2, 7,7,7,7,7,7, 1,1,1,1,1,1), b=c(6,6,6,6,6,6,6,9,7,7,7,7,7, 1,1,1,1,1,1));
 	#gtable <- gtable_add_grob(gtable, c(g2_xlab, g3_xlab, g4_xlab, g5_xlab), l=c(9,10,11,12), r=c(9,10,11,12), t=c(6,6,6,6), b=c(6,6,6,6));
 	
 	
 	if(length(pdf_fn) > 0)
 	{
-		pdf_w <- (0.2 * nrow(distance_mtx)) + (2 * 4);
+		pdf_w <- (0.2 * nrow(distance_mtx)) + (2 * 5);
 		pdf_h <- 0.3 * ncol(distance_mtx);
 			
 		print_msg(paste("Plots will be exported to ", pdf_fn, sep=""));
@@ -351,18 +467,50 @@ plot_esom_binning <- function(distance_mtx, abundances, completeness, genome_siz
 }
 
 
+generate_boxplot <- function(df, title, log_scale=T)
+{	
+	title <- paste(title, "\n", sep="");
+	
+	gp <- ggplot(ca, aes(factor(Bin.name), y=Contig.abundance)) + theme_bw() + coord_flip() +
+			geom_boxplot(outlier.colour = NA, fill="grey") + 
+			theme(panel.grid.minor.y=element_blank(), panel.grid.major.y=element_blank()) +
+			theme(axis.text.y = element_blank(), axis.title.y = element_blank()) +  
+			labs(y=title) +
+			theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5, size=6)) + 
+			labs(title=title) + theme(plot.title = element_text(size = 8, colour = "gray40")) +
+			
+			theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+			labs(y=title) + theme(axis.title = element_text(hjust = 0.5, vjust=0, size=8, colour = "gray40")) + 
+			labs(title=title) + theme(plot.title = element_text(size = 8,  colour = "gray40")) +
+			theme(plot.margin = unit(c(0,0.1,-0.25,-0.2), "cm"));
+	
+	if(log_scale) {
+		title <- paste(title, " (Log10)\n", sep="");
+		gp <- gp + scale_y_log10();
+	}
+	
+	gp <- gp + labs(y=title);
+	
+	return (gp);
+}
+
 generate_binning_hist <- function(df, title, color="black")
 #generate_binning_hist <- function(df, color="black")
 {
+	title <- paste(title, "\n", sep="");
+	
 	gp <- ggplot(data=df, aes(y=value, x=name)) + 
 			theme_bw() + 
 			geom_bar(stat="identity", fill=color, colour="white", size=0.1) + coord_flip() + #ggtitle("GC%") +
-			theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
+			#theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
+			theme(panel.grid.minor.y=element_blank(), panel.grid.major.y=element_blank()) +
 			theme(axis.text.y = element_blank(), axis.title.y = element_blank()) +  
+			labs(y=title) + 
 			#labs(x=NULL, y=NULL) + 
 			#theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(),axis.title.x = element_blank()) +
 			theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5, size=6)) + 
-			#labs(title=title) + theme(plot.title = element_text(size = 8,  colour = "gray40")) +
+			labs(y=title) + theme(axis.title = element_text(hjust = 0.5, vjust=0, size=8, colour = "gray40")) + 
+			labs(title=title) + theme(plot.title = element_text(size = 8,  colour = "gray40")) +
 			theme(plot.margin = unit(c(0,0.1,-0.25,-0.2), "cm"));
 			
 	
@@ -376,6 +524,23 @@ generate_binning_hist <- function(df, title, color="black")
 	return (gp);
 }
 
+
+
+get_grob_object_by_idx <- function(ggplot_object, selected_idx)
+{
+	#require(gridExtra)
+	tmp <- ggplot_gtable(ggplot_build(ggplot_object))
+	grob_names <- sapply(tmp$grobs, function(x) x$name);
+	grob_names <- grob_names[-which(grob_names == "NULL")];
+	
+	if(length(grob_names) > selected_idx)
+	{
+		obj <- tmp$grobs[[selected_idx]]
+		return(obj);
+	} else {
+		return(NULL);
+	}
+}
 
 #
 # 
@@ -562,6 +727,10 @@ group_diff <- function(esom_bm, selected_ids=character(0), distance_thres=0.1, s
 }
 
 
+display_esom_by_genus <- function()
+{
+	
+}
 
 print_msg <- function(msg)
 {

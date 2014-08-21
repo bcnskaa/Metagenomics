@@ -16,3 +16,17 @@ import os.path
 
 
 
+"""
+ R code:
+ 
+ dom <- read.table("tmp.dom", header=F, sep="\t", stringsAsFactors=F);
+ dom <- sapply(seq(1,nrow(dom)), function(i) strsplit(dom$V1[i], "\\s+"));
+ dom_n <- length(dom);
+ 
+ dom_df <- data.frame(contig_name=character(dom_n), bin_name=);
+ for(i in 1 : dom_n)
+ {
+     dom[[i]] <- 
+ } 
+ 
+"""
