@@ -200,8 +200,6 @@ def main(argv):
     
     
     # 
-     
-    
     running_EMIRGE(read_fns[0], read_fns[1])
 
     # Close the log stream
@@ -389,7 +387,7 @@ def run_idba_ud(merged_read_fn, idba_ud_outdir="idba_ud", min_contig=1200, mink=
 
 
 """
- This routine verifies if IDBA_UD completes successfully and generates 
+ This routine verifies if IDBA_UD completed successfully, and generates 
  statistics on assembled contig sequences.
 """
 def postprocess_idba_ud(idba_ud_outdir="idba_ud", report_outdir=RESULT_OUTDIR):

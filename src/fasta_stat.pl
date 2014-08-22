@@ -33,6 +33,7 @@ my $seq_n = 0;
 
 my $in = Bio::SeqIO->new(-file=>$infn, -format=>'fasta');
 my @seq_lens; # For calculating N50 and N90 values
+#my @seq_lens_stat = (0) x 200; # For generating a spectrum of sequence length
 while(my $seq = $in->next_seq() ){
   my $id = $seq->id();
   
@@ -41,6 +42,8 @@ while(my $seq = $in->next_seq() ){
   $total_seq_len += $seq->length;
   
   push @seq_lens, $seq->length;
+  
+#  $seq_lens_stat[$seq->length]++;
   
   if($seq->length > $max_seq_len)
   {
@@ -73,7 +76,12 @@ for (my $j = 0;$j < @seq_lens;$j++){
 }
 
 
-
 #print "seq_n=", $seq_n, " mean_len=", $total_seq_len / $seq_n, " max_len=", $max_seq_len, " min_len=", $min_seq_len, $n50, $n90"\n"; 
 print "$infn\tseq_n=", $seq_n, " mean_len=", $total_seq_len / $seq_n, " max_len=", $max_seq_len, " min_len=", $min_seq_len, " N50=", $n50, " N90=", $n90, "\n"; 
+
+#print "Spectrum of Sequence Length\n";
+#for(my $i = 0; $i < scalar @seq_lens_stat; $i++)
+#{
+#	print $i . "\t" . $seq_lens_stat[$i] . "\n";
+#}
 

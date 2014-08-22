@@ -86,14 +86,12 @@ def main(argv):
     pick_fasta(fastafn, outfn, list)
     
     
-    
 
 # 
 def pick_fasta(fastafn, outfn, list):
     print "Picking fasta sequence(s) from", fastafn, "based on the list", len(list), "..."
         
     with open(outfn, "w") as outfile:
-        
         for seq in SeqIO.parse(fastafn, "fasta"):
             if seq.id in list:
                 print "extracting", seq.id, "..."
@@ -138,7 +136,8 @@ def read_list(listfn):
     finally:
         infile.close()
     return id_list
-    
+
+  
     
 # Print the usage of this script 
 def print_usage():
