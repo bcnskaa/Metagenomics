@@ -5,7 +5,6 @@ from collections import defaultdict
 from Bio import SeqIO
 
 
-
 # Main 
 def main(argv):
     fasta_fn = argv[0]
