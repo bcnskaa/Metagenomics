@@ -26,7 +26,6 @@ import os.path
  dom_df <- data.frame(contig_name=character(dom_n), bin_name=);
  for(i in 1 : dom_n)
  {
-     dom[[i]] <- 
  } 
  
 """

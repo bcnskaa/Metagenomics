@@ -479,6 +479,13 @@ def run_MaxBin(contig_fn, merged_read_fn, maxbin_outdir="MaxBin", maxbin_outpref
 def postprocess_MaxBin(maxbin_outdir, total_contig_len=1000000, marker_gene_yield=50.0):
     print_status("Processing outputs from MaxBin")  
     
+    maxbin_summary_fn = glob.glob(maxbin_outdir + "/*.summary")
+    
+    if len(maxbin_summary_fn) != 1:
+        print_state("Unable to process maxbin results at " + maxbin_outdir)
+        return False
+    
+    
     
     
 
@@ -640,6 +647,16 @@ def postprocess_HMMER_scan(outdir=HMMER_OUTDIR, mean_posterior_prob=0.8):
     # 
     
 
+
+# Generate a random sequence of length (default=100bp) for estimating the significance of HMMsearch results
+def generate_random_seq(length=100, base = ['A','B','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','X','Y','Z']):
+    base_len = len(base) - 1
+    seq = "".join([base[random.randint(0, base_len)] for i in range(1, length)])
+    
+    return seq
+
+
+
 """
  This routine searches protein HMM profiles against a protein sequence database. 
  ~/tools/hmmer/bin/hmmsearch 
@@ -708,12 +725,17 @@ def running_HMMER_search(hmm_profile_fn, prot_faa_fn, outdir=HMMER_OUTDIR, outfn
         return False
 
 
+# Return the length of overlapping between two regions
+def getOverlap(x, y):
+    return max(0, min(x[1], y[1]) - max(x[0], y[0]))
+
+
 
 """
  This routine processes output files from HMMER3 scan
  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
-def postprocess_HMMER_search(outdir=HMMER_OUTDIR, mean_posterior_prob=0.8):
+def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=50.0):
     print_status("Parsing HMMER3 hmmsearch outfiles")
     
     # 1. Consolidate the queries sharing a same query id and having mean posterior probability higher than a threshold (default=0.8)
@@ -721,60 +743,74 @@ def postprocess_HMMER_search(outdir=HMMER_OUTDIR, mean_posterior_prob=0.8):
     # 3. Domain models of every query sequence
 
 
-    orf_list = {}
     # Import .dom.tbl outfile
     #line_n = 0
-for file in glob.glob("*.dom.tbl"):
-        orf_list = {}
-        score = []
-        skipped_dom_n = 0
-        processed_dom_n = 0
-        with open(file, "r") as IN:
-            for line in IN:
-                #if line_n >= 3 and not line.startswtih("#"):
-                if not line.startswith("#"):
-                    dom = line.split()
-                    
-                    score.append(int(float(dom[7])))
-                    
-                    processed_dom_n += 1
-                    if float(dom[7]) >= 50:
-                        hmm_id = dom[3].replace(".hmm","")
-                        aln_spos = dom[17]
-                        aln_epos = dom[18]
-                        
-                        
-                        
-                        
-                        if dom[0] not in orf_list.keys():
-                            orf_list[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
-                            #orf_list[dom[0]] = [hmm_id]
-                        else:
-                            orf_list[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
-                            
-                            # Check if the new dom is overlapping with others
-                            # If overlapped, we only keep the one with highest score
-                            
-                            
-                            
-                            #orf_list[dom[0]].append(hmm_id)
-                    else:
-                        #print dom[0], hmm_id, "=", dom[7], "skipped"
-                        skipped_dom_n += 1
-                        
-            print "Processed dom=",processed_dom_n    
-            print "Skipped dom=",skipped_dom_n
+    #for file in glob.glob("*.dom.tbl"):
+    
+    file = glob.glob(indir + "/*.dom.tbl")
+    if len(file) != 1:
+        print_status("Does not find any .dom.tbl in the folder " + indir)
+        return False
+    
+    file = file[0]    
+    
+    orf_list = {}
+    hmm_scores = []
+    skipped_dom_n = 0
+    processed_dom_n = 0
+    with open(file, "r") as IN:
+        for line in IN:
             
-        #line_n += 1
+            #if line_n >= 3 and not line.startswtih("#"):
+            if not line.startswith("#"):
+                dom = line.split()
+                  
+                hmm_score = float(dom[7])
+                hmm_scores.append(hmm_score)
+                
+                processed_dom_n += 1
+                if hmm_score >= hmm_score_threshold:
+                    hmm_id = dom[3].replace(".hmm","")
+                    aln_spos = int(dom[17])
+                    aln_epos = int(dom[18])
+                    
+                                        
+                    if dom[0] not in orf_list.keys():
+                        #orf_list[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
+                        orf_list[dom[0]] = [[aln_spos, aln_epos, hmm_id, hmm_score]]
+                                                
+                        #orf_list[dom[0]] = [hmm_id]
+                    else:
+                        #orf_list[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
+                        orf_list[dom[0]].append([aln_spos, aln_epos, hmm_id, hmm_score])
+
+                else:
+                    #print dom[0], hmm_id, "=", dom[7], "skipped"
+                    skipped_dom_n += 1
+  
+    print "Processed dom=",processed_dom_n    
+    print "Skipped dom=",skipped_dom_n
+    
+    # Check if there are overlapping HMM domains, keep the one with highest score    
+    for k,v_arr in orf_list.items():
+        if len(v_arr) > 0:
+            sorted_a = sorted(v_arr, key=lambda v: v[3], reverse=True)
+            
+            
+
+            
+        
                 
                 
 """
- 
+
 """
 def prepare_reference_genome(sid_list, output_prefix=None, bacterialdb_path=NCBI_BACTERIAL_GENEOMES_DB):
     print_status("Preparing reference genomes")
     
-    
+
+
+
 """
  This routine detects and estimates the percentage of reads originated from a host genome (human)
 """

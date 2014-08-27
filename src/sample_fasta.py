@@ -59,8 +59,8 @@ def do_sample(fasta_objs, resample_n, resample_seq_size):
     # Invoke DWGSIM package to simulate reads data from resample fasta sequences
     print "do_sample()"
     
-# 
-def 
+
+
 
 def print_usage():
     print("Usage:")
