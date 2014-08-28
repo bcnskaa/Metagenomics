@@ -727,6 +727,7 @@ def running_HMMER_search(hmm_profile_fn, prot_faa_fn, outdir=HMMER_OUTDIR, outfn
 
 # Return the length of overlapping between two regions
 def getOverlap(x, y):
+    #print "x[1]=", x[1], ", y[1]=", y[1], ", x[0]=", x[0], ", y[0]=", y[0]
     return max(0, min(x[1], y[1]) - max(x[0], y[0]))
 
 
@@ -735,7 +736,7 @@ def getOverlap(x, y):
  This routine processes output files from HMMER3 scan
  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
-def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=50.0):
+def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=60.0, dom_overlapping_threshold=20):
     print_status("Parsing HMMER3 hmmsearch outfiles")
     
     # 1. Consolidate the queries sharing a same query id and having mean posterior probability higher than a threshold (default=0.8)
@@ -768,21 +769,27 @@ def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_sc
                 hmm_score = float(dom[7])
                 hmm_scores.append(hmm_score)
                 
+                hmm_dom_score = float(dom[13])
+                
                 processed_dom_n += 1
                 if hmm_score >= hmm_score_threshold:
-                    hmm_id = dom[3].replace(".hmm","")
+                    tlen = int(dom[2])
                     aln_spos = int(dom[17])
                     aln_epos = int(dom[18])
-                    
-                                        
+                    hmm_id = dom[3].replace(".hmm","")
+                    hmm_len = int(dom[5])
+                    hmm_spos = int(dom[15])
+                    hmm_epos = int(dom[16])
+                                  
+                    # 
                     if dom[0] not in orf_list.keys():
                         #orf_list[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
-                        orf_list[dom[0]] = [[aln_spos, aln_epos, hmm_id, hmm_score]]
+                        orf_list[dom[0]] = [[tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score]]
                                                 
                         #orf_list[dom[0]] = [hmm_id]
                     else:
                         #orf_list[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
-                        orf_list[dom[0]].append([aln_spos, aln_epos, hmm_id, hmm_score])
+                        orf_list[dom[0]].append([tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score])
 
                 else:
                     #print dom[0], hmm_id, "=", dom[7], "skipped"
@@ -791,17 +798,72 @@ def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_sc
     print "Processed dom=",processed_dom_n    
     print "Skipped dom=",skipped_dom_n
     
+     
     # Check if there are overlapping HMM domains, keep the one with highest score    
     for k,v_arr in orf_list.items():
         if len(v_arr) > 0:
-            sorted_a = sorted(v_arr, key=lambda v: v[3], reverse=True)
+            # Sorted by HMM dom score
+            sorted_a = sorted(v_arr, key=lambda v: v[8], reverse=True)
             
+            flags = [0 for i in range(len(sorted_a))]
+            for idx, v in enumerate(sorted_a):
+                if flags[idx] == 1:
+                    continue
+                
+                for idx2, v2 in enumerate(sorted_a):
+                    if idx2 > idx:
+                        if getOverlap(v[1:3], v2[1:3]) > dom_overlapping_threshold:
+                            flags[idx2] = 1
+                            print v2, "discarded by", v, " overlap_len=", getOverlap(v[1:3], v[1:3])
             
+            # Discard tagged items             
+            sorted_a = [sorted_a[idx] for idx, flag in enumerate(flags) if flag == 0]
+            # Sorted by position
+            sorted_a = sorted(v_arr, key=lambda v: v[1], reverse=False)
+            
+            orf_list[k] = sorted_a
 
-            
-        
+
+    # Read the summary file
+    maxbin_dir = "."
+    summary_fn = glob.glob(maxbin_dir + "/*.summary")
+    
+    if len(summary_fn) != 1:
+        print_state("Unable to read *.summary from"+maxbin_dir)
+        return False
+    
+    summary_fn = summary_fn[0]
+    bin_groups = {}
+    with open(summary_fn, "r") as IN:
+        for idx, line in enumerate(IN):
+            if idx > 0:
+                items = (line.replace("\n", "")).split("\t")
+                bin_fn = items[0]
+                bin_id = bin_fn.replace(".fasta", "")
                 
+                print "++++++++++++++++++++++++++++++++++++++++"
+                print "ID: " + bin_id
+                print "++++++++++++++++++++++++++++++++++++++++"
                 
+                bin_groups[bin_id] = []
+                
+                # Get all the header of the current bin group
+                with open(bin_fn, "r") as IN:
+                    for line in IN:
+                        if line.startswith(">"):
+                            bin_groups[bin_id].append((line.replace(">", "")).replace("\n", ""))
+                            print (line.replace(">", "")).replace("\n", "")
+
+
+    contig_abunds = {}
+    abund_fn = glob.glob(maxbin_dir + "/*.abund") 
+    abund_fn = abund_fn[0]
+    with open(abund_fn, "r") as IN:
+        for idx, line in enumerate(IN):
+            [contig_name, contig_abund] = (line.replace("\n", "")).split("\t")
+            contig_abunds[contig_name] = float(contig_abund)
+           
+            (t[::-1].split("_", 1))[1][::-1]
 """
 
 """
