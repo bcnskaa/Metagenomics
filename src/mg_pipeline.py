@@ -736,8 +736,13 @@ def getOverlap(x, y):
  This routine processes output files from HMMER3 scan
  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
-def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=60.0, dom_overlapping_threshold=20):
+def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=60.0, dom_overlapping_threshold=20):
     print_status("Parsing HMMER3 hmmsearch outfiles")
+    
+    # Check path exists
+    if not os.path.exists(hmm_dir):
+        print_status("Unable to read from" + hmm_dir)
+        return None   
     
     # 1. Consolidate the queries sharing a same query id and having mean posterior probability higher than a threshold (default=0.8)
     # 2. Summary statistics of domain counts
@@ -748,17 +753,19 @@ def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_sc
     #line_n = 0
     #for file in glob.glob("*.dom.tbl"):
     
-    file = glob.glob(indir + "/*.dom.tbl")
+    file = glob.glob(hmm_dir + "/*.dom.tbl")
     if len(file) != 1:
-        print_status("Does not find any .dom.tbl in the folder " + indir)
+        print_status("Does not find any .dom.tbl in the folder \"" + hmm_dir + "\"")
         return False
     
     file = file[0]    
     
-    orf_list = {}
+    # ORF with HMM hits
+    hmm_orf_dict = {}
     hmm_scores = []
     skipped_dom_n = 0
     processed_dom_n = 0
+    discard_dom_n = 0
     with open(file, "r") as IN:
         for line in IN:
             
@@ -773,6 +780,7 @@ def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_sc
                 
                 processed_dom_n += 1
                 if hmm_score >= hmm_score_threshold:
+                    tid = dom[0]
                     tlen = int(dom[2])
                     aln_spos = int(dom[17])
                     aln_epos = int(dom[18])
@@ -782,28 +790,25 @@ def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_sc
                     hmm_epos = int(dom[16])
                                   
                     # 
-                    if dom[0] not in orf_list.keys():
-                        #orf_list[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
-                        orf_list[dom[0]] = [[tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score]]
+                    if tid not in hmm_orf_dict.keys():
+                        #hmm_orf_dict[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
+                        hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score]]
                                                 
-                        #orf_list[dom[0]] = [hmm_id]
+                        #hmm_orf_dict[dom[0]] = [hmm_id]
                     else:
-                        #orf_list[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
-                        orf_list[dom[0]].append([tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score])
+                        #hmm_orf_dict[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
+                        hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score])
 
                 else:
                     #print dom[0], hmm_id, "=", dom[7], "skipped"
                     skipped_dom_n += 1
-  
-    print "Processed dom=",processed_dom_n    
-    print "Skipped dom=",skipped_dom_n
     
-     
+    
     # Check if there are overlapping HMM domains, keep the one with highest score    
-    for k,v_arr in orf_list.items():
+    for k,v_arr in hmm_orf_dict.items():
         if len(v_arr) > 0:
             # Sorted by HMM dom score
-            sorted_a = sorted(v_arr, key=lambda v: v[8], reverse=True)
+            sorted_a = sorted(v_arr, key=lambda v: v[9], reverse=True)
             
             flags = [0 for i in range(len(sorted_a))]
             for idx, v in enumerate(sorted_a):
@@ -812,49 +817,39 @@ def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_sc
                 
                 for idx2, v2 in enumerate(sorted_a):
                     if idx2 > idx:
-                        if getOverlap(v[1:3], v2[1:3]) > dom_overlapping_threshold:
+                        if getOverlap(v[2:4], v2[2:4]) > dom_overlapping_threshold:
                             flags[idx2] = 1
-                            print v2, "discarded by", v, " overlap_len=", getOverlap(v[1:3], v[1:3])
+                            discard_dom_n += 1
+                            #print v2, "discarded by", v, " overlap_len=", getOverlap(v[2:4], v[2:4])
             
             # Discard tagged items             
             sorted_a = [sorted_a[idx] for idx, flag in enumerate(flags) if flag == 0]
             # Sorted by position
             sorted_a = sorted(v_arr, key=lambda v: v[1], reverse=False)
             
-            orf_list[k] = sorted_a
-
-
-    # Read the summary file
-    maxbin_dir = "."
-    summary_fn = glob.glob(maxbin_dir + "/*.summary")
+            hmm_orf_dict[k] = sorted_a
     
-    if len(summary_fn) != 1:
-        print_state("Unable to read *.summary from"+maxbin_dir)
-        return False
+    print_status("Processed HMM domains = " + str(processed_dom_n))   
+    print_status( "Skipped HMM domains = "+str(skipped_dom_n))
+    print_status( "Discarded HMM domains = "+str(discard_dom_n))
     
-    summary_fn = summary_fn[0]
-    bin_groups = {}
-    with open(summary_fn, "r") as IN:
-        for idx, line in enumerate(IN):
-            if idx > 0:
-                items = (line.replace("\n", "")).split("\t")
-                bin_fn = items[0]
-                bin_id = bin_fn.replace(".fasta", "")
-                
-                print "++++++++++++++++++++++++++++++++++++++++"
-                print "ID: " + bin_id
-                print "++++++++++++++++++++++++++++++++++++++++"
-                
-                bin_groups[bin_id] = []
-                
-                # Get all the header of the current bin group
-                with open(bin_fn, "r") as IN:
-                    for line in IN:
-                        if line.startswith(">"):
-                            bin_groups[bin_id].append((line.replace(">", "")).replace("\n", ""))
-                            print (line.replace(">", "")).replace("\n", "")
+    return hmm_orf_dict  
+    
 
 
+# Mapping identified HMM domains to bin_groups
+# Keys from hmm_orf_dict should be ORFs names generated by Prodigal. They are contig prefix + "_" + number.
+# The contig prefixes are expected to be found in binning groups by MaxBin
+# Get Current Dir: os.path.dirname(os.path.abspath("."))
+def map_hmm2maxbin(hmm_orf_dict, maxbin_dir): 
+    # Check path exists
+    if not os.path.exists(maxbin_dir):
+        print_status("Unable to read from \"" + maxbin_dir + "\"")
+        return None
+
+
+    ##################################
+    # Extracting contig abundances
     contig_abunds = {}
     abund_fn = glob.glob(maxbin_dir + "/*.abund") 
     abund_fn = abund_fn[0]
@@ -862,8 +857,97 @@ def postprocess_HMMER_search(indir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_sc
         for idx, line in enumerate(IN):
             [contig_name, contig_abund] = (line.replace("\n", "")).split("\t")
             contig_abunds[contig_name] = float(contig_abund)
-           
-            (t[::-1].split("_", 1))[1][::-1]
+            
+    
+    ##################################
+    #orf2contig_dict = {orf:(orf[::-1].split("_", 1))[1][::-1] for orf in hmm_orf_dict}
+    contig2orf_dict = {}
+    for orf in hmm_orf_dict:
+        contig_id = (orf[::-1].split("_", 1))[1][::-1]
+        if contig_id not in contig2orf_dict.keys():
+            contig2orf_dict[contig_id] = [orf]
+        else:
+            contig2orf_dict[contig_id].append(orf)
+    
+
+    ##################################
+    # Mapping predicted ORFs with HMM domains info to binned groups
+    # Read the summary file
+    summary_fn = glob.glob(maxbin_dir + "/*.summary")
+    
+    if len(summary_fn) != 1:
+        print_state("Unable to read *.summary from"+maxbin_dir)
+        return False
+    
+    summary_fn = summary_fn[0]
+    
+    # Contig summary
+    contig_n = 0
+    bin_groups = {}
+    bin_group_n = 0
+    mapped_dom_n = 0
+    with open(summary_fn, "r") as IN:
+        for idx, line in enumerate(IN):
+            if idx > 0:
+                items = (line.replace("\n", "")).split("\t")
+                
+                bin_group_n += 1
+                bin_id = items[0].replace(".fasta", "")
+               
+                bin_fn = maxbin_dir + "/" + items[0]
+                
+                print_status("Importing from" + bin_fn)
+                
+                print_status("++++++++++++++++++++++++++++++++++++++++")
+                print_status( "ID: " + bin_id)
+                print_status( "++++++++++++++++++++++++++++++++++++++++")
+                
+                bin_groups[bin_id] = []
+                
+                # Get all the header of the current bin group
+                with open(bin_fn, "r") as IN:
+                    for line in IN:
+                        if line.startswith(">"):
+                            contig_name = (line.replace(">", "")).replace("\n", "")
+                            
+                            print(contig_name)
+                            
+                            if contig_name in contig2orf_dict.keys():
+                                contig_n += 1
+                                orf_names = contig2orf_dict[contig_name]
+                                
+                                for orf in orf_names:
+                                    if orf in hmm_orf_dict.keys():
+                                        mapped_dom_n += len(hmm_orf_dict[orf])
+                                        bin_groups[bin_id].extend(hmm_orf_dict[orf])
+                                
+#                             if bin_id not in bin_groups.keys():
+#                                 bin_groups[bin_id] = [contig_name]
+#                             else:
+#                                 bin_groups[bin_id].append(contig_name)
+                                
+#                             #bin_groups[bin_id].append((line.replace(">", "")).replace("\n", ""))
+#                             contig_name = (line.replace(">", "")).replace("\n", "")
+#                             if contig_name not in bin_groups.keys():
+#                                 bin_groups[contig_name] = bin_id
+#                                 #print (line.replace(">", "")).replace("\n", "")
+#                                 contig_n += 1
+#                             else:
+#                                 print ("Duplicate found.("+contig_name+")")
+
+    print_status("Bin Group# = " + str(bin_group_n) + "  Total Contig# = " + str(contig_n) + "  Mapped Domain# = " + str(mapped_dom_n))
+
+    if bin_group_n == 0 or contig_n == 0:
+        print_status("Something wrong with MaxBin data. Abort now.")
+        return None
+    else:
+        
+        bin_groups = {group: sorted(bin_groups[group], key=lambda v:v[4], reverse=True) for group in bin_groups.keys()}
+        
+        return bin_groups
+
+     
+            
 """
 
 """
