@@ -201,7 +201,7 @@ def import_subject_id_desc(infilename):
 
 # Print the usage of this script
 def print_usage():
-    print("A simple python script for filtering blast result (generated with -m6 option) using threshold values")
+    print("A simple python script for filtering blast result (generated with -outfmt 6 option) using threshold values")
     print(" ")
     print("Usage:")
     print("  python filter_blast_res.py -i BLAST-RESULT-INFILE -o FILTER-OUTFILE [-q] [-b BITSCORE-CUTOFF] [-l ALIGNMENT-LENGTH-CUTOFF] [-p PERCENTAGE-IDENTITY]")

@@ -705,17 +705,21 @@ def filter_blast_results(blast_fn, identity=80.0, length=100, subject_id_desc_fn
     print_status("Filtering thresholds: " + " Identity=" + str(identity) + " Alignment Length=" + str(length)) 
     
     cmd = SCRIPTS_HOME + "/filter_blast_res.py -i " + blast_fn + " -p " + str(identity) + " -l " + str(length)
-    # If option -q is needed
+    # If the option -q is needed
     if nr_query:
+        print_status("Best hit will be exported for each query id") 
         cmd = cmd + " -q "
+        
     # If a list of subject ids is provided
     if subject_id_desc_fn is not None:
+        print_status("Subject ID will be prepared and exported.") 
         cmd = cmd + " -k " + subject_id_desc_fn + " -s"
     
     print_status("command: " + cmd)
       
     if not VERBOSE_ONLY:
-        os.system(cmd)  
+        os.system(cmd)
+        
     
    
 
