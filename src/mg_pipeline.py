@@ -205,13 +205,15 @@ def main(argv):
         print_status("No bin group is found in " + maxbin_outdir)
         raise OSError, "No bin group is found in " + maxbin_outdir
     
-    # 
+    
+    # For each binned group
     for bin_group_fasta_fn in bin_group_fasta_fns:
         bin_group_id = (bin_group_fasta_fn.replace(maxbin_outdir + "/", "")).replace(".fasta", "")
         prodigal_info = run_Prodigal(bin_group_fasta_fn, out_prefix=bin_group_id)
 
  
-    # 
+ 
+    # For all combined result  
     prodigal_info = run_Prodigal(contig_fn)
     # {"source_fn":fna_infn, "outdir":prodigal_outdir, "prodigal_outfn":outfn, "protein_outfn":faa_outfn, "nucleotide_outfn":fna_outfn}
 
