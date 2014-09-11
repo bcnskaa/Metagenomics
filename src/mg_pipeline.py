@@ -57,6 +57,9 @@ import numpy
 # To run this script, path to biopython libraries has to be included in PYTHONPATH
 from Bio import SeqIO
 from Bio import SeqUtils
+from Bio import Seq
+from Bio.Blast import NCBIXML
+from Bio.Blast import NCBIWWW
 
 
 ####################### Apps Path #######################
@@ -632,15 +635,137 @@ def run_specI(gene_fn, protein_fn, base_dir, runName=None, num_of_thread=16):
             specI_results[result[3]] = result[4]  
     # 
     return specI_results
-      
- 
+
+
+     
+"""
+    This routine will search 16s sequence from the input fna sequence file. The identified 16s sequence will then
+    blast against NCBI web blast. Result will be parsed, and subject id of top hit will be returned. 
+"""
+def run_16s_mapping(fna_fn, outdir=None, outprefix=None, blast_bitscore_threshold=200, wwwblast_evalue=1e-10, wwwblast_hitlist_size=5):
+    print_status("Searching 16s sequence from " + fna_fn)
+
+    if outdir is None:
+        outdir = "."  
+    
+    if outprefix is None:
+        outprefix = fna_fn[::-1].split("/", 1)
+        outprefix = outprefix[0][::-1]
+
+    # Blast the fna against 16s database
+    blast_outfn = outprefix + "-ncbi16s.bla"
+    print_status("Blast result will be exported to " + blast_outfn)
+
+    
+    blastn(query_fn=fna_fn, db_fn=NCBI16S_DB, outdir=outdir, outfn=blast_outfn, best_hit_score_edge=None, best_hit_overhang=None, perc_identity=None, max_target_seqs=None, evalue=None)
+    
+    # Verify if the blast result is available
+    if not os.path.isfile(blast_outfn):
+        return None
+        
+    # Check out the hit with highest bit-score
+    mapped_16s = []
+    bres = open(blast_outfn).read().splitlines()
+    if len(bres) > 0:
+        items = bres[0].split("\t")
+        bit_score = float(items[11])
+        if bit_score > blast_bitscore_threshold:
+            print outprefix + "=" + items[0] + ": " + str(bit_score)
+            # query, q_spos, q_epos, subject, s_spos, s_epos, length, identity, bit-score 
+            mapped_16s = [items[0], int(items[6]), int(items[7]), items[1], int(items[8]), int(items[9]), int(items[3]), float(items[4]), bit_score] 
+    
+    #return mapped_16s
+    
+    if len(mapped_16s) == 0:
+        print_status("No 16s sequence found in " + blast_outfn)
+        return None
+    
+    # Pick the 16s sequence from the contig sequences
+    seq_16s = pick_seq(fna_fn, mapped_16s[0], mapped_16s[1], mapped_16s[2])
+    
+    # Problem on retrieving the 16s sequence
+    if seq_16s is None:
+        print_status("Cannot extract the 16s sequence from " + fna_fn)
+        return None
+    
+    # Reverse complement if it is in minus strand
+    if mapped_16s[5] - mapped_16s[4] < 0:
+        seq_16s = str(Seq(seq_16s).reverse_complement())
+
+    # Submit the sequence to NCBI wwwblast and check if there is any hit.
+    #handler = NCBIWWW.qblast("blastn", "nr", seq_16s, expect=wwwblast_evalue, hitlist_size=wwwblast_hitlist_size)
+    records = run_ncbi_wwwblast(seq=seq_16s, database="nr", blast_program="blastn", expect=wwwblast_evalue, hitlist_size=wwwblast_hitlist_size)
+    
+    #species = None
+    candidate_species = []
+    if records is not None:
+        if len(records[0].alignments) > 0:    
+            for alignment in records[0].alignments:
+                if alignment.hsps[0].score > blast_bitscore_threshold:
+                    species = str((alignment.title).split("|")[4])
+                    species = species.replace("16S ribosomal RNA gene, complete sequence", "")
+                    species = species.replace("16S rRNA gene, ", "")
+                    species = species.replace("gene for 16S rRNA, partial sequence, ", "")
+                    species = species.replace("16S ribosomal RNA gene, partial sequence", "")
+                    species = species.strip()
+                    candidate_species.append(species)
+
+#             alignment = records[0].alignments[0]
+#              
+#             if alignment.hsps[0].score > blast_bitscore_threshold:
+#                 species = str((alignment.title).split("|")[4])
+#                 species = species.replace("16S ribosomal RNA gene, complete sequence", "")
+#                 species = species.replace("16S rRNA gene, ", "")
+#                 species = species.replace("gene for 16S rRNA, partial sequence, ", "")
+#                 species = species.replace("16S ribosomal RNA gene, partial sequence", "")
+#                 species = species.strip()
+                
+    return candidate_species
+    
+
+
+"""
+ Invoke a NCBI web blast search
+"""
+def run_ncbi_wwwblast(seq, database, blast_program="blastn", expect=10, hitlist_size=50):
+    print_status("Connecting to NCBI Web BLAST: " + blast_program + " e-value=" + str(expect) + " hitlist_size=" + str(hitlist_size))
+    
+    result_handler = NCBIWWW.qblast(program=blast_program, database=database, sequence=seq, expect=expect, hitlist_size=hitlist_size)
+    
+    # Store the wwwblast results to local memory
+    records = list(NCBIXML.parse(result_handler))
+    
+    return records
+
+
+
+"""
+    
+""" 
+def pick_seq(seq_fn, seq_id, spos=-1, epos=-1, format="fasta"):
+    print_status("Picking " + seq_id + " from " + seq_fn)
+
+    # Build an index of the sequences available in the file
+    seq_idx = SeqIO.index(seq_fn, format)
+    
+    seq = None
+    # Check if the seq_id is existed in the index
+    if seq_id in seq_idx.keys():
+        if spos != -1 and epos != -1:
+            seq = str(seq_idx[seq_id][spos:epos].seq)
+        else:
+            seq = str(seq_idx[seq_id].seq)
+             
+    return seq
+
+
 
 
 ####### Functional annotation stage #########
 # BLASTN
 # -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
 def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, evalue=1e-10, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, blast_program="blastn"):
-    print_status("Initializing for " + blast_program)
+    print_status("Initializing " + blast_program)
 
     # Name the outfile
     if outfn is None:
@@ -663,7 +788,25 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
             print_status("Output directory, " + outdir + ", does not exist, we will create it.")
             os.makedirs(outdir)     
             
-    cmd = BLAST_HOME + "/bin/" + blast_program + " -db " + db_fn + " -outfmt " + str(outfmt) + " -num_threads " + str(num_threads) + " -evalue " + str(evalue) + " -best_hit_score_edge " + str(best_hit_score_edge) + " -best_hit_overhang " + str(best_hit_overhang) + " -perc_identity " + str(perc_identity) + " -max_target_seqs " + str(max_target_seqs) + " -query " + query_fn + " -out " + outdir + "/" + outfn
+    cmd = BLAST_HOME + "/bin/" + blast_program + " -db " + db_fn + " -outfmt " + str(outfmt) + " -num_threads " + str(num_threads)
+    
+    if evalue is not None:
+        cmd = cmd + " -evalue " + str(evalue)
+        
+    if best_hit_score_edge is not None:
+        cmd = cmd + " -best_hit_score_edge " + str(best_hit_score_edge)
+        
+    if best_hit_overhang is not None: 
+        cmd = cmd + " -best_hit_overhang " + str(best_hit_overhang)
+        
+    if perc_identity is not None: 
+        cmd = cmd + " -perc_identity " + str(perc_identity)  
+        
+    if max_target_seqs is not None: 
+        cmd = cmd + " -max_target_seqs " + str(max_target_seqs)     
+    
+    cmd = cmd + " -query " + query_fn + " -out " + outdir + "/" + outfn
+    
     print_status("command: " + cmd)
       
     #if not VERBOSE_ONLY:
@@ -674,20 +817,21 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
 
 
 
+
 """
 """    
-def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2):
+def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, evalue=1e-10):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
-    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, blast_program="blastp")
+    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastp")
     
 
     
 """
  
 """
-def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2):
+def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, evalue=1e-10):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
-    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, blast_program="blastn")
+    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastn")
     
 
  
@@ -1146,7 +1290,7 @@ def detect_host_genome(read_fn, host="human"):
 ####### CAZy Specific stage #########
 ####### Auxillary routines #########
 def parse_opt():
-    print_status("calling parsing opts")
+    print_status("Calling parsing opts")
 
 
 # Print the usage of this script 
