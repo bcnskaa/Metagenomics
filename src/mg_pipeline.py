@@ -87,7 +87,6 @@ TRNA_SCAN_HOME = TOOLS_HOME + "/tRNAscan-SE"
 
 
 
-
 FASTQ_EXT = "fq"
 FASTA_EXT = "fa"
 FASTA_PROT_EXT = "faa"
@@ -126,7 +125,7 @@ HMMER_OUTDIR = MARKER_OUTDIR + "/HMMER"
 VERBOSE_ONLY = True
 
 
-# Main 
+######### Main subroutine 
 def main(argv):
 
     #if LOG:
@@ -143,14 +142,14 @@ def main(argv):
         run_id = argv[2]
     else:
         run_id = read_1_fn.split("_1.",1)[0]
-        
-    print_status("Output Prefix = " + run_id)
-    
+
+    print_status("Output Prefix = " + run_id)    
     
     # Preprocess raw reads and generate quality reports 
     read_1_processed_fn = preprocess(read_1_fn)
     read_2_processed_fn = preprocess(read_2_fn)
-
+    
+    
     # Filter read files
     read_fns = run_fastq_mcf(read_1_processed_fn, read_2_processed_fn, ADAPTOR_SEQS)
     
@@ -183,14 +182,11 @@ def main(argv):
         print_status("Unable to locate contig.fa")
         raise OSError, "Contig file is not avaiable from IDBA_UD, abort now."
     
-    
     # Initial stage of inferring candidate taxonomical identities in the current dataset
     blast_outfn = run_id+"-ncbi16s.bla"
     blastp(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR, outfn=blast_outfn)
     
-    
 
-    
     # Great, we are moving to do binning
     maxbin_outdir = run_MaxBin(contig_fn, merged_read_fn)
     
@@ -215,7 +211,6 @@ def main(argv):
         prodigal_info = run_Prodigal(bin_group_fasta_fn, out_prefix=bin_group_id)
 
  
- 
     # For all combined result  
     prodigal_info = run_Prodigal(contig_fn)
     # {"source_fn":fna_infn, "outdir":prodigal_outdir, "prodigal_outfn":outfn, "protein_outfn":faa_outfn, "nucleotide_outfn":fna_outfn}
@@ -235,15 +230,13 @@ def main(argv):
     else:
         print_status("Unable to process outputs from HMMER search")
     
-    
-    
+     
     # Blast any 16s sequence fragments existed in newly assembled contig sequences
     blastn(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR + "/ncbi16s")
     
     
     # Based on the 16s blast result, we construct a reference genome library
-    prepare_reference_genome()
-    
+    prepare_reference_genome()  
     
     # 
     running_EMIRGE(read_fns[0], read_fns[1])
@@ -251,6 +244,7 @@ def main(argv):
     # Close the log stream
     if LOG:
         LOG_FILE.close()
+
 
 
 
@@ -291,7 +285,7 @@ def run_FastQC(read_fn, report_outdir="fastqc_report"):
 
 
 
-#  
+# Seqtk 
 def run_seqtk(read_fn, trimmed_read_fn):
     print_status("Processing " + read_fn)    
     
@@ -303,6 +297,7 @@ def run_seqtk(read_fn, trimmed_read_fn):
 
 
 
+###############################################
 # http://onetipperday.blogspot.hk/2012/08/three-ways-to-trim-adaptorprimer.html
 def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=16, min_trim_quality=15, trim_win_len=4, N_percent=10):
     print_status("Processing" + read_1_fn + "and" + read_2_fn)    
@@ -325,7 +320,7 @@ def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=16, min_tri
 
 ####### Statistics stage #########
 """
- 
+  Generate some statistics about the read data 
 """
 #def running_bbmap(read_1_fn, read_2_fn, ihist_fn="bbamp.ihist", outdir=RESULT_OUTDIR, read_n=8000000):
 def summarize_statistics(read_1_fn, read_2_fn, ihist_fn="bbamp.ihist", outdir=RESULT_OUTDIR, read_n=8000000):
@@ -403,8 +398,12 @@ def merge_paired_end_seq(read_1_fn, read_2_fn, outdir="idba_ud", merged_read_fn=
     return merged_read_fn
 
 
+
 ###### 
 # IDBA-UD
+"""
+ 
+"""
 def run_idba_ud(merged_read_fn, idba_ud_outdir="idba_ud", min_contig=1200, mink=20, maxk=80, step=10, num_threads=16):
     print_status("Initializing IDBA-UD")
     
@@ -467,8 +466,11 @@ def postprocess_idba_ud(idba_ud_outdir="idba_ud", report_outdir=RESULT_OUTDIR):
 
 
 
+
 ####### Binning ###########
-# Summary of fasta sequences
+"""
+ Generate a summary of fasta sequences
+"""
 def summarize_fasta(fasta_fn, outtbl_fn=None):
     print_status("Summarizing " + fasta_fn) 
     
@@ -486,12 +488,12 @@ def summarize_fasta(fasta_fn, outtbl_fn=None):
             txt = seq.id + "\t" + str(len(seq.seq)) + "\t" + str(SeqUtils.GC(seq.seq)) + "\n"
             outfile.write(txt)
             seq_n += 1
-    
+            
+            
     print_status("Sequence processed: " + str(seq_n))
 
 
 
-####### Binning ###########
 """
  Check sure that bash, "source /home/siukinng/.bashrc", "set PERL5LIB=/usr/lib/perl5/site_perl/5.8.8:"$PERL5LIB" is included in the qsub script  
 """
@@ -571,7 +573,6 @@ def run_Prodigal(fna_infn, p_opt="meta", prodigal_outdir="Prodigal", out_prefix=
 # Contig binning using ESOM 
 def run_tetraESOM():
     print_status("Initializing ESOM")    
-    
     
     
     
