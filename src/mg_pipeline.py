@@ -1271,7 +1271,7 @@ def generate_map_table(bin_groups, outfn_prefix):
     
    
 """
-
+ 
 """
 def prepare_reference_genome(sid_list, output_prefix=None, bacterialdb_path=NCBI_BACTERIAL_GENEOMES_DB):
     print_status("Preparing reference genomes")

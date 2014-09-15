@@ -12,24 +12,22 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 
 
-
-
-
 # Path to circos
 CIRCOS_HOME="~/tools/circos/"
-
 
 
 def main(argv):
     print("")  
 
 
-
+"""
+"""
 def generate_conf():
     print("Generating configuration file...")
 
 
-
+"""
+"""
 def generate_karyotype():
     print("Generating configuration file...")
 
@@ -56,12 +54,23 @@ def print_status(msg):
     print(msg)
 
 
+def getOverlap(x, y):
+    #print "x[1]=", x[1], ", y[1]=", y[1], ", x[0]=", x[0], ", y[0]=", y[0]
+    return max(0, min(x[1], y[1]) - max(x[0], y[0]))
+
+
 
 """
  Extract 
 """
-def extract_link(blast_fn):
+def extract_links(blast_fn, cutoff_range=200):
     blast_res = SearchIO.index(blast_fn, "blast-xml")
+    
+    query_species = "species1"
+    hit_species = "species2"
+    
+    
+    
     for key in blast_res.keys():
         res = blast_res[key]
         if len(res.hits) > 0:
@@ -69,9 +78,10 @@ def extract_link(blast_fn):
                 print "hit:"
                 for hsp in hit.hsps:
                     range = hsp.query_range[1] - hsp.query_range[0]
-                    if range > 100:
-                        print hsp.query_id + "@" + str(hsp.query_range[0]) + "-" + str(hsp.query_range[1]) + "\t" + hsp.hit_id + "@" + str(hsp.hit_range[0]) + "-" + str(hsp.hit_range[1]) + "\t" + str(range)
-
+                    if range > cutoff_range:
+                        #print hsp.query_id + "@" + str(hsp.query_range[0]) + "-" + str(hsp.query_range[1]) + "\t" + hsp.hit_id + "@" + str(hsp.hit_range[0]) + "-" + str(hsp.hit_range[1]) + "\t" + str(range)
+                        #print query_species + "\t1\t10\t" + hit_species + "\t" + str(hsp.hit_range[0]) + "\t" + str(hsp.hit_range[1])
+                        print query_species + "\t1\t10\t" + hsp.hit_id + "\t" + str(hsp.hit_range[0]) + "\t" + str(hsp.hit_range[1])
 
 
 
