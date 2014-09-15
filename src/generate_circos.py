@@ -21,17 +21,19 @@ CIRCOS_HOME="~/tools/circos/"
 
 
 def main(argv):
-    
-    # Get current working directory
-    CUR_WD = os.getcwd()
-    print_status("Current Working Directory: " + CUR_WD)
-    
-    read_1_fn = argv[0]
-    read_2_fn = argv[1]
-    
-    
-    
-    
+    print("")  
+
+
+
+def generate_conf():
+    print("Generating configuration file...")
+
+
+
+def generate_karyotype():
+    print("Generating configuration file...")
+
+
 
 # Print the usage of this script 
 def print_usage():
@@ -44,7 +46,7 @@ def print_usage():
     print(" ")
     print(" ") 
     print("Ver 0.2b")
-   
+    
 
 
 # Print status
@@ -52,8 +54,26 @@ def print_status(msg):
     caller_name = inspect.stack()[1][3]
     msg = "[ " + caller_name + " ] " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "  " + msg
     print(msg)
-    
-    
+
+
+
+"""
+ Extract 
+"""
+def extract_link(blast_fn):
+    blast_res = SearchIO.index(blast_fn, "blast-xml")
+    for key in blast_res.keys():
+        res = blast_res[key]
+        if len(res.hits) > 0:
+            for hit in res.hits:
+                print "hit:"
+                for hsp in hit.hsps:
+                    range = hsp.query_range[1] - hsp.query_range[0]
+                    if range > 100:
+                        print hsp.query_id + "@" + str(hsp.query_range[0]) + "-" + str(hsp.query_range[1]) + "\t" + hsp.hit_id + "@" + str(hsp.hit_range[0]) + "-" + str(hsp.hit_range[1]) + "\t" + str(range)
+
+
+
 
 # Invoke the main function
 if __name__ == "__main__":

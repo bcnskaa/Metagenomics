@@ -4,8 +4,8 @@
 
 """
  This pipeline script is in a highly integrated and automatic manner designed for analyzing paired-end metagenomic data generated
- by next-generated sequencing platforms . After installing all dependencies (first-time only), the only input from end-user is two
- paired-end read files. This pipeline is tested under Linux environment only.
+ by next-generated sequencing platforms. After installing all dependencies (first-time only), the only input from end-user is two
+ paired-end read files. Currently, this pipeline is tested under Linux environment only.
  
  The following dependencies are needed for this pipeline:
      1. BBMap
@@ -86,7 +86,6 @@ TETRA_ESOM_HOME = TOOLS_HOME + "/tetra-ESOM"
 TRNA_SCAN_HOME = TOOLS_HOME + "/tRNAscan-SE"
 
 
-
 FASTQ_EXT = "fq"
 FASTA_EXT = "fa"
 FASTA_PROT_EXT = "faa"
@@ -122,7 +121,7 @@ RESULT_OUTDIR = "Reports"
 
 HMMER_OUTDIR = MARKER_OUTDIR + "/HMMER"
 
-VERBOSE_ONLY = True
+VERBOSE_ONLY = False
 
 
 ######### Main subroutine 
@@ -170,7 +169,7 @@ def main(argv):
         raise OSError, "Problem at merging reads files, abort now."
     
     # Alright, we are about to do assembly 
-    if not run_idba_ud(merged_read_fn):
+    if not run_idba_ud(merged_read_fn, min_contig=800):
         print_status("Problem at completing IDBA_UD stage")
         raise OSError, "Problem at IDBA_UD stage, abort now."
     
@@ -1224,7 +1223,7 @@ def map_hmm2maxbin(hmm_orf_dict, maxbin_dir):
   
 
 """
- Export the bin groups into tabular file
+ Export the bin groups into a tabular file
 """
 def generate_map_table(bin_groups, outfn_prefix):
     
