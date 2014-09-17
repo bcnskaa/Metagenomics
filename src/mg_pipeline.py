@@ -99,7 +99,7 @@ ADAPTOR_SEQS = DB_HOME + "/Sequencing/adaptors.fa"
 
 # NCBI 16S database
 NCBI16S_DB = DB_HOME + "/Markers/ncbi16s/16SMicrobial.idx.fa"
-NCBI16S_GI_IDX = DB_HOME + "Markers/ncbi16s/16SMicrobial.idx"
+NCBI16S_GI_IDX = DB_HOME + "/Markers/ncbi16s/16SMicrobial.idx"
 
 EMIRGE_16S_DB = EMIRGE_HOME + "/db/SSURef_111_candidate_db.fasta"
 
@@ -118,6 +118,7 @@ LOG_FILE = open(LOG_FN, "w")
 # Output directories
 MARKER_OUTDIR = "Markers"
 RESULT_OUTDIR = "Reports"
+TMP_OUTDIR = "tmp"
 
 HMMER_OUTDIR = MARKER_OUTDIR + "/HMMER"
 
@@ -133,6 +134,11 @@ def main(argv):
     # Get current working directory
     CUR_WD = os.getcwd()
     print_status("Current Working Directory: " + CUR_WD)
+    
+    # Create a temp folder
+    if not os.path.exists(TMP_OUTDIR):
+        os.makedirs(TMP_OUTDIR) 
+    
     
     read_1_fn = argv[0]
     read_2_fn = argv[1]
@@ -180,22 +186,13 @@ def main(argv):
     if contig_fn is None:
         print_status("Unable to locate contig.fa")
         raise OSError, "Contig file is not avaiable from IDBA_UD, abort now."
-    
-    # Initial stage of inferring candidate taxonomical identities in the current dataset
-    blast_outfn = run_id+"-ncbi16s.bla"
-    blastp(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR, outfn=blast_outfn)
-    
+ 
 
     # Great, we are moving to do binning
     maxbin_outdir = run_MaxBin(contig_fn, merged_read_fn)
     
     # Assure, filter and manage output files from MaxBin
-    postprocess_MaxBin(maxbin_outdir)
-    
-    
-    # Do ESOM classification
-    run_tetraESOM()
-    
+    maxbin_fns = postprocess_MaxBin(maxbin_outdir)
     
     # 
     bin_group_fasta_fns = glob.glob(maxbin_outdir + "/*.fasta")
@@ -203,6 +200,43 @@ def main(argv):
         print_status("No bin group is found in " + maxbin_outdir)
         raise OSError, "No bin group is found in " + maxbin_outdir
     
+
+    # Initial stage of inferring candidate taxonomical identities in the current dataset
+    blast_outfn = run_id+"-ncbi16s.bla"
+    blast_outdir = MARKER_OUTDIR + "/ncbi16s"
+    blastn(contig_fn, NCBI16S_DB, outdir=blast_outdir, outfn=blast_outfn)
+    
+    if os.path.isfile(blast_outdir + "/" + blast_outfn):
+        print_status("Parsing " + blast_outdir + "/" + blast_outfn)
+        
+        # Filter blast result
+        fns = filter_blast_results(blast_outdir + "/" + blast_outfn, subject_id_desc_fn=NCBI16S_GI_IDX, length=100)
+        sid_fn = [f for f in fns if f.endswith(".sid")]
+        
+        if sid_fn == 1:
+            # Based on the 16s blast result, we construct a reference genome library
+            tmp_outdir = TMP_OUTDIR + "/ref_genomes"
+            genomes_fns = prepare_reference_genome(sid_fn[0], output_prefix=tmp_outdir)
+            
+            # Combined maxbin and reference genomes
+            for fn in maxbin_fns:
+                fn_basename = fn
+                if fn_basename.split("/") > 0:
+                    
+                    
+                os.system("ln -s " + fn + " " + tmp_outdir)
+                
+            # Do ESOM classification
+            run_tetraESOM()
+            
+        else:
+            print_status("Unable to find *.sid in " + blast_outdir)
+        
+    else:
+        print_status(blast_outdir + "/" + blast_outfn + " does not exist.")
+        
+        
+        
     
     # For each binned group
     for bin_group_fasta_fn in bin_group_fasta_fns:
@@ -234,8 +268,7 @@ def main(argv):
     blastn(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR + "/ncbi16s")
     
     
-    # Based on the 16s blast result, we construct a reference genome library
-    prepare_reference_genome()  
+
     
     # 
     running_EMIRGE(read_fns[0], read_fns[1])
@@ -355,9 +388,9 @@ def summarize_statistics(read_1_fn, read_2_fn, ihist_fn="bbamp.ihist", outdir=RE
     cmd = BBMAP_HOME + "/bbmerge.sh in1=" + read_1_fn + " in2=" + read_2_fn + " ihist=" + outdir + "/" + ihist_fn + " reads=" + str(read_n) + " &> " + summary_fn
     print_status("command: " + cmd)
     
-    #if not VERBOSE_ONLY:    
-    #    os.system(cmd)
-    os.system(cmd)
+    if not VERBOSE_ONLY:    
+        os.system(cmd)
+    #os.system(cmd)
 
     if not os.path.isfile(summary_fn):
         print_status("Problem on estimating files")        
@@ -530,7 +563,10 @@ def postprocess_MaxBin(maxbin_outdir, min_total_contig_len=1000000, marker_gene_
         print_state("Unable to process maxbin results at " + maxbin_outdir)
         return False
     
-    return True
+    # List the content of outdir
+    maxbin_fns = glob.glob(maxbin_outdir + "/*.fna")
+    
+    return maxbin_fns
 
     
     
@@ -809,9 +845,9 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
     
     print_status("command: " + cmd)
       
-    #if not VERBOSE_ONLY:
-    #    os.system(cmd)
-    os.system(cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+    #os.system(cmd)
     
     return outfn
 
@@ -847,10 +883,15 @@ def blastx():
  Based on given threshold values, this routine will invoke filter_blast_res.py.
 """
 def filter_blast_results(blast_fn, identity=80.0, length=100, subject_id_desc_fn=None, nr_query=True): 
-    print_status("Filtering BLAST result") 
+    print_status("Filtering BLAST results") 
     print_status("Filtering thresholds: " + " Identity=" + str(identity) + " Alignment Length=" + str(length)) 
+     
+    outdir = (blast_fn[::-1].split("/", 1)[1])[::-1]
+    file_suffix = "l" + str(length) + ".p" + str(identity)
+    if nr_query:
+        file_suffix = file_suffix + "q" 
     
-    cmd = SCRIPTS_HOME + "/filter_blast_res.py -i " + blast_fn + " -p " + str(identity) + " -l " + str(length)
+    cmd = "pyhton " + SCRIPTS_HOME + "/filter_blast_res.py -i " + blast_fn + " -p " + str(identity) + " -l " + str(length)
     # If the option -q is needed
     if nr_query:
         print_status("Best hit will be exported for each query id") 
@@ -865,7 +906,11 @@ def filter_blast_results(blast_fn, identity=80.0, length=100, subject_id_desc_fn
       
     if not VERBOSE_ONLY:
         os.system(cmd)
-        
+    
+    # List the content of outdir
+    fns = glob.glob(outdir + "/*" + file_suffix + "*")
+    
+    return fns
     
    
 
@@ -986,9 +1031,9 @@ def running_HMMER_search(hmm_profile_fn, prot_faa_fn, outdir=HMMER_OUTDIR, outfn
     cmd = HMMER_HOME + "/bin/hmmsearch " + " -o " + outfn + " -A " + alignment_outfn + " --tblout " + tblout_fn + " --domtblout " + domtblout_fn + " --pfamtblout " + pfamtblout_fn + " " + hmm_profile_fn + " " + prot_faa_fn
     print_status("command: " + cmd)
       
-    #if not VERBOSE_ONLY:
-    #    os.system(cmd)  
-    os.system(cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)  
+    #os.system(cmd)
 
     # Make sure 
     if assert_proc(outfn) and assert_proc(alignment_outfn) and assert_proc(tblout_fn) and assert_proc(domtblout_fn) and assert_proc(pfamtblout_fn):
@@ -1271,11 +1316,23 @@ def generate_map_table(bin_groups, outfn_prefix):
     
    
 """
- 
+ Based on 16s sequences, a database of potential reference genomes is constructed
 """
-def prepare_reference_genome(sid_list, output_prefix=None, bacterialdb_path=NCBI_BACTERIAL_GENEOMES_DB):
+def prepare_reference_genome(sid_fn, output_prefix=None, bacterialdb_path=NCBI_BACTERIAL_GENEOMES_DB):
     print_status("Preparing reference genomes")
+ 
+    if output_prefix is None:
+        output_prefix = sid_fn
     
+    cmd = "python " + SCRIPTS_HOME + "/prepare_ref_genomes.py -i " + sid_fn + " -o " + output_prefix
+    print_status("command: " + cmd)
+      
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+        
+    fns = glob.glob(output_prefix + "/*.fna")
+    
+    return fns
 
 
 

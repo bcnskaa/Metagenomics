@@ -29,7 +29,7 @@ def main(argv):
     global READ_LENGTH
     
     try:
-        opts, args = getopt.getopt(argv,"hi:o:p:c:e:l:")
+        opts, args = getopt.getopt(argv,"hi:o:p:c:e:l:d:r")
     except getopt.GetoptError:
         print_usage()
         sys.exit(2)
@@ -37,7 +37,8 @@ def main(argv):
     infn = None
     outfn_prefix = None
     lib_path = NCBI_BACTERIAL_DB_PATH
-
+    build_reference = False
+    output_dir = None
     
     for opt, arg in opts:
         if opt == '-h':
@@ -55,11 +56,20 @@ def main(argv):
         elif opt == "-l":
             READ_LENGTH = int(arg)
         elif opt == "-e":
-            READ_ERROR_RATE = float(arg)       
+            READ_ERROR_RATE = float(arg)
+        elif opt == "-r":
+            build_reference = True    
+        elif opt == "-d":
+            output_dir = arg     
         else:
             print("Unrecognized option", opt)
             print_usage()
             sys.exit(0)
+
+            
+    if output_dir is None:
+        output_dir = outfn_prefix
+
 
     # Make sure infilename and outfilename are specified
     #if (infn is None and outfn is None and lib_path is None):
@@ -95,8 +105,32 @@ def main(argv):
     for id in bacterial_db_ids:
         print id
 
-    print "Constructing reference genome library..."
-    contruct_referenece_genome_library(bacterial_db_ids, ncbi_bacterial_db, outfn_prefix)
+    if build_reference:
+        print "Constructing reference genome library..."
+        contruct_referenece_genome_library(bacterial_db_ids, ncbi_bacterial_db, outfn_prefix)
+    else:
+        seq_n = 0
+        
+        # Create the output folder if it doesn't exist
+        if not os.path.isdir(output_dir):
+            print "Creating " + output_dir
+            os.system("mkdir " + output_dir)
+        
+        # Copy sequences of reference genomes
+        for id in bacterial_db_ids:  
+            fn = output_dir + "/" + id + ".fna"
+            paths_to_genome = ncbi_bacterial_db[id]
+            
+            print "Number of sequences to be processed for " + id + ":", len(paths_to_genome)
+            
+            for seq_fn in paths_to_genome:
+                print "processing", seq_fn
+                os.system("cat " + seq_fn + " >> " + fn)    
+                seq_n += 1
+                
+        print "Sequence processed:", seq_n      
+        
+                
 
 
 # Build read library from recruited reference genomes
@@ -277,10 +311,12 @@ def print_usage():
     print("This simple script generates a reference genomes read library of prokaryotic species based on given subject ids.")
     print(" ")
     print("Usage:")
-    print("  python prepare_ref_genomes.py -i SID-INFILE -o LIB-OUTFILE [-p PATH-TO-NCBI-BACTERIAL-LIB] [-l READ-LEN] [-e READ-ERROR-RATE] [-c COVERAGE]")
+    print("  python prepare_ref_genomes.py -i SID-INFILE -o LIB-OUTFILE [-r] [-d output-dir] [-p PATH-TO-NCBI-BACTERIAL-LIB] [-l READ-LEN] [-e READ-ERROR-RATE] [-c COVERAGE]")
     print("      -i STRING  A .sid file exported from filter_blast_res.py with -s option.")
     print("                 The subject ids or sids are expect in 'genus+species+strain' format. (required)")
     print("      -o STRING  Prefix of an output library file. (required)")
+    print("      -d STRING  Output directory [optional]")
+    print("      -r         Build a read library of reference genomes [optional, default=False]")
     print("      -p STRING  Path to the NCBI Complete Bacterial Library [optional, default=" + NCBI_BACTERIAL_DB_PATH + "]")
     print("      -l INT     Read length [optional, default=" + str(READ_LENGTH) + "]")
     print("      -e FLOAT   Read error rate [optional, default=" + str(READ_ERROR_RATE) + "]")
