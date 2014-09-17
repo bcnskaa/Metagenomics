@@ -1,12 +1,13 @@
 # 2014 SKWoolf bcnskaa AT gmail DOT com
 
 
+
 #
 #process_esom("/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/ESOM/ESOM_GZ-xyl_S2", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/MaxBin", "GZ-xyl_S2", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-xyl_S2/ESOM");
 #process_esom("/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-cell_S1/ESOM/ESOM_GZ-cell_S1", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-cell_S1/MaxBin", "GZ-cell_S1", "/Users/subbu/Desktop/Metagenomics/Analysis/samples/lab/GZ-cell_S1/ESOM");
 
 #process_esom <- function(path_to_esom_dir, maxbin_fn, output_prefix=character(0), output_dir=character(0), selected_ids=character(0)) 
-process_esom <- function(path_to_esom_dir, maxbin_dir, output_prefix=character(0), output_dir=character(0)) 
+process_esom <- function(path_to_esom_dir, maxbin_dir, output_dir=character(0), output_prefix=character(0)) 
 {
 	pdf_fn <- character(0);
 	outdir <- character(0);
@@ -19,7 +20,6 @@ process_esom <- function(path_to_esom_dir, maxbin_dir, output_prefix=character(0
 	{
 		pdf_fn <- paste(outdir, output_prefix, ".mtx.pdf" ,sep="")
 	}
-	
 	
 	# Import MaxBin summary of binned contigs	
 	maxbin_summary <- import_maxbin(maxbin_dir);
@@ -736,3 +736,14 @@ print_msg <- function(msg)
 {
 	cat(paste(msg, "\n", sep=""));
 }
+
+#######################################################
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) == 2)
+{
+	process_esom(args[1], args[2])
+} else if (length(args) == 3) {
+	process_esom(args[1], args[2], args[3])
+}
+
+

@@ -93,6 +93,7 @@ FASTA_DNA_EXT = "fna"
 
 CUR_WD = "."
 
+
 # Sequences of sequencing adaptors
 DB_HOME = HOME + "/db"
 ADAPTOR_SEQS = DB_HOME + "/Sequencing/adaptors.fa"
@@ -111,13 +112,14 @@ DBCAN_HMM = DBCAN_HOME + "/dbCAN-fam-HMMs.txt.v3.txt"  # CAZy HMM profile
 NCBI_BACTERIAL_GENEOMES_DB = DB_HOME + "/BacterialDB/all_fna"
 
 
-LOG = True
+LOG = False
 LOG_FN= "pipeline.log"
 LOG_FILE = open(LOG_FN, "w")
 
 # Output directories
 MARKER_OUTDIR = "Markers"
 RESULT_OUTDIR = "Reports"
+BINNING_OUTDIR = "Binning"
 TMP_OUTDIR = "tmp"
 
 HMMER_OUTDIR = MARKER_OUTDIR + "/HMMER"
@@ -127,9 +129,48 @@ VERBOSE_ONLY = False
 
 ######### Main subroutine 
 def main(argv):
+    global VERBOSE_ONLY
+    global LOG
+        
+        
+    try:
+        opts, args = getopt.getopt(argv,"hvl1:2:o:")
+    except getopt.GetoptError:
+        print_usage()
+        sys.exit(2)
+        
+    read_1_fn = None
+    read_2_fn = None
+    run_id = None
+      
 
-    #if LOG:
-    #    LOG_FILE = open(LOG_FN, "w")
+    for opt, arg in opts:
+        if opt == '-h':
+            print_usage()
+            sys.exit(0)
+        elif opt in ("-v"):
+            VERBOSE_ONLY = True
+        elif opt in ("-l"):
+            LOG = True
+        elif opt in ("-1"):
+            read_1_fn = arg   
+        elif opt in ("-2"):
+            read_2_fn = arg 
+        elif opt in ("-o"):
+            run_id = arg 
+        else:
+            print("Unrecognized option", opt)
+            print_usage()
+            sys.exit(0)
+
+    if read_1_fn is None and read_2_fn is None:
+        print("Missing input files.")
+        print_usage()
+        sys.exit(0)
+        
+        
+    if LOG:
+        LOG_FILE = open(LOG_FN, "w")
     
     # Get current working directory
     CUR_WD = os.getcwd()
@@ -140,12 +181,16 @@ def main(argv):
         os.makedirs(TMP_OUTDIR) 
     
     
-    read_1_fn = argv[0]
-    read_2_fn = argv[1]
+#    read_1_fn = argv[0]
+#    read_2_fn = argv[1]
     
-    if len(argv) == 3:
-        run_id = argv[2]
-    else:
+#     if len(argv) == 3:
+#         run_id = argv[2]
+#     else:
+#         run_id = read_1_fn.split("_1.",1)[0]
+
+    # Check if run_id is available, we create it if not
+    if run_id is None:
         run_id = read_1_fn.split("_1.",1)[0]
 
     print_status("Output Prefix = " + run_id)    
@@ -164,7 +209,8 @@ def main(argv):
         raise OSError, "Problem on processing fastq_mcf outputs, abort now."
     
     # Generate a summary of read data
-    summarize_statistics(read_fns[0], read_fns[1])
+    if not VERBOSE_ONLY:
+        summarize_statistics(read_fns[0], read_fns[1])
     
     # We need to merge paired-end files (fastq) into one single file (fasta) before calling IDBA-UD
     merged_read_fn = merge_paired_end_seq(read_fns[0], read_fns[1])
@@ -195,7 +241,7 @@ def main(argv):
     maxbin_fns = postprocess_MaxBin(maxbin_outdir)
     
     # 
-    bin_group_fasta_fns = glob.glob(maxbin_outdir + "/*.fasta")
+    bin_group_fasta_fns = glob.glob(maxbin_outdir + "/*." + FASTA_DNA_EXT)
     if len(bin_group_fasta_fns) == 0:
         print_status("No bin group is found in " + maxbin_outdir)
         raise OSError, "No bin group is found in " + maxbin_outdir
@@ -213,6 +259,7 @@ def main(argv):
         fns = filter_blast_results(blast_outdir + "/" + blast_outfn, subject_id_desc_fn=NCBI16S_GI_IDX, length=100)
         sid_fn = [f for f in fns if f.endswith(".sid")]
         
+        # subject ids
         if sid_fn == 1:
             # Based on the 16s blast result, we construct a reference genome library
             tmp_outdir = TMP_OUTDIR + "/ref_genomes"
@@ -221,26 +268,31 @@ def main(argv):
             # Combined maxbin and reference genomes
             for fn in maxbin_fns:
                 fn_basename = fn
-                if fn_basename.split("/") > 0:
-                    
-                    
                 os.system("ln -s " + fn + " " + tmp_outdir)
-                
-            # Do ESOM classification
-            run_tetraESOM()
             
+            esom_outdir = BINNING_OUTDIR + "/ESOM"
+            
+            # Do ESOM classification
+            wts_fn = run_tetraESOM(fna_dir=tmp_outdir, outdir=esom_outdir)
+            
+            if len(wts_fn) == 1:
+                print_status("Clustering ESOM results")
+                cmd = "Rscript " + SCRIPTS_HOME + "/cluster_esom_binning.R " + esom_outdir + " " + maxbin_outdir + " " + RESULT_OUTDIR
+            
+                print_status("cmd: " + cmd)
+                if not VERBOSE_ONLY:
+                    os.system(cmd) 
         else:
             print_status("Unable to find *.sid in " + blast_outdir)
         
     else:
         print_status(blast_outdir + "/" + blast_outfn + " does not exist.")
         
-        
-        
+         
     
     # For each binned group
     for bin_group_fasta_fn in bin_group_fasta_fns:
-        bin_group_id = (bin_group_fasta_fn.replace(maxbin_outdir + "/", "")).replace(".fasta", "")
+        bin_group_id = (bin_group_fasta_fn.replace(maxbin_outdir + "/", "")).replace("." + FASTA_DNA_EXT, "")
         prodigal_info = run_Prodigal(bin_group_fasta_fn, out_prefix=bin_group_id)
 
  
@@ -267,9 +319,7 @@ def main(argv):
     # Blast any 16s sequence fragments existed in newly assembled contig sequences
     blastn(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR + "/ncbi16s")
     
-    
 
-    
     # 
     running_EMIRGE(read_fns[0], read_fns[1])
 
@@ -366,7 +416,9 @@ def summarize_statistics(read_1_fn, read_2_fn, ihist_fn="bbamp.ihist", outdir=RE
     
     print_status("Estimating maximum read length from " + read_1_fn)
     cmd = "wc -L " + read_1_fn + " | cut -d ' ' -f1"
+    
     max_read_len = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.read()
+    
     if len(max_read_len) > 0:
         max_read_len = int(max_read_len)
     else:
@@ -521,7 +573,6 @@ def summarize_fasta(fasta_fn, outtbl_fn=None):
             outfile.write(txt)
             seq_n += 1
             
-            
     print_status("Sequence processed: " + str(seq_n))
 
 
@@ -563,8 +614,17 @@ def postprocess_MaxBin(maxbin_outdir, min_total_contig_len=1000000, marker_gene_
         print_state("Unable to process maxbin results at " + maxbin_outdir)
         return False
     
+    cmd = "cat " + maxbin_summary_fn + " | sed -e 's/.fasta/." + FASTA_DNA_EXT + "/'"
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+    
+    #maxbin_fns = glob.glob(maxbin_outdir + "/*.fasta")
+    cmd = "for f in " + maxbin_outdir + "/*.fasta;do mv $f ${f/.fasta/." + FASTA_DNA_EXT + "};done"
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+    
     # List the content of outdir
-    maxbin_fns = glob.glob(maxbin_outdir + "/*.fna")
+    maxbin_fns = glob.glob(maxbin_outdir + "/*." + FASTA_DNA_EXT)
     
     return maxbin_fns
 
@@ -606,12 +666,117 @@ def run_Prodigal(fna_infn, p_opt="meta", prodigal_outdir="Prodigal", out_prefix=
 
 
 # Contig binning using ESOM 
-def run_tetraESOM():
-    print_status("Initializing ESOM")    
+def run_tetraESOM(fna_dir, output_prefix=None, outdir=BINNING_OUTDIR + "/ESOM", tetra_esom_home=TETRA_ESOM_HOME, ext=FASTA_DNA_EXT, info_fn=None, max=10000, min=2500, esom_algorithm="kbatch"):
+    print_status("Initializing ESOM")
+        
+    if outdir is None:
+        outdir = fna_dir + "/ESOM"
+        
+    if not os.path.isdir(outdir):
+        os.mkdirs(outdir)
+    
+    # Generate tetra-nucleotide frequency
+    cmd = "perl " + TETRA_ESOM_HOME + "/esomWrapper.pl -path " + fna_dir + " -ext " + ext + " -script " + tetra_esom_home + " -dir " + outdir + " -max " + max + " -min " + min
+    print_status("command: " + cmd)
+    
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+    
+    # Get the .lrn, .names
+    esom_names = glob.glob(outdir + "/*.names")
+    esom_lrn = glob.glob(outdir + "/*.lrn")
+    esom_log = glob.glob(outdir + "/*.log")
+    esom_cls = glob.glob(outdir + "/*.cls")
+    
+    if len(esom_names) != 1 and len(esom_lrn) != 1:
+        print_status("Problem on loading .names and .lrn from " + outdir)
+        return []
+    
+    esom_names = esom_names[0]
+    esom_lrn = esom_lrn[0]
+    esom_lrn_updated = esom_lrn.replace(".lrn", ".info.lrn")
+    esom_log = esom_log[0]
+    esom_cls = esom_cls[0]
     
     
+    # Append additional information to the learning class file
+    if info_fn is not None:
+        cmd = "perl " + TETRA_ESOM_HOME + "/addInfo2lrn.pl -info " + info_fn + " -lrn " + esom_lrn + " -names " + esom_names + " -out " + esom_lrn_updated
+        print_status("Appending new information to " + esom_lrn + " and updated .lrn file will be exported to " + esom_lrn_updated)
+        print_status("command: " + cmd)
+        if not VERBOSE_ONLY:
+            os.system(cmd) 
     
+    # Check if .lrn is updated
+    if os.path.isfile(esom_lrn_updated):
+        esom_lrn = esom_lrn_updated
     
+    row_n = 0
+    col_n = 0
+    # Retrieve the recommended ESOM dimension
+    with open(esom_log) as IN:
+        lines = IN.read().splitlines()
+        row_n = int([l.replace(">Rows:\t", "") for l in lines if l.startswith(">Rows:\t")][0])
+        col_n = int([l.replace(">Cols:\t", "") for l in lines if l.startswith(">Cols:\t")][0])
+
+    if row_n == 0 and col_n == 0:
+        print_status("Unable to obtain ESOM dimension from " + esom_log)
+        return []
+    
+    print_status("ESOM dimension: " + str(row_n) + " x " + str(col_n))
+    
+    # Setup ESOM_HOME
+    #os.system("export ESOM_HOME=" + ESOM_HOME)
+    
+    if output_prefix is None:
+        esom_output_fn = esom_lrn + ".wts"
+    else:
+        esom_output_fn = output_prefix + ".wts"
+    
+    print_status("Running ESOM")
+    print_status("  << Parameters >>")
+    print_status("    Row: " + str(row_n))
+    print_status("    Col: " + str(col_n))
+    print_status("    Algorithm: " + esom_algorithm)
+    print_status("    Permutation: True")
+    print_status("    .lrn: " + esom_lrn)
+    print_status("    .cls: " + esom_cls)
+    print_status("    .names: " + esom_names)
+
+
+    cmd = ESOM_HOME + "/esomtrn -a '" + esom_algorithm + "' --lrn " + esom_lrn + " --rows " + row_n + " --columns " + col_n + " --cls " + esom_cls + " --out " + esom_output_fn + " -p"
+    print_status("command: " + cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+        
+    esom_wts = glob.glob(outdir + "/*.wts")
+    
+    if len(esom_wts) != 1:
+        print_status("Problem on ESOM stage: no .wts file generated.")
+        return []
+    
+    esom_wts = esom_wts[0]
+
+    print_status("    Output: " + esom_wts)
+    
+    # Wrapping up ESOM stage
+    postprocess_tetraESOM(outdir)
+    
+    print_status("== ESOM Completed ==")
+       
+    return [esom_wts]
+
+
+
+"""
+ Compress large files
+"""  
+def postprocess_tetraESOM(outdir):
+    print_status("Compressing ESOM files: *.fasta *.fna *.lrn")
+    os.system("bzip2 -9 *.fasta *.fna *.lrn")
+    
+
+
 ####### Taxonomical assingment stage #########
 """
 for f in ../*.fasta; do
@@ -776,7 +941,11 @@ def run_ncbi_wwwblast(seq, database, blast_program="blastn", expect=10, hitlist_
 
 
 """
-    
+ Input: 
+     seq_fn=name of a file, from which seq_id will be search
+     seq_id=fasta header
+ Output:
+     fasta sequence or None
 """ 
 def pick_seq(seq_fn, seq_id, spos=-1, epos=-1, format="fasta"):
     print_status("Picking " + seq_id + " from " + seq_fn)
@@ -798,8 +967,10 @@ def pick_seq(seq_fn, seq_id, spos=-1, epos=-1, format="fasta"):
 
 
 ####### Functional annotation stage #########
-# BLASTN
-# -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+"""
+ BLAST
+ -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+"""
 def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, evalue=1e-10, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, blast_program="blastn"):
     print_status("Initializing " + blast_program)
 
@@ -853,8 +1024,8 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
 
 
 
-
 """
+ Do blastp
 """    
 def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, evalue=1e-10):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
@@ -863,7 +1034,7 @@ def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, be
 
     
 """
- 
+ Do blastn
 """
 def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, evalue=1e-10):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
@@ -872,7 +1043,7 @@ def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16, bes
 
  
 """
- 
+ Do blastx
 """       
 def blastx():
     print_status("Initializing blastx()")
@@ -1155,11 +1326,12 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
     
 
 
-
-# Mapping identified HMM domains to bin_groups
-# Keys from hmm_orf_dict should be ORFs names generated by Prodigal. They are contig prefix + "_" + number.
-# The contig prefixes are expected to be found in binning groups by MaxBin
-# Get Current Dir: os.path.dirname(os.path.abspath("."))
+"""
+ Mapping identified HMM domains to bin_groups
+ Keys from hmm_orf_dict should be ORFs names generated by Prodigal. They are contig prefix + "_" + number.
+ The contig prefixes are expected to be found in binning groups by MaxBin
+ Get Current Dir: os.path.dirname(os.path.abspath("."))
+"""
 def map_hmm2maxbin(hmm_orf_dict, maxbin_dir): 
     # Check path exists
     if not os.path.exists(maxbin_dir):
@@ -1211,7 +1383,7 @@ def map_hmm2maxbin(hmm_orf_dict, maxbin_dir):
                 items = (line.replace("\n", "")).split("\t")
                 
                 bin_group_n += 1
-                bin_id = items[0].replace(".fasta", "")
+                bin_id = items[0].replace("." + FASTA_DNA_EXT, "")
                
                 bin_fn = maxbin_dir + "/" + items[0]
                 
@@ -1313,7 +1485,6 @@ def generate_map_table(bin_groups, outfn_prefix):
     out.close()
     
     
-    
    
 """
  Based on 16s sequences, a database of potential reference genomes is constructed
@@ -1330,7 +1501,7 @@ def prepare_reference_genome(sid_fn, output_prefix=None, bacterialdb_path=NCBI_B
     if not VERBOSE_ONLY:
         os.system(cmd)
         
-    fns = glob.glob(output_prefix + "/*.fna")
+    fns = glob.glob(output_prefix + "/*." + FASTA_DNA_EXT)
     
     return fns
 
@@ -1346,21 +1517,32 @@ def detect_host_genome(read_fn, host="human"):
 
 ####### CAZy Specific stage #########
 ####### Auxillary routines #########
-def parse_opt():
-    print_status("Calling parsing opts")
+"""
+ Import parameters from a setting file
+"""
+def import_settings(setting_fn):
+    print_status("Importing settings not yet implemented")
+
 
 
 # Print the usage of this script 
 def print_usage():
-    print("An integrated pipeline for processing metagenomic sequencing reads (paired-end).")
+    print("An integrated pipeline for processing sequencing reads (paired-end) from metagenomic sample.")
     print(" ")
     print("Usage:")
-    print(" python " + sys.argv[0] + " READ_1.fq READ_2.fq [OUTPUT_PREFIX]")
+    print(" python " + sys.argv[0] + " -1 READ_1.fq -2 READ_2.fq [-o OUTPUT_PREFIX] [-v] [-l]")
+    print("    -1 STRING     Filename of paired-end read 1 (required)")
+    print("    -2 STRING     Filename of paired-end read 2 (required)") 
+    print("    -o STRING     Output prefix")  
+    print("    -v            Verbose only, default: False")
+    print("    -l            Export messages to a log file, default: False")
+    
     #print("  python -i BLAST-RESULT-INFILE -o FILTER-OUTFILE [-q] [-b BITSCORE-CUTOFF] [-l ALIGNMENT-LENGTH-CUTOFF] [-p PERCENTAGE-IDENTITY]")
     #print("      -i STRING  Input file generated by BLAST with -m6 option")
     print(" ")
     print(" ") 
-    print("Ver 0.2b")
+    print("Ver 0.2c")
+
 
 
 def create_link():
@@ -1371,10 +1553,7 @@ def create_link():
 def assert_proc(fn_to_be_asserted):
     return os.path.isfile(fn_to_be_asserted) and os.stat(fn_to_be_asserted)[stat.ST_SIZE] != 0
         
-
-# 
-def import_settings():
-    print_status("Importing settings not yet implemented")
+        
 
 # Output message to a log file
 def log(log_msg):
