@@ -50,7 +50,7 @@ def main(argv):
             t_identity = float(arg)
             print "Sequence Identity Threshold:", t_identity
         elif opt == "-l":
-            t_aln_len = float(arg) 
+            t_aln_len = int(arg) 
             print "Alignment Length Threshold:", t_aln_len
         elif opt == "-k":
             sid_desc_fn = arg
@@ -78,7 +78,7 @@ def main(argv):
         if t_bitscore > 0.0:
             outfn += "b" + `t_bitscore`
         if t_aln_len > 0:  
-            outfn += "l" + `t_aln_len`
+            outfn += "l" + str(t_aln_len)
         if t_identity > 0:  
             outfn += "p" + `t_identity`
         if flag_unique_query:  

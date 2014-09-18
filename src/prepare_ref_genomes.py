@@ -21,15 +21,17 @@ COVERAGE=10
 READ_ERROR_RATE=0.001
 READ_LENGTH=90
 
+INFER_SLIM_MODE=False
 
 # Main 
 def main(argv):
     global COVERAGE
     global READ_ERROR_RATE
     global READ_LENGTH
+    global INFER_SLIM_MODE
     
     try:
-        opts, args = getopt.getopt(argv,"hi:o:p:c:e:l:d:r")
+        opts, args = getopt.getopt(argv,"hi:o:p:c:e:l:d:rs")
     except getopt.GetoptError:
         print_usage()
         sys.exit(2)
@@ -60,7 +62,9 @@ def main(argv):
         elif opt == "-r":
             build_reference = True    
         elif opt == "-d":
-            output_dir = arg     
+            output_dir = arg   
+        elif opt == "-s":  
+            INFER_SLIM_MODE = True  
         else:
             print("Unrecognized option", opt)
             print_usage()
@@ -85,13 +89,15 @@ def main(argv):
     
     species_ids = [process_sid(id) for id in sids]
     
-    # See if we can find out the sequences
+    # See if we can find the sequences matched with given species id
     bacterial_db_ids = []
     for species_id in species_ids:
-        ids = infer_organisms(species_id, ncbi_bacterial_db)
-        if len(ids) > 0:
-            #print "Id found=", ids
-            bacterial_db_ids.extend(ids)
+        # Try to infer matched with or similar to the given species
+        ids = infer_organisms(species_id, ncbi_bacterial_db, slim_mode=INFER_SLIM_MODE)
+        if ids is not None:
+            if len(ids) > 0:
+                #print "Id found=", ids
+                bacterial_db_ids.extend(ids)
 
     # length before making it unique 
     print "before", len(bacterial_db_ids)
@@ -243,8 +249,8 @@ def prepare_ncbi_bacterial_db(path):
     print "Number of NCBI species =", len(ncbi_species)
 
     #print "Number of sequences for Zymomonas mobilis =", len(ncbi_bacterial_db["Zymomonas_mobilis"])
-    for k, v in ncbi_bacterial_db.items():
-        print k, "=", len(v)
+    #for k, v in ncbi_bacterial_db.items():
+    #    print k, "=", len(v)
 
 
     total = sum([len(v) for k, v in ncbi_bacterial_db.items()])
@@ -254,10 +260,10 @@ def prepare_ncbi_bacterial_db(path):
     
 
 
-# This function checks if the given species id has a completed genome in NCBI Bacterial DB, 
+# This function checks if the given species id has a completed genome in the NCBI Bacterial DB, 
 # otherwise it suggests a closest sibling species. If no silbling species is available, None
 # is returned.
-def infer_organisms(species_id, ncbi_bacterial_db):    
+def infer_organisms(species_id, ncbi_bacterial_db, slim_mode=False):    
     #print "Matching", species_id, "to bacterial db"
 
     # Flagging our founding
@@ -268,11 +274,12 @@ def infer_organisms(species_id, ncbi_bacterial_db):
     if species_id in ncbi_bacterial_db:
         cflag_found = True
         found_keys.append(species_id)
+        return found_keys
     
     # Make sure the specie_id contains delimiting characters
     if not cflag_found and not len(species_id.split(" ")) > 1:
         print "No match is found for ", species_id
-        return None
+        return []
  
  
     # Extract the first two words of the species_id
@@ -281,11 +288,12 @@ def infer_organisms(species_id, ncbi_bacterial_db):
            
     # Genus + Species name
     if not cflag_found:
-        print "Searching", genus+ID_DELIM_CHR + species
+        print "Searching", genus + ID_DELIM_CHR + species
     
         if genus + ID_DELIM_CHR + species in ncbi_bacterial_db:
             cflag_found = True
             found_keys.append(genus + ID_DELIM_CHR + species)
+            return found_keys
         
     # Genus only
     if not cflag_found:
@@ -296,6 +304,11 @@ def infer_organisms(species_id, ncbi_bacterial_db):
             if key.startswith(name + ID_DELIM_CHR):
                 cflag_found = True
                 found_keys.append(key)
+                
+                # If in slim mode, we export one similar item only
+                if slim_mode:
+                    return found_keys
+                
             
     # Print the matched name
     #for k in found_keys:
@@ -311,11 +324,12 @@ def print_usage():
     print("This simple script generates a reference genomes read library of prokaryotic species based on given subject ids.")
     print(" ")
     print("Usage:")
-    print("  python prepare_ref_genomes.py -i SID-INFILE -o LIB-OUTFILE [-r] [-d output-dir] [-p PATH-TO-NCBI-BACTERIAL-LIB] [-l READ-LEN] [-e READ-ERROR-RATE] [-c COVERAGE]")
+    print("  python prepare_ref_genomes.py -i SID-INFILE -o LIB-OUTFILE [-s] [-r] [-d output-dir] [-p PATH-TO-NCBI-BACTERIAL-LIB] [-l READ-LEN] [-e READ-ERROR-RATE] [-c COVERAGE]")
     print("      -i STRING  A .sid file exported from filter_blast_res.py with -s option.")
     print("                 The subject ids or sids are expect in 'genus+species+strain' format. (required)")
     print("      -o STRING  Prefix of an output library file. (required)")
     print("      -d STRING  Output directory [optional]")
+    print("      -s         Slim selection, only one is picked from a list of strains of same species [optional]")
     print("      -r         Build a read library of reference genomes [optional, default=False]")
     print("      -p STRING  Path to the NCBI Complete Bacterial Library [optional, default=" + NCBI_BACTERIAL_DB_PATH + "]")
     print("      -l INT     Read length [optional, default=" + str(READ_LENGTH) + "]")
