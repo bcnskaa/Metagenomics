@@ -16,6 +16,96 @@ from Bio.Seq import Seq
 CIRCOS_HOME="~/tools/circos/"
 
 
+
+
+
+"""
+chrom_len_threshold = 50000
+run_id = "GZ-cell_S1"
+
+# Prepare color codes from Circos's color palettes
+color_fn = "/home/siukinng/tools/circos/etc/colors.conf"
+lines = []
+#for fn in color_fns:
+
+with open(color_fn) as IN:
+    lines.extend(IN.read().splitlines())
+
+
+lines = [l for l in lines if not l.startswith("<") and not l.startswith("#") and len(l) > 2]
+colors = [(l.split("=",1)[0]).strip() for l in lines]
+colors.remove("white")
+
+
+from random import shuffle
+shuffle(colors)
+
+
+import glob
+from Bio import SeqIO
+
+maxbin_path = "."
+
+fns = glob.glob(maxbin_path + "/*.fna")
+
+chroms = []
+#selected_contig_ids = {}
+selected_contig_ids = []
+for j, fn in enumerate(fns):
+    seq_idx = SeqIO.index(fn, "fasta")
+    id = (fn[::-1].split("/",1)[0])[::-1]
+    id = id.replace(".fna", "")
+    #id = id.replace(".", "_")
+    color_code = colors[j]
+    selected_contigs = [k for k in seq_idx.keys() if len(seq_idx[k].seq) > chrom_len_threshold]
+    #selected_contig_ids[id] = selected_contigs
+    selected_contig_ids.extend(selected_contigs)
+    #chroms.extend(["chr - " + id + "." + str(i) + " " + str(i) + " 0 " + str(len(seq_idx[k])) + " " + color_code for i, k in enumerate(seq_idx) if len(seq_idx[k]) > chrom_len_threshold])
+    chroms.extend(["chr - " + id + "." + str(i) + " " + str(i) + " 0 " + str(len(seq_idx[k])) + " " + color_code for i, k in enumerate(selected_contigs)])
+
+
+# Write karyotype
+with open(run_id + ".karyotype.txt", "w") as OUT:
+    for chrom in chroms:
+        print>>OUT, chrom
+
+
+
+
+# Read the blast results, and construct circos links based on selected_contig ids
+
+blast_fn = "/home/siukinng/samples/lab/GZ-cell_S1/900/MaxBin/combined-combined.bla.xml"
+cutoff_range=200
+
+
+from Bio.Blast import NCBIXML
+from Bio.Blast import NCBIWWW
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio import SearchIO
+
+query_species = "s1"
+
+blast_res = SearchIO.index(blast_fn, "blast-xml")
+lines = []
+for key in blast_res.keys():
+    res = blast_res[key]
+    if len(res.hits) > 0:
+        for hit in res.hits:
+            for hsp in hit.hsps:
+                #if hsp.hit_id != hsp.query_id:
+                range = hsp.query_range[1] - hsp.query_range[0]
+                if range > cutoff_range:
+                    print query_species + "\t1\t10\t" + hsp.hit_id + "\t" + str(hsp.hit_range[0]) + "\t" + str(hsp.hit_range[1])
+                    lines.append(query_species + "\t1\t10\t" + hsp.hit_id + "\t" + str(hsp.hit_range[0]) + "\t" + str(hsp.hit_range[1]))
+
+
+"""
+
+
+
+
+
 def main(argv):
     print("")  
 
@@ -61,15 +151,16 @@ def getOverlap(x, y):
 
 
 """
+
  Extract 
+     ~/tools/blast/bin/blastn -db combined.seq -query combined.seq -out combined-combined.bla.xml -outfmt 5 -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 3 
+
 """
-def extract_links(blast_fn, cutoff_range=200):
+def extract_links(blast_fn, cutoff_range=200, discard_self=None):
     blast_res = SearchIO.index(blast_fn, "blast-xml")
     
     query_species = "species1"
     hit_species = "species2"
-    
-    
     
     for key in blast_res.keys():
         res = blast_res[key]

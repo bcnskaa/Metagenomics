@@ -73,7 +73,8 @@ import_maxbin <- function(maxbin_dir)
 
 	
 	# Bin name
-	Bin.name <- gsub(".fa", "", gsub(".fasta", "", maxbin_summary$Bin.name));
+	#Bin.name <- gsub(".fa", "", gsub(".fasta", "", maxbin_summary$Bin.name));
+	Bin.name <- gsub(".fna", "", gsub(".fasta", "", maxbin_summary$Bin.name));
 	
 	# Backup the file names
 	tmp <- as.character(maxbin_summary$Bin.name);
