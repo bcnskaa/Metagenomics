@@ -176,6 +176,94 @@ def extract_links(blast_fn, cutoff_range=200, discard_self=None):
 
 
 
+
+
+def generate_band(blast_fn, mapped_col="blue", unmapped_col="red"):
+    with open(blast_fn) as IN:
+        lines = IN.read().splitlines()
+        
+    bands = [[int(l.split()[8]), int(l.split()[9])] for l in lines]
+    
+    # Check reverse
+    for i, b in enumerate(bands):
+        if b[0] > b[1]:
+            bands[i] = [b[1], b[0]]
+            
+    # Sort
+    bands = sorted(bands, key=lambda v: v[0])
+        
+    # Combined overlapping regions
+    combined_bands = []
+    for b in bands:
+        i = len(combined_bands)
+        print(i)
+        if i == 0:
+            combined_bands.append([b[0], b[1]])
+        else:
+            print(str(i) + " "+ str((combined_bands[i - 1])[1]))
+            if b[0] < (combined_bands[i - 1])[1]:
+                print("overlapped")
+                (combined_bands[i - 1])[1] = b[1]
+            else:
+                combined_bands.append([b[0], b[1]])
+    
+    karyotypes = []
+    for b in combined_bands:
+        band_id = "m" + str(len(karyotypes))
+        karyotypes.append("band chr1 " + band_id + " " + band_id + " " + str(b[0]) + " " + str(b[1]) + " " + mapped_col)
+    
+    
+    for i, b in enumerate(combined_bands):
+        if i > 0:
+            band_id = "u" + str(i-1)
+            spos = (combined_bands[i - 1][1] + 1)
+            epos = b[0]
+            karyotypes.append("band chr1 " + band_id + " " + band_id + " " + str(spos) + " " + str(epos) + " " + unmapped_col)
+     
+    
+    return karyotypes   
+  
+
+
+
+"""
+from Bio import SeqUtils
+
+seq = list(SeqIO.read("/disk/rdisk08/siukinng/db/BacteriaDB/all_fna/Propionibacterium_acnes_TypeIA2_P_acn33_uid80745/NC_016516.fna", "fasta"))
+  
+
+total_gc = SeqUtils.GC(seq)
+step = 1000
+gc_ctx = SeqUtils.GC_skew(seq, step)
+output = ["chr1 " + str(i * step) + " " + str((i + 1) * step) + " " + str(gc + total_gc) for i, gc in enumerate(gc_ctx)]
+with open("gc.txt", "w") as OUT:
+    for gc in output:
+        OUT.write(gc + "\n")
+
+
+
+
+with open("NC_016516.ffn") as IN:
+    lines = IN.read().splitlines()
+    
+genes = [((((l.split()[0]).split("|")[4]).replace(":","")).replace("c", "")).split("-") for l in lines if l.startswith(">")]
+genes = [[int(g[0]), int(g[1])] for g in genes]
+
+reverse_n = 0
+for i, g in enumerate(genes):
+    if g[1] < g[0]:
+        genes[i] = [g[0], g[1]]
+        reverse_n = reverse_n + 1
+
+output = ["chr1 " + str(g[0]) + " " + str(g[1]) for g in genes]
+
+with open("genes.txt", "w") as OUT:
+    for g in output:
+        OUT.write(g + "\n")
+
+
+"""
+
 # Invoke the main function
 if __name__ == "__main__":
     main(sys.argv[1:])

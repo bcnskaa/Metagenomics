@@ -78,8 +78,6 @@ def generate_locus_coords_from_contigs(dom_dir, locus_coords):
 
 
 
-
-
 """
  Based on gb_records, we generate a list of locus tags
 """
