@@ -222,7 +222,7 @@ def main(argv):
         raise OSError, "Problem at merging reads files, abort now."
      
     # Alright, we are about to do assembly 
-    if not run_idba_ud(merged_read_fn, min_contig=800):
+    if not run_idba_ud(merged_read_fn, min_contig=800, maxk=60):
         print_status("Problem at completing IDBA_UD stage")
         raise OSError, "Problem at IDBA_UD stage, abort now."
      
@@ -275,7 +275,7 @@ def main(argv):
             # Combined maxbin and reference genomes information
             for fn in maxbin_fns:
                 fn_basename = fn
-                os.system("ln -s " + fn + " " + tmp_outdir)
+                os.system("ln -s " + CUR_WD + "/" + fn + " " + tmp_outdir)
             
             #esom_outdir = BINNING_OUTDIR + "/ESOM"
             esom_outdir = "ESOM"
@@ -646,7 +646,56 @@ def postprocess_MaxBin(maxbin_outdir, min_total_contig_len=1000000, marker_gene_
     
     return maxbin_fns
 
+
+"""
+ Using newly binned sequences to search against NCBI NR database, and 
+ try to identify potential taxonomic identities of each bin group
+"""
+def consult_ncbi(maxbin_outdir, report_score=10000, seq_len=2000, max_search_attempt=10):
+    print_status("Connecting to NCBI");
+    fns = glob.glob(maxbin_outdir + "/*.fna")
+    if len(fns) == 0:
+        print_status("No bin group available");
+        return []
+    hit_table = {}
+    for fn in fns:
+        bin_id = os.path.basename(fn)
+        bin_id = bin_id.replace(".fna", "")
+        # Initialize a new list
+        hit_table[bin_id] = []
+        print_status("Processing " + bin_id);     
+        seq_db = SeqIO.index(fns[0], "fasta")
+        search_n = 0
+        
+        keys = sorted(seq_db, key=lambda k: len(seq_db[k]), reverse=True)
+        
+        for key in keys:
+            seq = seq_db[key].seq
+            
+            print_status("Attempt " + str(search_n) + " for " + bin_id + ": " + key + " (" + str(len(seq)) + "bp)")
+            
+            if len(seq) > seq_len:
+                seq = seq[0:seq_len]
+                
+            
+            if len(seq) >= seq_len:
+                 records = run_ncbi_wwwblast(seq, database="nr", expect=1e-30, hitlist_size=10)
+                 if records is not None:
+                     for record in records:
+                         for alignment in record.alignments:
+                             # Only extract the first hit item and recruit it only if its score is larger than a threshold
+                             if alignment.hsps[0].score > report_score:
+                                 species = str((alignment.title).split("|")[4])
+                                 hit_table[bin_id].append(species)
+                                 print_status("Potential taxonomic identity=" + species)
+            search_n = search_n + 1
+            if search_n == max_search_attempt:
+                break
+    return hit_table
+
+            
     
+
     
 # ORFs prediction
 def run_Prodigal(fna_infn, p_opt="meta", prodigal_outdir="Prodigal", out_prefix=None, outfn=None, faa_outfn=None, fna_outfn=None):
@@ -949,7 +998,7 @@ def run_16s_mapping(fna_fn, outdir=None, outprefix=None, blast_bitscore_threshol
 """
  Invoke a NCBI web blast search
 """
-def run_ncbi_wwwblast(seq, database, blast_program="blastn", expect=10, hitlist_size=50):
+def run_ncbi_wwwblast(seq, database="nr", blast_program="blastn", expect=10, hitlist_size=50):
     print_status("Connecting to NCBI Web BLAST: " + blast_program + " e-value=" + str(expect) + " hitlist_size=" + str(hitlist_size))
     
     result_handler = NCBIWWW.qblast(program=blast_program, database=database, sequence=seq, expect=expect, hitlist_size=hitlist_size)
