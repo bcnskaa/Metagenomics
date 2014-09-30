@@ -306,13 +306,12 @@ def main(argv):
         print_status(blast_outdir + "/" + blast_outfn + " does not exist.")
         
     
-    # We will infer ORFs from each bin-group
+    # We will infer ORFs for each bin-group
     for bin_group_fasta_fn in bin_group_fasta_fns:
         bin_group_id = (bin_group_fasta_fn.replace(maxbin_outdir + "/", "")).replace("." + FASTA_DNA_EXT, "")
         prodigal_info = run_Prodigal(bin_group_fasta_fn, out_prefix=bin_group_id)
         
-
- 
+    
     # For all combined result  
     prodigal_info = run_Prodigal(contig_fn)
     # {"source_fn":fna_infn, "outdir":prodigal_outdir, "prodigal_outfn":outfn, "protein_outfn":faa_outfn, "nucleotide_outfn":fna_outfn}
@@ -679,7 +678,7 @@ def consult_ncbi(maxbin_outdir, report_score=10000, seq_len=2000, max_search_att
                 
             
             if len(seq) >= seq_len:
-                 records = run_ncbi_wwwblast(seq, database="nr", expect=1e-30, hitlist_size=10)
+                 records = run_ncbi_wwwblast(seq, database="nr", expect=1e-20, hitlist_size=10)
                  if records is not None:
                      for record in records:
                          for alignment in record.alignments:
@@ -693,10 +692,30 @@ def consult_ncbi(maxbin_outdir, report_score=10000, seq_len=2000, max_search_att
                 break
     return hit_table
 
-            
-    
 
+
+"""
+  blastp NCBI nr protein database
+"""         
+def search_protein_identity(prot_seq, report_score=200):
+    print_status("Connecting to NCBI for performing BLASTP search");
+    print_status("Protein length=" + str(len(prot_seq)))
+        
+    records = run_ncbi_wwwblast(prot_seq, database="nr", blast_program="blastp", expect=1e-20, hitlist_size=5)
     
+    hit_ids = []
+    if records is not None:
+        for record in records:
+            for alignment in record.alignments:
+                # Only extract the first hit item and recruit it only if its score is larger than a threshold
+                if alignment.hsps[0].score > report_score:
+                    species = str((alignment.title).split("|")[4])
+                    print_status("Potential taxonomic identity=" + species)
+                    hit_ids.append(species)
+    return hit_ids
+
+
+
 # ORFs prediction
 def run_Prodigal(fna_infn, p_opt="meta", prodigal_outdir="Prodigal", out_prefix=None, outfn=None, faa_outfn=None, fna_outfn=None):
     print_status("Initializing Prodigal");
@@ -735,10 +754,10 @@ def run_Prodigal(fna_infn, p_opt="meta", prodigal_outdir="Prodigal", out_prefix=
 # Contig binning using ESOM 
 def run_tetraESOM(fna_dir, output_prefix=None, outdir=None, tetra_esom_home=TETRA_ESOM_HOME, ext=FASTA_DNA_EXT, info_fn=None, max=5000, min=2500, esom_algorithm="kbatch"):
     print_status("Initializing ESOM")
-        
+    
     if outdir is None:
         outdir = "ESOM"
-        
+    
     #if not os.path.isdir(outdir):
     #    os.makedirs(outdir)
     
@@ -767,7 +786,6 @@ def run_tetraESOM(fna_dir, output_prefix=None, outdir=None, tetra_esom_home=TETR
     esom_lrn_updated = esom_lrn.replace(".lrn", ".info.lrn")
     esom_log = esom_log[0]
     esom_cls = esom_cls[0]
-    
     
     # Append additional information to the learning class file
     if info_fn is not None:
