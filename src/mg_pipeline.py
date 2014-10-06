@@ -336,8 +336,8 @@ def main(argv):
     blastn(contig_fn, NCBI16S_DB, outdir=MARKER_OUTDIR + "/ncbi16s")
     
 
-    # 
-    running_EMIRGE(read_fns[0], read_fns[1])
+    # EMIRGE takes too long to complete 
+    #running_EMIRGE(read_fns[0], read_fns[1])
 
     # Close the log stream
     if LOG:

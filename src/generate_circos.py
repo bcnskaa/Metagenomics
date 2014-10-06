@@ -200,7 +200,6 @@ def extract_links(blast_fn, cutoff_range=200, discard_self=None):
 
 
 
-
 def generate_band(blast_fn, mapped_col="blue", unmapped_col="red"):
     with open(blast_fn) as IN:
         lines = IN.read().splitlines()
@@ -235,7 +234,6 @@ def generate_band(blast_fn, mapped_col="blue", unmapped_col="red"):
         band_id = "m" + str(len(karyotypes))
         karyotypes.append("band chr1 " + band_id + " " + band_id + " " + str(b[0]) + " " + str(b[1]) + " " + mapped_col)
     
-    
     for i, b in enumerate(combined_bands):
         if i > 0:
             band_id = "u" + str(i-1)
@@ -261,8 +259,6 @@ with open("gc.txt", "w") as OUT:
         OUT.write(gc + "\n")
 
 
-
-
 with open("NC_016516.ffn") as IN:
     lines = IN.read().splitlines()
     
@@ -281,9 +277,7 @@ with open("genes.txt", "w") as OUT:
     for g in output:
         OUT.write(g + "\n")
 
-
 """
-
 # Invoke the main function
 if __name__ == "__main__":
     main(sys.argv[1:])
