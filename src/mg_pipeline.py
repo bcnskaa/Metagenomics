@@ -222,7 +222,7 @@ def main(argv):
         raise OSError, "Problem at merging reads files, abort now."
      
     # Alright, we are about to do assembly 
-    if not run_idba_ud(merged_read_fn, min_contig=800, maxk=60):
+    if not run_idba_ud(merged_read_fn, min_contig=1200, maxk=80):
         print_status("Problem at completing IDBA_UD stage")
         raise OSError, "Problem at IDBA_UD stage, abort now."
      

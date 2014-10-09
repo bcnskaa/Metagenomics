@@ -748,3 +748,44 @@ if (length(args) == 2)
 }
 
 
+
+
+
+
+plot_heatmap <- function(mtx_fn)
+{
+	mtx <- read.table(mtx_fn, header=T, sep="\t", stringsAsFactors=F);
+	mtx$selected[which(nchar(mtx$selected) == 0)] <- " "
+	
+
+	
+	#ylabels <- paste(mtx$selected, mtx$name);
+	ylabels <- vector("expression", nrow(mtx));
+	for(i in 1 : nrow(mtx))
+	{
+		id <- mtx$id[i]
+		if(nchar(id) != max_id_len)
+			id <- paste(rep(" ", max_id_len - nchar(id)), id, sep="");
+		ylabel <- paste(mtx$selected[i], mtx$name[i])
+		ylabels[i] <- bquote(expression(.(ylabel) ~ italic(.(id))));
+	}
+	
+	max_id_len <- max(nchar(mtx$id))
+	ids <- mtx$id;
+	for(i in 1 : length(ids))
+	{
+		id <- ids[i]
+		if(nchar(id) != max_id_len)
+			ids[i] <- paste(rep(" ", max_id_len - nchar(id)), id, sep="");
+	}
+	
+	ylabels <- do.call("expression", lapply(1:nrow(mtx), function(i) substitute(X ~ italic(Y), list(X=paste(mtx$selected[i], mtx$name[i]), Y=ids[i]))))
+
+	plot_mtx <- mtx[,4:6];
+	rownames(plot_mtx) <- paste(mtx$selected, " ", mtx$name, " ", mtx$id, sep="");
+	plot_mtx <- as.matrix(plot_mtx);
+	rgb.palette <- colorRampPalette(c("red", "white", "blue"), space = "rgb");
+	levelplot(t(plot_mtx), scale=list(x=list(rot=0,alternating=2)), xlab=NULL, ylab=NULL);
+	levelplot(t(plot_mtx), col.regions=rgb.palette, outer=F, scale=list(y=list(labels=ylabels), x=list(rot=0,alternating=2,labels=paste("test", names(plot_mtx), paste=""))), xlab=NULL, ylab=NULL);
+	
+}
