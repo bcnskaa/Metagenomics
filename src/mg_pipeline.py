@@ -646,6 +646,100 @@ def postprocess_MaxBin(maxbin_outdir, min_total_contig_len=1000000, marker_gene_
     return maxbin_fns
 
 
+
+"""
+ id=SWH-cell35_S1
+ for f in *.fasta;do mv $f ${f/fasta/fna};done
+ for f in *.fna;do cat $f >> $id.all.fasta;done
+ 
+"""
+def summarise_maxbin(maxbin_dir="."):
+    import os
+    from Bio import SeqIO
+    from Bio.SeqUtils import GC
+    import glob
+
+    maxbin_dir="."
+
+    print_status("Processing outputs from MaxBin (" + maxbin_outdir + ")")  
+    
+    bin_group_fns = glob.glob(maxbin_dir + "/*.fna") 
+    all_fasta_fn = glob.glob(maxbin_dir + "/*.all.fasta")
+    if len(all_fasta_fn) == 1:
+        all_fasta_fn = all_fasta_fn[0]
+    else:
+        if len(bin_group_fns) > 0:
+            #all_fasta_fn = bin_group_fns[0].replace(".001.fna", ".all.fasta")
+            all_fasta_fn = bin_group_fns[0][::-1].split(".",2)[2][::-1] + ".all.fasta"
+            cmd = "for f in " + maxbin_dir + "/*.fna;do cat $f >> " + all_fasta_fn + ";done"
+            os.system(cmd)
+        else:
+            print(maxbin_dir + " does not contain any .fna file.")
+            #return None
+    
+    seq_db = SeqIO.index(all_fasta_fn, "fasta");
+    seq_ids = [str(s) for s in seq_db]
+    #seq_db = list(seq_db)
+    
+    
+    
+    abund_fn = glob.glob(maxbin_dir + "/*.abund")
+    if len(abund_fn) == 1:
+        abund_fn = abund_fn[0]
+        
+    with open(abund_fn) as IN:
+        abund = IN.read().splitlines()
+        
+    # Append abundance
+    contig_info = {a.split("\t")[0]:[float(a.split("\t")[1])] for a in abund if a.split("\t")[0] in seq_ids}
+    
+    # Calculate GC
+    from Bio.SeqUtils import GC
+    for seq_id in contig_info.keys():
+        gc = GC(seq_db[seq_id].seq)
+        contig_info[seq_id].append(gc)
+
+    # Sequence length 
+    for seq_id in contig_info.keys():
+        l = len(seq_db[seq_id].seq)
+        contig_info[seq_id].append(l)
+        
+    # fns
+    #bin_group_fns = glob.glob(maxbin_dir + "/*.fna")    
+    for bin_group_fn in bin_group_fns:
+        print("Processing " + bin_group_fn)
+        bin_id = bin_group_fn.replace(".fna", "")
+        bin_id = bin_id.replace(maxbin_dir + "/", "")
+        bin_seqs = SeqIO.index(bin_group_fn, "fasta");
+        bin_seq_ids = [str(s) for s in bin_seqs]
+        for seq_id in bin_seq_ids:
+            contig_info[seq_id].append(bin_id)
+    
+    # Output summary
+    with open(all_fasta_fn.replace(".fasta", ".summary"), "w") as OUT:
+        OUT.write("contig_id" + "\t" + "abundance" + "\t" + "GC" + "\t" + "contig_length" + "\t" + "bin_group" + "\n")
+        for k in contig_info.keys():
+            info = contig_info[k]
+            OUT.write(k + "\t" + str(info[0]) + "\t" + str(info[1]) + "\t" + str(info[2]) + "\t" + info[3] + "\n")
+
+
+"""
+ use R to generate a scatter plot
+ 
+ library(ggplot2)
+ id <- "SWH-xyl35_S3"
+ summary_fn <- paste(id, ".all.summary", sep="")
+ tbl <- read.table(summary_fn, sep="\t", header=T, stringsAsFactors=F)
+ selected_ids <- paste(id, ".00", seq(1,9), sep="")
+ pdf(paste(id, ".pdf", sep=""), width=10, height=10)
+ ggplot(tbl[which(tbl$bin_group %in% selected_ids),], aes(x=GC, y=abundance, col=bin_group)) + geom_point(aes(size=contig_length))
+ dev.off()
+"""
+
+
+
+
+
 """
  Using newly binned sequences to search against NCBI NR database, and 
  try to identify potential taxonomic identities of each bin group

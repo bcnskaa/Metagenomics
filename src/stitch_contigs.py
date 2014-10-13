@@ -67,7 +67,7 @@ def generate_locus_coords_from_contigs(dom_dir, locus_coords):
             stitched_contig_list.append(dom_list[COG_id])
         else:
             print(COG_id + " is missing.")
-   
+            
     return locus_coords
 
 
@@ -109,7 +109,7 @@ def construct_locus_map(gb_records):
             
     print "Processed item=" + str(processed_n) 
     #linking_map = sorted(linking_map, key=lambda v:v[0], reverse=True)
-    locus_map = sorted(linking_map, key=lambda v:v[1], reverse=True)
+    locus_map = sorted(locus_map, key=lambda v:v[1], reverse=True)
     
     return locus_map
 

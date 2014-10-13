@@ -39,6 +39,31 @@ def retrieve(argv):
         
     os.chdir(cwd)
 
+"""
+ Given an abundance summary produced by maxbin, abundance information
+ of sequence header of contig file (exported from idba_ud) can be included.
+"""
+def prepare_seq_cov(maxbin_abund_fn, contig_fn, output_fn):
+    contig_fn = "../../idba_ud/contig.fa"
+    maxbin_abund_fn = "GZ_.abund"
+    
+    with open(maxbin_abund_fn) as IN:
+        lines = IN.read().splitlines()     
+    abunds = {v.split("\t")[0]:v.split("\t")[1] for v in lines}
+    
+    mod_seqs = []
+    for seq in SeqIO.parse(contig_fn, "fasta"):    
+        if seq.id in abund.keys():
+            a = str(int(round(float(abunds[seq.id]))))
+            seq.id = seq.id + "_[cov=" + a + "]"
+            seq.description = ""
+            mod_seqs.append(seq)
+    
+    OUT = open(output_fn, "w")
+    SeqIO.write(mod_seqs, OUT, "fasta")
+    OUT.close()
+
+
 
 
 # Invoke the main function
