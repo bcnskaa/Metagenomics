@@ -648,7 +648,7 @@ def postprocess_MaxBin(maxbin_outdir, min_total_contig_len=1000000, marker_gene_
 
 
 """
- id=SWH-cell35_S1
+ id=GZ-xyl35_contigs
  for f in *.fasta;do mv $f ${f/fasta/fna};done
  for f in *.fna;do cat $f >> $id.all.fasta;done
  
@@ -1421,7 +1421,6 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
     # 2. Summary statistics of domain counts
     # 3. Domain models of every query sequence
 
-
     # Import .dom.tbl outfile
     #line_n = 0
     #for file in glob.glob("*.dom.tbl"):
@@ -1441,7 +1440,6 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
     discard_dom_n = 0
     with open(file, "r") as IN:
         for line in IN:
-            
             #if line_n >= 3 and not line.startswtih("#"):
             if not line.startswith("#"):
                 dom = line.split()
@@ -1551,7 +1549,7 @@ def map_hmm2maxbin(hmm_orf_dict, maxbin_dir):
     summary_fn = glob.glob(maxbin_dir + "/*.summary")
     
     if len(summary_fn) != 1:
-        print_state("Unable to read *.summary from"+maxbin_dir)
+        print_status("Unable to read *.summary from"+maxbin_dir)
         return False
     
     summary_fn = summary_fn[0]
