@@ -1,6 +1,15 @@
 import os
 
 
+"""
+    Upload to MG-Rast
+    
+    webkey=EWbN2FHyJ5M3zrxgb2FDBNRSk
+    fn=P1_contigs.fa
+    curl -H "auth: $webkey"  -X POST -F "upload=@./$fn" "http://api.metagenomics.anl.gov/1/inbox/" > curl_output.txt
+    
+"""
+
 def retrieve(argv): 
     project_id = argv[0]
     
@@ -38,6 +47,9 @@ def retrieve(argv):
         os.system(cmd)
         
     os.chdir(cwd)
+
+
+
 
 """
  Given an abundance summary produced by maxbin, abundance information

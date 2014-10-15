@@ -415,21 +415,30 @@ p4 <- p4[,-ncol(p4)]
 
 
 samples <- list()
-samples[["SWH-Cell"]] <- swh_cell;
-samples[["SWH-Xyl"]] <- swh_xyl;
-samples[["GZ-Cell"]] <- gz_cell;
-samples[["GZ-Xyl"]] <- gz_xyl;
-samples[["P1"]] <- p1;
-samples[["P2"]] <- p2;
-samples[["P3"]] <- p3;
-samples[["P4"]] <- p4;
+samples[["SWH-Cell-Y2"]] <- swh_cell;
+samples[["SWH-Xyl-Y2"]] <- swh_xyl;
+samples[["GZ-Cell-Y2"]] <- gz_cell;
+samples[["GZ-Xyl-Y2"]] <- gz_xyl;
+samples[["SWH-Xyl-Y1"]] <- p1;
+samples[["GZ-Xyl-Y1"]] <- p2;
+samples[["SWH-Cell-Y1"]] <- p3;
+samples[["GZ-Cell-Y1"]] <- p4;
 
 
 hmm_dom_list <- c(swh_cell$HMM_DOM, swh_xyl$HMM_DOM, gz_xyl$HMM_DOM, gz_cell$HMM_DOM, p1$HMM_DOM, p2$HMM_DOM, p3$HMM_DOM, p4$HMM_DOM)
 hmm_dom_list <- as.character(unique(hmm_dom_list))
 
+#
+hmm_dom_list <- hmm_dom_list[grep("GH|CBM|GT|CE", hmm_dom_list)]
+hmm_dom_list <- hmm_dom_list[grep("GH", hmm_dom_list)]
 
+
+pdf_fn <- "test.pdf"
 bin_n <- 5;
+gene_n_threshold <- 1;
+max_gene_n <- 8;
+min_value_per_row_threshold <- 4;
+
 hmm_tbl <- matrix(0, length(hmm_dom_list), length(samples));
 rownames(hmm_tbl) <- hmm_dom_list;
 colnames(hmm_tbl) <- names(samples);
@@ -445,6 +454,38 @@ for(hmm in hmm_dom_list)
     }
 }
 
+sum_per_row <- sapply(1:nrow(hmm_tbl), function(i) sum(hmm_tbl[i,2:ncol(hmm_tbl)]) )
+min_per_row <- sapply(1:nrow(hmm_tbl), function(i) min(hmm_tbl[i,2:ncol(hmm_tbl)]) )
+
+
+plot_data <- melt(hmm_tbl[-which(sum_per_row < 6 | min_per_row > 6), ]);
+plot_data$Var2 <- factor(plot_data$Var2, level=c("SWH-Cell-Y2", "SWH-Cell-Y1", "GZ-Cell-Y2", "GZ-Cell-Y1", "SWH-Xyl-Y2", "SWH-Xyl-Y1", "GZ-Xyl-Y2", "GZ-Xyl-Y1"))
+
+#plot_data$Var1 <- as.character(plot_data$Var1);
+#sorted_labels <- c(read.table("Sorted.txt", header=F, sep="\n", quote="", strip.white=TRUE, stringsAsFactors=F))[[1]]
+sorted_labels <- data.frame(label=rownames(hmm_tbl), diff=sapply(1:nrow(hmm_tbl), function(i) sum(hmm_tbl[i,c("GZ-Cell-Y1", "GZ-Cell-Y2", "SWH-Cell-Y1", "SWH-Cell-Y2")]) - sum(hmm_tbl[i,c("GZ-Xyl-Y1", "GZ-Xyl-Y2", "SWH-Xyl-Y1", "SWH-Xyl-Y2")])))
+sorted_labels <- sorted_labels[order(sorted_labels$diff), ]
+plot_data$Var1 <- factor(plot_data$Var1, level=as.character(sorted_labels$label))
+
+plot_data <- cbind(plot_data, label=plot_data$value);
+plot_data$value[which(plot_data$value > max_gene_n)] <- max_gene_n;
+
+color_scale <- colorRampPalette(c("steelblue", "yellow", "red"))(n = 20)
+library(reshape2)
+library(ggplot2)
+
+legend_title = "CAZy Domain#";
+pdf(pdf_fn, width=20, height=4);
+ggplot(plot_data, aes(x=Var1, y=Var2, fill=value)) + geom_tile(aes(height=0.97, width=0.97)) +
+  scale_fill_gradientn(colours=color_scale, name=legend_title) +
+  labs(x="CAZy Class", y="Sample") +
+  geom_text(aes(label=label, size=1)) + 
+  theme(panel.background=element_blank(), axis.text.x=element_text(angle=315, hjust=0, vjust=1));
+dev.off()
+
+
+
+sapply(1:nrow(hmm_tbl), function(i) sum(hmm_tbl[i,c("GZ-Cell-Y1", "GZ-Cell-Y2", "SWH-Cell-Y1", "SWH-Cell-Y2")]) - sum(hmm_tbl[i,c("GZ-Xyl-Y1", "GZ-Xyl-Y2", "SWH-Xyl-Y1", "SWH-Xyl-Y2")]))
+
 
 """
-
