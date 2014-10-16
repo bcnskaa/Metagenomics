@@ -425,13 +425,20 @@ samples[["SWH-Cell-Y1"]] <- p3;
 samples[["GZ-Cell-Y1"]] <- p4;
 
 
+###### !!!! ######
+hmm_dom_discard_list <- c("GH25", "GH130", "GH5", "GH23", "GH51", "GH30", "GH77", "GH73", "GH88", "GT4", "GT2", "GT5");
+
+
 hmm_dom_list <- c(swh_cell$HMM_DOM, swh_xyl$HMM_DOM, gz_xyl$HMM_DOM, gz_cell$HMM_DOM, p1$HMM_DOM, p2$HMM_DOM, p3$HMM_DOM, p4$HMM_DOM)
 hmm_dom_list <- as.character(unique(hmm_dom_list))
 
 #
-hmm_dom_list <- hmm_dom_list[grep("GH|CBM|GT|CE", hmm_dom_list)]
-hmm_dom_list <- hmm_dom_list[grep("GH", hmm_dom_list)]
-
+#hmm_dom_list <- hmm_dom_list[grep("GH|CBM|GT|CE", hmm_dom_list)]
+hmm_dom_list <- hmm_dom_list[grep("CE", hmm_dom_list)]
+if(length(which(hmm_dom_list %in% hmm_dom_discard_list)) > 0)
+{
+    hmm_dom_list <- hmm_dom_list[-which(hmm_dom_list %in% hmm_dom_discard_list)]
+}
 
 pdf_fn <- "test.pdf"
 bin_n <- 5;
@@ -463,7 +470,7 @@ plot_data$Var2 <- factor(plot_data$Var2, level=c("SWH-Cell-Y2", "SWH-Cell-Y1", "
 
 #plot_data$Var1 <- as.character(plot_data$Var1);
 #sorted_labels <- c(read.table("Sorted.txt", header=F, sep="\n", quote="", strip.white=TRUE, stringsAsFactors=F))[[1]]
-sorted_labels <- data.frame(label=rownames(hmm_tbl), diff=sapply(1:nrow(hmm_tbl), function(i) sum(hmm_tbl[i,c("GZ-Cell-Y1", "GZ-Cell-Y2", "SWH-Cell-Y1", "SWH-Cell-Y2")]) - sum(hmm_tbl[i,c("GZ-Xyl-Y1", "GZ-Xyl-Y2", "SWH-Xyl-Y1", "SWH-Xyl-Y2")])))
+sorted_labels <- data.frame(label=rownames(hmm_tbl), diff=sapply(1:nrow(hmm_tbl), function(i) (sum(hmm_tbl[i,c("GZ-Cell-Y1", "GZ-Cell-Y2", "SWH-Cell-Y1", "SWH-Cell-Y2")]) / 4) - (sum(hmm_tbl[i,c("GZ-Xyl-Y1", "GZ-Xyl-Y2", "SWH-Xyl-Y1", "SWH-Xyl-Y2")]) / 4)))
 sorted_labels <- sorted_labels[order(sorted_labels$diff), ]
 plot_data$Var1 <- factor(plot_data$Var1, level=as.character(sorted_labels$label))
 
@@ -475,7 +482,11 @@ library(reshape2)
 library(ggplot2)
 
 legend_title = "CAZy Domain#";
-pdf(pdf_fn, width=20, height=4);
+
+#20 / length(unique(plot_data$Var1));
+width_step <- 0.42;
+
+pdf(pdf_fn, width=2 + (width_step * length(unique(plot_data$Var1))), height=4);
 ggplot(plot_data, aes(x=Var1, y=Var2, fill=value)) + geom_tile(aes(height=0.97, width=0.97)) +
   scale_fill_gradientn(colours=color_scale, name=legend_title) +
   labs(x="CAZy Class", y="Sample") +
