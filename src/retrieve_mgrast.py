@@ -77,6 +77,11 @@ def prepare_seq_cov(maxbin_abund_fn, contig_fn, output_fn):
 
 
 
+def retrieve_taxonomic_hit(mg_rast_id):
+    link = "http://metagenomics.anl.gov/metagenomics.cgi?page=MetagenomeOverview&metagenome=" + mg_rast_id + "&action=chart_export&name=organism_domain_hits&file=download." + mg_rast_id + ".organism_domain_hits"
+    
+
+
 
 # Invoke the main function
 if __name__ == "__main__":
