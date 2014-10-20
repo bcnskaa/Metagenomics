@@ -364,7 +364,7 @@ def preprocess(read_fn):
     return processed_outfn
 
 
-  
+
 # run_FastQC   
 def run_FastQC(read_fn, report_outdir="fastqc_report"):
     print_status("Processing " + read_fn)    
@@ -394,6 +394,31 @@ def run_seqtk(read_fn, trimmed_read_fn):
         os.system(cmd)
 
 
+def is_fastq_matched(read_1_fn, read_2_fn, replace_original=F):
+    from Bio import SeqIO
+    print_status("Matching between " + read_fn)    
+    
+    if not replace_original:
+        read_1_ofn = read_1_fn + ".matched.fq"
+        read_2_ofn = read_2_fn + ".matched.fq"
+        
+    r1 = SeqIO.index(read_1_fn, "fastq")
+    r2 = SeqIO.index(read_2_fn, "fastq")
+    
+    r1_ids = [i for i in r1.keys()]
+    r2_ids = [i for i in r2.keys()]
+    matched_ids = set(r1_ids).intersection(r2_ids)
+    
+    matched = [1 for i in range(0, len(r1_ids)) if r1_ids[i] == r2_ids[i]]
+    
+    
+    if sum(matched) == len(r1) and sum(matched) == len(r2):
+        return True
+    else:
+        return False
+            
+    
+    
 
 ###############################################
 # http://onetipperday.blogspot.hk/2012/08/three-ways-to-trim-adaptorprimer.html
