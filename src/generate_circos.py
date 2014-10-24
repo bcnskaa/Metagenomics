@@ -282,3 +282,21 @@ with open("genes.txt", "w") as OUT:
 # Invoke the main function
 if __name__ == "__main__":
     main(sys.argv[1:])
+    
+    
+    
+"""
+
+~/tools/blast/bin/blastn -query GZ-Cell_Y2_scaffold.fa -db GZ_scaffold.fa -outfmt 6 -out GZ-Cell_Y2-GZ.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+~/tools/blast/bin/blastn -query GZ-Cell_Y2_scaffold.fa -db SWH_scaffold.fa -outfmt 6 -out GZ-Cell_Y2-SWH.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+~/tools/blast/bin/blastn -query GZ-Xyl_Y2_scaffold.fa -db SWH_scaffold.fa -outfmt 6 -out GZ-Xyl_Y2-SWH.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+~/tools/blast/bin/blastn -query GZ-Xyl_Y2_scaffold.fa -db GZ_scaffold.fa -outfmt 6 -out GZ-Xyl_Y2-GZ.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+
+
+~/tools/blast/bin/blastn -query SWH-Cell_Y2_scaffold.fa -db GZ_scaffold.fa -outfmt 6 -out SWH-Cell_Y2-GZ.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+~/tools/blast/bin/blastn -query SWH-Cell_Y2_scaffold.fa -db SWH_scaffold.fa -outfmt 6 -out SWH-Cell_Y2-SWH.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+~/tools/blast/bin/blastn -query SWH-Xyl_Y2_scaffold.fa -db SWH_scaffold.fa -outfmt 6 -out SWH-Xyl_Y2-SWH.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+~/tools/blast/bin/blastn -query SWH-Xyl_Y2_scaffold.fa -db GZ_scaffold.fa -outfmt 6 -out SWH-Xyl_Y2-GZ.bla -num_threads 16 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+
+
+"""
