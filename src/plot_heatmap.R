@@ -5,7 +5,7 @@ library(reshape2);
 
 
 # To use it,
-plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "white", "blue"), colorbar_witdh = 8.3, xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0))
+plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0))
 {
 	#legend_position = c(1.0, 0.0);
 	barwitdh = 10;
@@ -26,7 +26,7 @@ plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colo
 			theme(panel.background=element_blank(), axis.ticks=element_blank()) +
 			theme(legend.position="bottom", axis.text=element_text(family="Courier")) +
 			#scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], limits=range_limit) +
-			scale_fill_gradient2(name="", low=colorbar_scheme[1], high=colorbar_scheme[3]) +
+			scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], midpoint=midpoint) +
 			guides(fill = guide_colorbar(barwidth=colorbar_witdh, title.position = "bottom", direction = "horizontal")) 
 	
 	if(length(xtitle) > 0)

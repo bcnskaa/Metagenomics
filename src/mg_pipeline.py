@@ -392,28 +392,78 @@ def run_seqtk(read_fn, trimmed_read_fn):
         os.system(cmd)
 
 
-def is_fastq_matched(read_1_fn, read_2_fn, replace_original=F):
-    from Bio import SeqIO
+"""
+ After trimming and filtering, paired-end reads may be different in their reads. 
+ This rountine will test and discard reads with no matching mates.
+"""
+def is_fastq_matched(read_1_fn, read_2_fn, replace_original=False, read_header="HW"):
+    #from Bio import SeqIO
     print_status("Matching between " + read_fn)    
     
     if not replace_original:
         read_1_ofn = read_1_fn + ".matched.fq"
         read_2_ofn = read_2_fn + ".matched.fq"
+    
+    read_1_id_fn = read_1_fn + ".ids"
+    read_2_id_fn = read_2_fn + ".ids"
+    
+    cmd = "cat " + read_1_fn + " | grep -e '^" + read_header + "' > " + read_1_id_fn
+    print_status("command: " + cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+    cmd = "cat " + read_2_fn + " | grep -e '^" + read_header + "' > " + read_2_id_fn
+    print_status("command: " + cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)   
+    
+    # Import read_2 ids
+    with open(read_1_id_fn) as IN:
+        read_1_ids = IN.read().splitlines()    
+    read_1_ids = [id.split(" ")[0] for id in read_1_ids]
         
-    r1 = SeqIO.index(read_1_fn, "fastq")
-    r2 = SeqIO.index(read_2_fn, "fastq")
+    # Import read_1 ids
+    with open(read_2_id_fn) as IN:
+        read_2_ids = IN.read().splitlines()
+    read_2_ids = [id.split(" ")[0] for id in read_2_ids] 
     
-    r1_ids = [i for i in r1.keys()]
-    r2_ids = [i for i in r2.keys()]
-    matched_ids = set(r1_ids).intersection(r2_ids)
-    
-    matched = [1 for i in range(0, len(r1_ids)) if r1_ids[i] == r2_ids[i]]
-    
-    
-    if sum(matched) == len(r1) and sum(matched) == len(r2):
-        return True
+    # If the size of read_1 and read_2 are equal, we test if order of reads is identical
+    if len(read_1_ids) == len(read_2_ids):
+        order_vec = [i for i in range(1, len(read_1_ids)) if read_1_ids[i] != read_2_ids[i]]
+        
+    # If the order of reads is identical, we return the input files
+    if len(order_vec) == 0:
+        print_status("Both " + read_1_id_fn + " and " + read_2_fn + " are consistent.")
+        return [read_1_fn, read_2_fn]
     else:
-        return False
+        print_status(read_1_id_fn + " and " + read_2_fn + " are not consistent. We're going to extract the reads found in both files.")
+    
+    # Construct an union map of read_ids 
+    matched_ids = list(set(read_1_ids).intersection(read_2_ids))
+    
+    # Construct indices of reads
+    read_1_db = SeqIO.index(read_1_fn, "fastq")
+    read_2_db = SeqIO.index(read_2_fn, "fastq")
+    
+    # Export the reads listed in matched_ids
+    with open(read_1_ofn, "w") as OUT_1, open(read_2_ofn, "w") as OUT_2:
+        for id in matched_ids:
+            SeqIO.write(read_1_db[id], OUT_1, "fastq")
+            SeqIO.write(read_2_db[id], OUT_2, "fastq")
+    OUT_1.close()
+    OUT_2.close()
+    
+    if os.stat(read_1_ofn).st_size != 0 and os.stat(read_2_ofn).st_size != 0:
+        return [read_1_ofn, read_2_ofn]
+    else:
+        return None
+    
+#     
+#     matched = [1 for i in range(0, len(r1_ids)) if r1_ids[i] == r2_ids[i]]
+#     
+#     if sum(matched) == len(r1) and sum(matched) == len(r2):
+#         return True
+#     else:
+#         return False
             
 """
 for f in SWH-Cell_Y2/contig-MaxBin.*.fasta;do id=${f##*/}; id=${id/.fasta/}; id=${id/contig-MaxBin./};~/tools/blast/bin/blastn -query SWH-Cell_Y2/contig-MaxBin.$id.fasta -db GZ-Cell_Y2/GZ-cell_contigs.all.fasta -outfmt 6 -out SWH-Cell_Y2.$id-GZ-cell_contigs.all.bla;done
@@ -523,6 +573,8 @@ def merge_paired_end_seq(read_1_fn, read_2_fn, outdir="idba_ud", merged_read_fn=
     
     return merged_read_fn
 
+
+ 
 
 
 ###### 

@@ -17,6 +17,9 @@ CIRCOS_HOME="~/tools/circos/"
 
 
 
+def import_contig_info_from_maxbin(maxbin_dir):
+    print(maxbin_dir)
+
 
 
 """
