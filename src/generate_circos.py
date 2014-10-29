@@ -15,13 +15,68 @@ from Bio.Seq import Seq
 # Path to circos
 CIRCOS_HOME="~/tools/circos/"
 
+"""
+ Import all the contig
+"""
+def import_contig_info_from_maxbin(maxbin_dir, fna_fn_ext="fna"):
+    print("Reading contig info from " + maxbin_dir + "...")
+    
+    fns = glob.glob(maxbin_path + "/*." + fn_ext)
+    
+    if len(fns) == 0:
+        print("No *." + fna_fn_ext + " is found in " + maxbin_dir + ", abort now.")
+        return None
+    
+    bin_groups = {}
+    for j, fn in enumerate(fns):
+        seq_idx = SeqIO.index(fn, "fasta")
+        id = (fn[::-1].split("/",1)[0])[::-1]
+        id = id.replace("."+fn_ext, "")
+        
+        selected_contigs = {k:len(seq_idx[k].seq) for k in seq_idx.keys()}
+        
+        bin_groups[id] = selected_contigs
+        
+    return bin_groups
 
 
-def import_contig_info_from_maxbin(maxbin_dir):
-    print(maxbin_dir)
+"""
+
+"""
+def import_abundance_from_maxbin(maxbin_dir, summary_fn_ext="summary"):
+    print("Reading abundances from " + maxbin_dir + "...")   
+    
 
 
 
+
+    
+
+"""
+ 
+"""
+def others():
+    
+    # Generate karyotypes
+    chroms = []
+    #selected_contig_ids = {}
+    selected_contig_ids = []
+    for j, fn in enumerate(fns):
+        seq_idx = SeqIO.index(fn, "fasta")
+        id = (fn[::-1].split("/",1)[0])[::-1]
+        id = id.replace("."+fn_ext, "")
+        
+        #color_code = colors[j]
+        color_code = "black"
+        selected_contigs = [k for k in seq_idx.keys() if len(seq_idx[k].seq) > chrom_len_threshold]
+    
+        selected_contig_ids.extend(selected_contigs)
+        chroms.extend(["chr - " + k.replace("-", "_") + " " + id.replace("-", "_") + " 0 " + str(len(seq_idx[k])) + " " + color_code for i, k in enumerate(selected_contigs)])
+
+
+
+     
+    
 """
 chrom_len_threshold = 55000
 run_id = "SWH-xyl35_S3.002"
