@@ -80,6 +80,10 @@ ids = [id for id in ids if id not in fns]
 
 fetch_mgrast.generate_run_cmd(ids)
 
+
+# For retrieving unsuccessful files
+for f in *.fna;do fsize=$(wc -c "$f"| cut -f 1 -d ' ');if [ $fsize -eq 0 ];then eval "wget -q http://api.metagenomics.anl.gov/1/download/${f/.upload.fna/}?file=050.1 -O $f";fi;done
+
 """
 def generate_run_cmd(ids, outfn_prefix="run_cmd", chunk=10, file="050.1"):
     fns = [outfn_prefix + "." + str(i) + ".sh" for i in range(1, chunk)]
