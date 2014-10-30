@@ -123,7 +123,9 @@ def main(argv):
     if len(candidates) > 0:
         with open(output_fn, "w") as OUT:
             for k in candidates.keys():
-                OUT.write(candidates[k] + "\n")
+                s = "\n".join(candidates[k])
+                if len(s) > 0:
+                    OUT.write(s + "\n")
         print("Number of items processed: " + str(len(candidates)))
     
     
@@ -220,7 +222,7 @@ def import_blast(blast_fn):
 
 
     
-def run_ncbi_wwwblast(seq, database="nr", blast_program="blastn", expect=10, hitlist_size=50):
+def run_ncbi_wwwblast(seq, database="nr", blast_program="blastn", expect=1e-5, hitlist_size=5):
     result_handler = NCBIWWW.qblast(program=blast_program, database=database, sequence=seq, expect=expect, hitlist_size=hitlist_size)
     # Store the wwwblast results to local memory
     records = list(NCBIXML.parse(result_handler))
