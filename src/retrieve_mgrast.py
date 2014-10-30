@@ -1,7 +1,9 @@
+from __future__ import division
 import os
 import sys
 import ijson
 import urllib2
+import math
 
 
 data_item_url = 'data.item.url'
@@ -63,6 +65,47 @@ def retrieve_from_mgrast(meta_id, stage_name="upload"):
     return elements
         
 
+
+"""
+
+import fetch_mgrast
+import glob
+
+ids = fetch_mgrast.import_meta_ids("meta_ids.lst2")
+fns = glob.glob("sequences/*.fna")
+fns = [f.replace("sequences/mgm", "") for f in fns]
+fns = [f.replace(".050.upload.fna", "") for f in fns]
+
+ids = [id for id in ids if id not in fns]
+
+fetch_mgrast.generate_run_cmd(ids)
+
+"""
+def generate_run_cmd(ids, outfn_prefix="run_cmd", chunk=10, file="050.1"):
+    fns = [outfn_prefix + "." + str(i) + ".sh" for i in range(1, chunk)]
+    
+    if len(ids) == 0:
+        print("No file is found.")
+        return None
+    
+    size = int(math.ceil(len(ids) / chunk))
+    steps = [i * size for i in range(0, chunk)]
+    steps = steps + [len(ids)]
+    
+    count = 0
+    i = 0
+    for j in steps[1:len(steps)]:
+        out_fn = outfn_prefix + "." + str(count) + ".sh" 
+        print("Processing " + str(i) + ":" + str(j) + " to " + out_fn)
+        with open(out_fn, "w") as OUT:
+            for idx in range(i, j):
+                OUT.write("echo \"Downloding " + ids[idx] + "\"\n")
+                OUT.write("wget -q http://api.metagenomics.anl.gov/1/download/mgm" + ids[idx] + "?file=" + file + " -O mgm" + ids[idx] + ".upload.fna\n")
+        i = j
+        count = count + 1
+        
+
+    
 
 # Invoke the main function
 if __name__ == "__main__":
