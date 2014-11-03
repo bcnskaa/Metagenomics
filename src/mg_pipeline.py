@@ -584,6 +584,34 @@ def merge_paired_end_seq(read_1_fn, read_2_fn, outdir="idba_ud", merged_read_fn=
 
 
  
+ 
+###### 
+# Kalamozoo Protocol
+def run_kalamozoo_protocol():
+    print_status("Filtering and trimming")
+     
+"""
+ #install dependencies files to a user directory defined in PYTHONPATH
+ easy_install --install-dir=/home/siukinng/tools/lib/python_lib package-name
+
+
+ id="SWH"
+ cmd="java -jar ~/tools/protocols/Kalamazoo/Trimmomatic-0.30/trimmomatic-0.30.jar PE "$id"_?.fq s1_pe s1_se s2_pe s2_se ILLUMINACLIP:/home/siukinng/tools/protocols/Kalamazoo/Trimmomatic-0.30/adapters/TruSeq3-PE.fa:2:30:10"
+ eval "$cmd"
+ ~/tools/khmer/scripts/interleave-reads.py s?_pe > combined.fq
+ ~/tools/fastx_toolkit/bin/fastq_quality_filter -Q33 -q 30 -p 50 -i combined.fq > combined-trim.fq
+ ~/tools/fastx_toolkit/bin/fastq_quality_filter -Q33 -q 30 -p 50 -i s1_se > s1_se.trim
+ ~/tools/fastx_toolkit/bin/fastq_quality_filter -Q33 -q 30 -p 50 -i s2_se > s2_se.trim
+ ~/tools/khmer/scripts/extract-paired-reads.py combined-trim.fq
+ gzip -9c combined-trim.fq.pe > $id.pe.qc.fq.gz
+ gzip -9c combined-trim.fq.se s1_se.trim s2_se.trim > $id.se.qc.fq.gz
+ rm *.trim *.fq *_se *_pe
+ 
+
+"""
+ 
+ 
+ 
 
 
 ###### 
