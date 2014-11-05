@@ -591,6 +591,7 @@ def run_kalamozoo_protocol():
     print_status("Filtering and trimming")
      
 """
+ # https://khmer-protocols.readthedocs.org/en/latest/metagenomics/1-quality.html
  #install dependencies files to a user directory defined in PYTHONPATH
  easy_install --install-dir=/home/siukinng/tools/lib/python_lib package-name
 
@@ -599,6 +600,7 @@ def run_kalamozoo_protocol():
  cmd="java -jar ~/tools/protocols/Kalamazoo/Trimmomatic-0.30/trimmomatic-0.30.jar PE "$id"_?.fq s1_pe s1_se s2_pe s2_se ILLUMINACLIP:/home/siukinng/tools/protocols/Kalamazoo/Trimmomatic-0.30/adapters/TruSeq3-PE.fa:2:30:10"
  eval "$cmd"
  ~/tools/khmer/scripts/interleave-reads.py s?_pe > combined.fq
+ # For the seed data, they are not Illumina 1.5+, should use -Q64 flag, otherwise -Q33 or remove the -QXX flag, 
  ~/tools/fastx_toolkit/bin/fastq_quality_filter -Q33 -q 30 -p 50 -i combined.fq > combined-trim.fq
  ~/tools/fastx_toolkit/bin/fastq_quality_filter -Q33 -q 30 -p 50 -i s1_se > s1_se.trim
  ~/tools/fastx_toolkit/bin/fastq_quality_filter -Q33 -q 30 -p 50 -i s2_se > s2_se.trim
@@ -606,8 +608,40 @@ def run_kalamozoo_protocol():
  gzip -9c combined-trim.fq.pe > $id.pe.qc.fq.gz
  gzip -9c combined-trim.fq.se s1_se.trim s2_se.trim > $id.se.qc.fq.gz
  rm *.trim *.fq *_se *_pe
- 
 
+
+ # Normalization 
+ ~/tools/khmer/scripts/normalize-by-median.py -p -k 20 -C 20 -N 4 -x 1e9 -s normC20k20.kh  *.pe.qc.fq.gz
+ ~/tools/khmer/scripts/normalize-by-median.py -C 20 -l normC20k20.kh -s normC20k20.kh *.se.qc.fq.gz
+ ~/tools/khmer/scripts/filter-abund.py -V normC20k20.kh *.keep
+ for f in *.pe.qc.fq.gz.keep.abundfilt
+ do
+     ~/tools/khmer/scripts/extract-paired-reads.py $f
+ done
+ 
+ rm normC20k20.kh
+
+
+ ~/tools/khmer/scripts/normalize-by-median.py -C 5 -k 20 -N 4 -x 1e9 -s normC5k20.kh -p *.pe.qc.fq.gz.keep.abundfilt.pe
+ ~/tools/khmer/scripts/normalize-by-median.py -C 5 -s normC5k20.kh -l normC5k20.kh *.pe.qc.fq.gz.keep.abundfilt.se *.se.qc.fq.gz.keep.abundfilt
+ for f in *.abundfilt.pe
+ do
+    newfile=$(basename $f .pe.qc.fq.gz.keep.abundfilt.pe)
+    echo newfile is $newfile
+    gzip -c $f > $newfile.pe.kak.qc.fq.gz
+ done
+ for f in *.se.qc.fq.gz.keep.abundfilt
+ do
+    pe_orphans=$(basename $f .se.qc.fq.gz.keep.abundfilt).pe.qc.fq.gz.keep.abundfilt.se
+    newfile=$(basename $f .se.qc.fq.gz.keep.abundfilt).se.kak.qc.fq.gz
+    cat $f $pe_orphans | gzip -c > $newfile
+ done
+
+ rm *.keep *.abundfilt *.pe *.se 
+ rm normC20k20.kh
+ ~/tools/khmer/sandbox/readstats.py *.kak.qc.fq.gz *.?e.qc.fq.gz
+ 
+ 
 """
  
  
