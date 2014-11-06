@@ -597,6 +597,8 @@ def run_kalamozoo_protocol():
 
 
  id="SWH"
+ NUM_THREADS=12
+  
  cmd="java -jar ~/tools/protocols/Kalamazoo/Trimmomatic-0.30/trimmomatic-0.30.jar PE "$id"_?.fq s1_pe s1_se s2_pe s2_se ILLUMINACLIP:/home/siukinng/tools/protocols/Kalamazoo/Trimmomatic-0.30/adapters/TruSeq3-PE.fa:2:30:10"
  eval "$cmd"
  ~/tools/khmer/scripts/interleave-reads.py s?_pe > combined.fq
@@ -641,6 +643,18 @@ def run_kalamozoo_protocol():
  rm normC20k20.kh
  ~/tools/khmer/sandbox/readstats.py *.kak.qc.fq.gz *.?e.qc.fq.gz
  
+ 
+ 
+ python ~/tools/khmer/sandbox/filter-below-abund.py normC5k20.kh *.kak.*.fq.gz
+ for f in *.below
+ do
+   mv $f $f.fq
+ done
+ 
+ python ~/tools/khmer/scripts/do-partition.py -k 32 -x 2e9 -N 6 --threads $NUM_THREADS kak *.kak.qc.fq.gz.below.fq
+ #head *.pe.kak.qc.fq.gz.below.fq.part
+ python ~/tools/khmer/scripts/extract-partitions.py -X 5000000 kak *.part
+
  
 """
  
@@ -1298,6 +1312,62 @@ def pick_seq(seq_fn, seq_id, spos=-1, epos=-1, format="fasta"):
 
 
 
+"""
+import mg_pipeline
+from Bio import SeqIO
+
+hmm_orf_dict = mg_pipeline.postprocess_HMMER_search(".", dom_overlapping_threshold=40, hmm_score_threshold=200.0)
+s = mg_pipeline.summarize_hmm_orf_dict(hmm_orf_dict)
+
+trim_last_character = True
+
+import glob
+faa_fn = glob.glob("./*.faaa")
+if len(faa_fn) == 1:
+    faa_fn = faa_fn[0]
+
+sample_id = faa_fn.replace("./", "")
+sample_id = sample_id.replace(".faaa", "")
+
+for hmm_id in s.keys():
+    seq_ids = [v[0] for v in s[hmm_id]]
+    seqs = mg_pipeline.pick_seqs(faa_fn, seq_ids)
+    for seq in seqs:
+        #seq.description = seq.id
+        seq.description = ""
+        seq.id = (seq.id).replace("contig-80", sample_id)
+        if trim_last_character:
+            seq.seq = seq.seq[0 : len(seq.seq) - 1]
+        
+    out_fn = hmm_id + ".faa"
+    with open(out_fn, "w") as OUT:
+        SeqIO.write(seqs, OUT, "fasta")
+
+
+
+faa_fns = glob.glob("./*.faa")
+
+
+
+    
+"""
+def pick_seqs(seq_fn, seq_ids, format="fasta"):    
+    print_status("Picking " + str(len(seq_ids)) + " sequences from " + seq_fn)
+    
+    # Build an index of the sequences available in the file
+    seq_idx = SeqIO.index(seq_fn, format)
+    
+    seqs = []
+    # Check if the seq_id is existed in the index
+    for seq_id in seq_ids:
+        print_status("Picking " + seq_id + " from " + seq_fn)
+        if seq_id in seq_idx.keys():
+            seq = seq_idx[seq_id]
+            seqs.append(seq)
+             
+    return seqs
+
+
 
 ####### Functional annotation stage #########
 """
@@ -1562,20 +1632,21 @@ def getOverlap(x, y):
 """
 def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=60.0, dom_overlapping_threshold=20):
     print_status("Parsing HMMER3 hmmsearch outfiles")
-    
+    print_status("  mean_posterior_prob=" + str(mean_posterior_prob))
+    print_status("  hmm_score_threshold=" + str(hmm_score_threshold))
+    print_status("  dom_overlapping_threshold=" + str(dom_overlapping_threshold))
+
     # Check path exists
     if not os.path.exists(hmm_dir):
         print_status("Unable to read from" + hmm_dir)
         return None   
     
-    # 1. Consolidate the queries sharing a same query id and having mean posterior probability higher than a threshold (default=0.8)
+    # 1. Consolidate the queries sharing same query id and having mean posterior probability higher than a threshold (default=0.8)
     # 2. Summary statistics of domain counts
     # 3. Domain models of every query sequence
 
     # Import .dom.tbl outfile
     #line_n = 0
-    #for file in glob.glob("*.dom.tbl"):
-    
     file = glob.glob(hmm_dir + "/*.dom.tbl")
     if len(file) != 1:
         print_status("Does not find any .dom.tbl in the folder \"" + hmm_dir + "\"")
@@ -1651,12 +1722,33 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
             
             hmm_orf_dict[k] = sorted_a
     
-    print_status("Processed HMM domains = " + str(processed_dom_n))   
+    print_status("Processed HMM domains = " + str(processed_dom_n))
     print_status( "Skipped HMM domains = "+str(skipped_dom_n))
     print_status( "Discarded HMM domains = "+str(discard_dom_n))
     
     return hmm_orf_dict  
     
+
+"""
+    Given a hmm_orf_dict, it will summarise the information of sequences with (best) hit to a HMM profile. 
+"""
+def summarize_hmm_orf_dict(hmm_orf_dict, hmm_list=None, discard_redundant_domain_in_the_same_orf=True):
+    print_status("Parsing HMMER3 hmmsearch outfiles")
+    hmm_profiles = {}
+    for orf_id in hmm_orf_dict.keys():
+        domain_found = list(set([hmm_orf_dict[orf_id][i][5] for i in range(0, len(hmm_orf_dict[orf_id]))]))
+        for domain in domain_found:
+            if domain not in hmm_profiles.keys():
+                hmm_profiles[domain] = []
+                
+            hmm_profiles[domain].append(sorted([hmm_orf_dict[orf_id][i] for i in range(0, len(hmm_orf_dict[orf_id])) if hmm_orf_dict[orf_id][i][5] == domain], key=lambda v:v[9],  reverse=True)[0])   
+    
+    # Sort the results
+    for profile in hmm_profiles.keys():
+        hmm_profiles[profile] = sorted(hmm_profiles[profile], key=lambda v: v[9] , reverse=True)     
+    
+    return hmm_profiles
+ 
 
 
 """
@@ -1816,6 +1908,9 @@ def generate_map_table(bin_groups, outfn_prefix):
         #print >>out, "\t".join([key, "\t".join([str(v) for v in items])])
         
     out.close()
+    
+    
+  
     
     
    

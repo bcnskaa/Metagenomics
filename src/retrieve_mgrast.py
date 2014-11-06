@@ -196,4 +196,15 @@ if __name__ == "__main__":
 # def retrieve_taxonomic_hit(mg_rast_id):
 #     link = "http://metagenomics.anl.gov/metagenomics.cgi?page=MetagenomeOverview&metagenome=" + mg_rast_id + "&action=chart_export&name=organism_domain_hits&file=download." + mg_rast_id + ".organism_domain_hits"
 
-    
+ 
+ 
+ 
+"""
+data <- read.table("PCoA_Raw.tab", sep="\t", header=T, stringsAsFactors=F)
+library(lattice)
+xyplot(PC0~PC1, data, panel=function(x, y, ...) {
+               panel.xyplot(x, y, ...);
+               ltext(x=x, y=y, labels=data$Sample, pos=1, offset=1, cex=0.5)
+            });
+            
+"""   
