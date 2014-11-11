@@ -97,7 +97,7 @@ VERBOSE_ONLY = False
  This routine processes output files from HMMER3 scan
  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
-def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=60.0, dom_overlapping_threshold=20):
+def postprocess_HMMER_search_batch(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=200.0, dom_overlapping_threshold=20):
     print_status("Parsing HMMER3 hmmsearch outfiles")
     
     # Check path exists
@@ -120,6 +120,11 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
     
     file = file[0]    
     
+    return postprocess_HMMER_search(file, mean_posterior_prob=mean_posterior_prob, hmm_score_threshold=hmm_score_threshold, dom_overlapping_threshold=dom_overlapping_threshold)
+    
+    
+
+def postprocess_HMMER_search(file, mean_posterior_prob=0.8, hmm_score_threshold=200.0, dom_overlapping_threshold=20):
     # ORF with HMM hits
     hmm_orf_dict = {}
     hmm_scores = []
@@ -194,6 +199,67 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
     
     return hmm_orf_dict  
     
+
+
+"""
+import glob
+import process_HMM
+import os
+
+hmm_id = "specI"
+fns = glob.glob("*_5000/" + hmm_id + "/*.dom.tbl")
+ids = []
+
+dom_tbls = {}
+for fn in fns:
+   hmm_orf_dict = process_HMM.postprocess_HMMER_search(fn, hmm_score_threshold=150)
+   id = (os.path.basename(fn)).replace(".dom.tbl", "")
+   id = id.replace("."+hmm_id, "")
+   ids.append(id)
+   dom_tbl = process_HMM.generate_dom_tbl(hmm_orf_dict)
+   dom_tbls[id] = dom_tbl
+   
+
+dom_ids = []
+for k in dom_tbls.keys():
+    dom_ids.extend(dom_tbls[k].keys())
+dom_ids = list(set(dom_ids))
+
+
+dom_list = {}
+dom_list["header"] = [0 for i in range(0, len(fns))]
+for dom_id in dom_ids:
+    dom_list[dom_id] = [0 for i in range(0, len(fns))]
+    
+for idx, id in enumerate(ids):
+    dom_list["header"][idx] = id
+    for dom_id in dom_ids:
+        if dom_id in dom_tbls[id].keys():
+            dom_list[dom_id][idx] = len(dom_tbls[id][dom_id])
+            
+
+if hmm_id == "specI":
+    with open("/home/siukinng/db/Markers/specI/specI.hmm.info") as IN:
+        specI_info = IN.read().splitlines()
+    specI_info = {v.split("\t")[0]:v.split("\t")[1] for v in specI_info}
+
+with open(hmm_id + ".tbl", "w") as OUT:
+    OUT.write("HEADER\t" + "\t".join(dom_list["header"]) + "\n")
+    for dom_id in dom_ids:
+       OUT.write(dom_id + "\t" + specI_info[dom_id] + "\t" + "\t".join(str(v) for v in dom_list[dom_id]) + "\n") 
+
+"""
+def generate_dom_tbl(hmm_orf_dict):
+    hmm_dom_tbl = {}
+    for id in hmm_orf_dict.keys():
+        for elm in hmm_orf_dict[id]:
+            hmm_id = elm[5]
+            if hmm_id not in hmm_dom_tbl.keys():
+                hmm_dom_tbl[hmm_id] = []
+            hmm_dom_tbl[hmm_id].append(elm)
+        
+    return hmm_dom_tbl
+
 
 
 """
