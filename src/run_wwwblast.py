@@ -101,25 +101,122 @@ from Bio.Blast import NCBIXML
 from Bio.Blast import NCBIWWW
 
 
+MAX_SEQ_LEN = 5000
+
+
+def print_usage():
+    print("A simple python script for doing NCBI wwwblast")
+    print(" ")
+    print("Usage:")
+    print("  python " + sys.argv[0] + " -i FASTA_INFILE [-o WWWBLAST_RESULT_OUTFILE] [-b BLAST-INFILE [-1|-2]] [-q QID-LIST-INFIL] [-l BLACKLIST-INFILE] [-h]")
+    print("      -i STRING  Input file containing sequences in FASTA format")
+    print("      -o STRING  Output file [optional]")
+    print("                 If no output file is provided, result will be exported to a file with the file name of input file plus a suffix .bla.")
+    print("      -q STRING  Input file containing fasta header [optional]")
+    print("      -b STRING  Input file of blast result (in tabular m6 format) [optional]")
+    print("      -1 | -2    blast ids to be used -1=query id or -2=subject id [optional]")
+    print("      -l STRING  File name containing ids to be excluded from wwwblast [optional]")
+    print("      -h         Print usage")
+    print(" ")
+    print(" ") 
+    print("Ver 0.1")
+
+
+
 def main(argv):
-    if len(argv) < 2 or len(argv) > 3:
-        print("Usage: python run_wwwblast.py fasta_fn output_fn [blast_fn] ")
-        return
+    try:
+        opts, args = getopt.getopt(argv,"h12i:o:b:q:l:")
+    except getopt.GetoptError:
+        print_usage()
+        sys.exit(2)
+
+#     if len(argv) < 2 or len(argv) > 4:
+#         print("Usage: " + sys.argv[0] + " run_wwwblast.py fasta_fn output_fn [blast_fn] [blacklist]")
+#         return
     
-    fasta_fn = argv[0]
-    output_fn = argv[1]
+    fasta_fn = None
+    output_fn = None
     blast_fn = None
+    list_fn = None
+    blacklist_fn = None
+    blacklist = None
+    search_query_id = True
+
     
-    if len(argv) == 3:
-        blast_fn = argv[2]
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print_usage()
+            sys.exit(0)
+        elif opt in ("-i", "--infile"):
+            fasta_fn = arg
+        elif opt in ("-o", "--outfile"):
+            output_fn = arg
+        elif opt == "-q":
+            list_fn = True
+            print "IDs will be imported from " + list_fn
+        elif opt == "-b":
+            blast_fn = arg       
+            print "Search will be based on BLAST results from " + blast_fn + "."
+        elif opt == "-1":
+            search_query_id = True
+        elif opt == "-2": 
+            search_query_id = False
+        elif opt == "-l":
+            blacklist_fn = arg
+            with open(blacklist_fn) as IN:
+                blacklist = IN.read().splitlines()
+            blacklist = list(set(blacklist))
+            print "Blacklist imported: " + str(len(blacklist)) + " IDs"
+        else:
+            print("Unrecognized option", opt)
+            print_usage()
+            sys.exit(0)
+
+    if fasta_fn is None:
+        print "Missing input file"
+        print_usage()
+        sys.exit(0)
+    
+    if output_fn is None:
+        if list_fn is not None:
+            output_fn = list_fn + ".bla"
+        elif blast_fn is not None:
+            output_fn = blast_fn + ".bla"
+        else:
+            output_fn = fasta_fn + ".bla"
+        print "Result will be exported to " + output_fn
+    
+    
+#     if len(argv) == 3:
+#         blast_fn = argv[2]
      
-    print("Reading from " + fasta_fn)
-    
-    if blast_fn is not None:
-        candidates = process_selected_by_blast(blast_fn, fasta_fn)
+     
+    if list_fn is not None:
+        with open(lst_fn) as IN:
+            ids = IN.read().splitlines()
+            
+        ids = list(set(ids))
+        
+        excluded_id_count = len(ids)
+        if blacklist is not None:
+            ids = [id for id in ids if id not in blacklist]
+        print str(excluded_id_count - len(ids)) + " IDs are excluded."
+        
+        candidates = process_all(fasta_fn, ids)
+    elif blast_fn is not None:
+        opt = "qid"
+        if search_query_id:
+            print "Search will be based on Query IDs."
+        else:
+            print "Search will be based on Subject IDs."
+            opt = "sid"
+            
+        candidates = process_selected_by_blast(blast_fn, fasta_fn, selected_id=opt, excluded_ids=blacklist)
     else:
-        candidates = process_all(fasta_fn)
+        candidates = process_all(fasta_fn, excluded_ids=blacklist)
     
+
     if len(candidates) > 0:
         with open(output_fn, "w") as OUT:
             for k in candidates.keys():
@@ -130,11 +227,14 @@ def main(argv):
     
     
 
-def process_all(fasta_fn, selected_ids=None, blast_bitscore_threshold=500, seq_len_threshold=1000):
+def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_threshold=500, seq_len_threshold=1000):
     seq_db = SeqIO.index(fasta_fn, "fasta")
     
+    
     if selected_ids is not None:
-        selected_seqs = [seq_db[id] for id in seq_db.keys() if id in res_ids]
+        selected_seqs = [seq_db[id] for id in seq_db.keys() if id in selected_ids]
+    elif excluded_ids is not None:
+        selected_seqs = [seq_db[id] for id in seq_db.keys() if id not in excluded_ids]   
     else:
         selected_seqs = [seq_db[id] for id in seq_db.keys()]
     
@@ -151,10 +251,10 @@ def process_all(fasta_fn, selected_ids=None, blast_bitscore_threshold=500, seq_l
         
         idx = idx + 1
         print("Blasting [" + str(idx) + " out of " + str(len(selected_seqs)) + "] " + sid + " (" + str(len(seq)) + " bp).")
-        
-#         if idx == 3:
-#             break
-        
+                
+        if len(seq) > MAX_SEQ_LEN:
+            seq = seq[0:MAX_SEQ_LEN]
+            
         records = run_ncbi_wwwblast(seq)     
         candidate_species = []
         if records is not None:
@@ -168,12 +268,15 @@ def process_all(fasta_fn, selected_ids=None, blast_bitscore_threshold=500, seq_l
                         print(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score))
         
         candidates[sid] = candidate_species
+        
+#         if idx == 4:
+#             break
 
     return candidates
  
     
 
-def process_selected_by_blast(blast_fn, fasta_fn, bitscore_threshold=1000, blast_bitscore_threshold=600):
+def process_selected_by_blast(blast_fn, fasta_fn, selected_id="qid", excluded_ids=None, bitscore_threshold=1000, blast_bitscore_threshold=600):
     # Import blast
     #bitscore_threshold = 1000
     #blast_bitscore_threshold = 600
@@ -183,13 +286,21 @@ def process_selected_by_blast(blast_fn, fasta_fn, bitscore_threshold=1000, blast
     res.sort(key=lambda k : k[3], reverse=True)
     res2 = [r for r in res if r[3] > bitscore_threshold]
     
-    res_ids = [r[0] for r in res2]
+    if selected_id == "qid":
+        res_ids = [r[0] for r in res2]
+    else:
+        res_ids = [r[1] for r in res2]
+
+    # Create a unique list
     res_ids = list(set(res_ids))
     
-    #fasta_fn = "SWH_scaffold.fa"
+    excluded_id_count = len(res_ids)
+    if excluded_ids is not None:
+        res_ids = [id for id in res_ids if id not in excluded_ids]
+        print str(excluded_id_count - len(res_ids)) + " IDs are excluded."
     
+    candidates = process_all(fasta_fn, res_ids)
     
-    candidates = process_all_seqs(fasta_fn, res_ids)
 #     seq_db = SeqIO.index(fasta_fn, "fasta")
 #     
 #         
@@ -222,11 +333,15 @@ def import_blast(blast_fn):
 
 
     
-def run_ncbi_wwwblast(seq, database="nr", blast_program="blastn", expect=1e-5, hitlist_size=5):
-    result_handler = NCBIWWW.qblast(program=blast_program, database=database, sequence=seq, expect=expect, hitlist_size=hitlist_size)
-    # Store the wwwblast results to local memory
-    records = list(NCBIXML.parse(result_handler))
-    
+def run_ncbi_wwwblast(seq, seq_id=None, database="nr", blast_program="blastn", expect=1e-5, hitlist_size=5, timeout=50):
+    records = None
+    try:
+         result_handler = NCBIWWW.qblast(program=blast_program, database=database, sequence=seq, expect=expect, hitlist_size=hitlist_size)
+         # Store the wwwblast results to local memory
+         records = list(NCBIXML.parse(result_handler))
+    except:
+        print "Unable to search " + seq_id
+            
     return records
 
 

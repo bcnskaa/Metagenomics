@@ -212,6 +212,7 @@ def print_usage():
     print("      -l INT     Alignment length threshold for filtering [optional, default=0]")
     print("      -p FLOAT   Identity percentage threshold for filtering [optional, default=0.0]")
     print("      -s STRING  Dump non-redundant subject id")
+    print("      -q STRING  Dump non-redundant query id")
     print(" ")
     print(" ") 
     print("Ver 0.2")
