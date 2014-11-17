@@ -1,42 +1,29 @@
 from Bio import AlignIO
 import glob
+import sys
+import os
 
-faa_fns = glob.glob("./*.aln")
-for faa_fn in faa_fns:
-    print("Processing " + faa_fn)
-    out_fn = faa_fn + ".phy"
-
-    alignments = AlignIO.read(open(faa_fn, "r"), "fasta")
-    #nr_alignments = {a.id:a for a in alignments}
-    #nr_alignments = [nr_alignments[k] for k in nr_alignments]
+def main(argv):
+    faa_fns = glob.glob("./*.aln.renamed")
+    for faa_fn in faa_fns:
+        print("Processing " + faa_fn)
+        out_fn = faa_fn + ".phy"
     
-    #OUT = open(out_fn, "w")
-    #for a in alignments:
-    #    AlignIO.write(a, OUT, "phylip-relaxed")
+#        alignments = AlignIO.read(open(faa_fn, "r"), "fasta")
         
-    #OUT.close()
-    
-    OUT = open(out_fn, "w")
-    AlignIO.write(nr_alignments, OUT, "phylip-relaxed")
-    #AlignIO.convert(faa_fn, "fasta", out_fn, "phylip")
-    #AlignIO.convert(faa_fn, "fasta", out_fn, "phylip-relaxed")
-    OUT.close()
+#        OUT = open(out_fn, "w")
+#        AlignIO.write(alignments, OUT, "phylip")
+#        OUT.close()
+        
+        AlignIO.convert(faa_fn, "fasta", out_fn, "phylip")
 
 
+# Invoke the main function
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
 
 """
-records = SeqIO.parse(open("combined.faa.aln"), "fasta")
-
-ids = []
-seqs = []
-for r in records:
-    if r.id not in ids:
-        seqs.apend(r)
-        ids.append(r.id)
-        
-
-
-
+for f in *.phy;do echo "Processing $f";echo -e "$f\nP\nP\nY\n" > current.cmd; ~/tools/phylip/exe/protdist < current.cmd > screenout; mv outfile $f.mtx;done
 
 """

@@ -1392,7 +1392,7 @@ def pick_seqs(seq_fn, seq_ids, format="fasta"):
 ####### Functional annotation stage #########
 """
  BLAST
- -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2
+ -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 2 -num_threads 8
 """
 def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, evalue=1e-10, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, blast_program="blastn"):
     print_status("Initializing " + blast_program)

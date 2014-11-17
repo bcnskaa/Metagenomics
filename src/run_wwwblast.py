@@ -102,13 +102,14 @@ from Bio.Blast import NCBIWWW
 
 
 MAX_SEQ_LEN = 5000
-
+blast_program = "blastn"
+blast_db = "nr"
 
 def print_usage():
     print("A simple python script for doing NCBI wwwblast")
     print(" ")
     print("Usage:")
-    print("  python " + sys.argv[0] + " -i FASTA_INFILE [-o WWWBLAST_RESULT_OUTFILE] [-b BLAST-INFILE [-1|-2]] [-q QID-LIST-INFIL] [-l BLACKLIST-INFILE] [-h]")
+    print("  python " + sys.argv[0] + " -i FASTA_INFILE [-o WWWBLAST_RESULT_OUTFILE] [-b BLAST-INFILE [-1|-2]] [-p] [-q QID-LIST-INFIL] [-l BLACKLIST-INFILE] [-h]")
     print("      -i STRING  Input file containing sequences in FASTA format")
     print("      -o STRING  Output file [optional]")
     print("                 If no output file is provided, result will be exported to a file with the file name of input file plus a suffix .bla.")
@@ -116,6 +117,9 @@ def print_usage():
     print("      -b STRING  Input file of blast result (in tabular m6 format) [optional]")
     print("      -1 | -2    blast ids to be used -1=query id or -2=subject id [optional]")
     print("      -l STRING  File name containing ids to be excluded from wwwblast [optional]")
+    print("      -p         Input seqeunce(s) is(are) protein sequence and ask wwwblast to do a blastp search [optional, default: nucleotide sequence and blastn]")
+    print("      -d STRING  Blast database to search against. [optional, default: nr]")
+    print("                 Available databases: nr, ref_seq")
     print("      -h         Print usage")
     print(" ")
     print(" ") 
@@ -125,7 +129,7 @@ def print_usage():
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"h12i:o:b:q:l:")
+        opts, args = getopt.getopt(argv,"h12pi:o:b:q:l:")
     except getopt.GetoptError:
         print_usage()
         sys.exit(2)
@@ -141,8 +145,12 @@ def main(argv):
     blacklist_fn = None
     blacklist = None
     search_query_id = True
-
+   
+    global blast_program
+    global blast_db
     
+    blast_program = "blastn"
+    blast_db = "nr"
 
     for opt, arg in opts:
         if opt == '-h':
@@ -162,7 +170,10 @@ def main(argv):
             search_query_id = True
         elif opt == "-2": 
             search_query_id = False
-        elif opt == "-l":
+        elif opt == "-p":
+            print "Search protein sequences"
+            blast_program = "blastp"
+        elif opt == "-l":          
             blacklist_fn = arg
             with open(blacklist_fn) as IN:
                 blacklist = IN.read().splitlines()
@@ -227,9 +238,10 @@ def main(argv):
     
     
 
-def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_threshold=500, seq_len_threshold=1000):
+def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_threshold=500, seq_len_threshold=50):
     seq_db = SeqIO.index(fasta_fn, "fasta")
     
+    global blast_program
     
     if selected_ids is not None:
         selected_seqs = [seq_db[id] for id in seq_db.keys() if id in selected_ids]
@@ -247,15 +259,16 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
         seq = str(s.seq)
         
         if len(seq) < seq_len_threshold:
+            print(sid + " is shorter than " + seq_len_threshold + " characters, skipped.")
             continue
         
-        idx = idx + 1
         print("Blasting [" + str(idx) + " out of " + str(len(selected_seqs)) + "] " + sid + " (" + str(len(seq)) + " bp).")
+        idx = idx + 1
                 
         if len(seq) > MAX_SEQ_LEN:
             seq = seq[0:MAX_SEQ_LEN]
             
-        records = run_ncbi_wwwblast(seq)     
+        records = run_ncbi_wwwblast(seq, blast_program=blast_program)     
         candidate_species = []
         if records is not None:
             if len(records[0].alignments) > 0:    
@@ -264,8 +277,8 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
                         species = str((alignment.title).split("|")[4])
                         species = species.strip()
                         #candidate_species.append(species)
-                        candidate_species.append(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score))
-                        print(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score))
+                        candidate_species.append(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score) + ":" + str(alignment.hsps[0].identities))
+                        print(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score) + ":" + str(alignment.hsps[0].identities))
         
         candidates[sid] = candidate_species
         
@@ -274,7 +287,7 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
 
     return candidates
  
-    
+
 
 def process_selected_by_blast(blast_fn, fasta_fn, selected_id="qid", excluded_ids=None, bitscore_threshold=1000, blast_bitscore_threshold=600):
     # Import blast
@@ -335,13 +348,16 @@ def import_blast(blast_fn):
     
 def run_ncbi_wwwblast(seq, seq_id=None, database="nr", blast_program="blastn", expect=1e-5, hitlist_size=5, timeout=50):
     records = None
+    
     try:
          result_handler = NCBIWWW.qblast(program=blast_program, database=database, sequence=seq, expect=expect, hitlist_size=hitlist_size)
          # Store the wwwblast results to local memory
          records = list(NCBIXML.parse(result_handler))
     except:
-        print "Unable to search " + seq_id
-            
+        if seq_id is not None:
+            print "Unable to search " + seq_id
+        else:
+            print "Unable to search the sequence"
     return records
 
 
@@ -355,4 +371,187 @@ def import_ids(id_fn):
 # Invoke the main function
 if __name__ == "__main__":
     main(sys.argv[1:])
+
+
+"""
+
+
+# For processing MW's dataset
+
+with open("GZ_contig-SWH_contig.bla.l3000p95.0.bla.bla") as IN:
+    qid = IN.read().splitlines()
+qid = {q.split(":",1)[0]:q.split(":")[2] for q in qid}
+    
+    
+with open("qid.nr") as IN:
+    gp6 = IN.read().splitlines()
+gp6 = {g:"Methanosaeta concilii GP-6, complete genome" for g in gp6}
+
+combined_qids = dict(gp6.items() + qid.items())
+
+with open("GZ_contig-SWH_contig.bla.l3000p95.0.bla") as IN:
+    bla = IN.read().splitlines()
+bla = {b.split("\t")[0]:b for b in bla}
+
+
+with open("../GZ/Binning/MaxBin/GZ.abund") as IN:
+    gz_abund = IN.read().splitlines()
+gz_abund = {g.split("\t")[0]:g.split("\t")[1] for g in gz_abund}
+
+with open("../SWH/Binning/MaxBin/SWH.abund") as IN:
+    swh_abund = IN.read().splitlines()
+swh_abund = {s.split("\t")[0]:s.split("\t")[1] for s in swh_abund}
+
+
+for b in bla.keys():
+    qid = bla[b].split("\t")[0]
+    sid = bla[b].split("\t")[1]
+    if b in combined_qids.keys():
+        bla[b] = bla[b] + "\t" + combined_qids[b]
+    else:
+        bla[b] = bla[b] + "\t" + "unclassified"
+    bla[b] = bla[b] + "\t" + gz_abund[qid]
+    bla[b] = bla[b] + "\t" + swh_abund[sid]
+    
+
+
+with open("GZ_contig-SWH_contig.bla.l3000p95.0.bla.species", "w") as OUT:
+    for b in bla:
+        OUT.write(bla[b] + "\n")
+        
+
+"""
+
+
+"""
+import os
+import glob
+
+fns = glob.glob("blast/*.bla")
+
+for fn in fns:
+    print("Processing " + fn)
+    with open(fn) as IN:
+        bla = IN.read().splitlines()
+        
+    map_fn="/home/siukinng/db/Markers/specI/data/RefOrganismDB.v9.taxids2names"
+    with open(map_fn) as IN:
+        map = IN.read().splitlines()
+    map = {m.split("\t")[0]: m.split("\t")[1] for m in map}
+    
+    out_fn = fn + ".mapped"
+    with open(out_fn, "w") as OUT:
+        for b in bla:
+            b = b.split("\t")
+            id = b[1].split(".")[0]
+            if id in map.keys():
+                b[1] = b[1] + ":" + map[id]
+            else:
+                b[1] = b[1] + ":" + "Unknown"
+            OUT.write("\t".join(b) + "\n")
+        
+"""
+
+"""
+for f in ../../../*_5000/*.fasta;do
+    id=${f##*/};
+    id=${id/.fasta/};
+    echo $id;
+    for bla_fn in *.bla.mapped;do
+        cat $bla_fn | grep -e "^$id" | cut -f2 | cut -d':' -f2 >> $id.summary
+    done
+done
+
+"""
+
+"""
+import os
+import operator
+import glob
+
+summary_ofn = "all.tax"
+summary_fns = glob.glob("*.summary")
+
+summary_list = {}
+for summary_fn in summary_fns:
+    bin_id = summary_fn.replace(".summary", "")
+    print("Processing " + bin_id)
+    
+    with open(summary_fn) as IN:
+        summary = IN.read().splitlines()
+        
+    genus = [s.split(" ")[0] for s in summary]
+    
+    genus_ids = list(set(genus))
+    genus_summary = {id: genus.count(id) for id in genus_ids}
+    
+    sorted_genus = sorted(genus_summary.items(), key=operator.itemgetter(1))
+    sorted_genus.reverse()
+    summary_list[bin_id] = sorted_genus[0:10]
+
+bin_ids = summary_list.keys()
+bin_ids = sorted(bin_ids)
+
+with open(summary_ofn, "w") as OUT:
+    for bin_id in bin_ids:
+        bin_summary = summary_list[bin_id]
+        summary = [g[0] + ":" +  str(g[1]) for g in bin_summary]
+        OUT.write(bin_id + "\t" + "\t".join(summary) + "\n")
+        
+
+"""
+
+"""
+with open("TIGRFAM_ROLES", "w") as OUT:
+    for tigrfam_id in role_links.keys():
+        role_id = role_links[tigrfam_id]
+        if role_id in role_names.keys():
+            OUT.write(tigrfam_id + "\t" + role_names[role_id] + "\n")
+        
+"""
+"""
+from __future__ import division
+import os
+import glob 
+import numpy
+from Bio import SeqIO
+
+# Calculate bin sequence len
+bin_fns = glob.glob("bin_seqs/*.fasta")
+bin_lens = {}
+for bin_fn in bin_fns:
+    print("Getting length from " + bin_fn)
+    bin_id = (os.path.basename(bin_fn)).replace(".fasta", "")
+    seqs = SeqIO.index(bin_fn, "fasta")
+    bin_lens[bin_id] = sum([len(str(seqs[sid].seq)) for sid in seqs])
+
+
+mtx = {}
+bla_fns = glob.glob("*.bla")
+for bla_fn in bla_fns:
+
+    id = (os.path.basename(bla_fn)).replace(".bla", "")
+    
+    qid = ".".join(id.split(".")[0:2])
+    sid = ".".join(id.split(".")[2:4])
+    
+    print("Processing " + id)
+    with open(bla_fn) as IN:
+        bla_res = IN.read().splitlines()
+    if bla_res is None:
+        mtx[id] = 0.0
+    elif len(bla_res) > 0:
+        #mtx[id] = numpy.mean([(int(b.split("\t")[3]) - int(int(b.split("\t")[5]) + int(b.split("\t")[4]))) / int(b.split("\t")[3]) for b in bla_res])
+        #mtx[id] = sum([int(b.split("\t")[3]) - (int(b.split("\t")[5]) + int(b.split("\t")[4])) for b in bla_res]) / ((bin_lens[qid] + bin_lens[sid]) / 2)
+        mtx[id] = sum([int(b.split("\t")[3]) - (int(b.split("\t")[5]) + int(b.split("\t")[4])) for b in bla_res]) / bin_lens[qid]
+    else:
+        mtx[id] = 0.0
+    
+with open("bla.mtx", "w") as OUT:
+    for k in mtx.keys():
+        OUT.write(k + "\t" + k.replace(".", "\t") + "\t" + str(mtx[k]) + "\n")
+        
+    
+"""
+
 
