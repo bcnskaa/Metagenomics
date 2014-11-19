@@ -222,7 +222,7 @@ def main(argv):
         raise OSError, "Problem at merging reads files, abort now."
      
     # Alright, we are about to do assembly 
-    if not run_idba_ud(merged_read_fn, min_contig=1200, maxk=80):
+    if not run_idba_ud(merged_read_fn, min_contig=1200, maxk=100):
         print_status("Problem at completing IDBA_UD stage")
         raise OSError, "Problem at IDBA_UD stage, abort now."
      
@@ -980,7 +980,6 @@ def run_Prodigal(fna_infn, p_opt="meta", prodigal_outdir="Prodigal", out_prefix=
     print_status("Initializing Prodigal");
     
     #"~/tools/Prodigal/prodigal -p meta -i ../P3_contig.fa  -o P3_contig-Prodigal.out -a P3_contig-Prodigal.faa  -d P3_contig-Prodigal.fna"
-    
     if out_prefix is None:
         if len(fna_infn.split("/")) > 0:
             tmp = fna_infn.split("/")

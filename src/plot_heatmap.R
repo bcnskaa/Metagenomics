@@ -2,10 +2,124 @@ library(lattice); # If you do not have lattice library installed, simply run ins
 library(ggplot2);   # If you do not have ggplot2 library installed, simply run install.packages("ggplot2")
 library(reshape2);
 
+if(FALSE)
+{
+source("plot_heatmap.R")
+cols <- c(rep('character', 5), 'numeric')
+bla_mtx <- read.table("bla.mtx", sep="\t", header=F, stringsAsFactors=F, colClasses = cols)
+
+ids = sort(unique(paste(bla_mtx$V2, bla_mtx$V3, sep=".")))
+
+mtx <- matrix(0.0, length(ids), length(ids))
+colnames(mtx) <- ids
+rownames(mtx) <- ids
+
+for(i in 1 : nrow(bla_mtx))
+{
+	cid <- paste(bla_mtx[i, 2], bla_mtx[i, 3], sep=".");
+	rid <- paste(bla_mtx[i, 4], bla_mtx[i, 5], sep=".");
+	val <- bla_mtx[i, 6];
+	mtx[cid,rid] <- val;
+	mtx[rid,cid] <- val;
+}
+plot_heatmap_mtx(mtx, out_fn="All",height=25, width=25, pdf_output=T, midpoint=0.5, colorbar_scheme=c("blue", "orange", "red"))
+
+
+selected_group_id <- "GZ-Cell"
+smtx <- mtx[grep(selected_group_id, colnames(mtx)), grep(selected_group_id, colnames(mtx))]
+plot_heatmap_mtx(smtx, out_fn=paste(selected_group_id, ".mtx", sep=""),height=10, width=10, pdf_output=T, midpoint=0.5, colorbar_scheme=c("blue", "orange", "red"))
+
+
+pdf(paste(selected_group_id, ".cluster.pdf", sep=""))
+plot(hclust(dist(smtx)))
+dev.off()
+
+
+# Specify the row and column
+selected_row_id <- "GZ-Cell_Y1"
+selected_col_id <- "GZ-Cell_Y0"
+smtx <- mtx[grep(selected_row_id, colnames(mtx)), grep(selected_col_id, colnames(mtx))]
+plot_heatmap_mtx(smtx, out_fn=paste(selected_row_id, ".", selected_col_id, ".mtx", sep=""),height=10, width=10, pdf_output=T, midpoint=0.5, colorbar_scheme=c("blue", "orange", "red"))
+
+
+
+}
 
 
 # To use it,
-plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0))
+plot_heatmap_mtx <- function(mtx, out_fn="output", export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0))
+{
+	#legend_position = c(1.0, 0.0);
+	barwitdh = 10;
+	image_scale = 100;
+	pdf_scale = 1.4;
+	
+	#mtx <- read.table(mtx_fn, header=T, sep=delim, quote="", na.strings="", stringsAsFactors=F, strip.white=TRUE);
+	
+	plot_mtx <- melt(mtx);
+	
+	x_label <- "Var1";
+	y_label <- "Var2";
+	
+#	if(length(range_limit) == 0)
+#	{
+#		max_guide_range <- max(abs(min(plot_mtx$value)), plot_mtx$value);
+#		range_limit = c(-1 * max_guide_range, max_guide_range);
+#	}
+
+	g <- ggplot(plot_mtx, aes(x=Var1, y=Var2, fill=value)) + geom_tile(aes(height=0.97, width=0.97)) +
+			theme(panel.background=element_blank(), axis.ticks=element_blank()) +
+			theme(legend.position="bottom", axis.text=element_text(family="Courier")) +
+			theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+			#scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], limits=range_limit) +
+			scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], midpoint=midpoint) +
+			guides(fill = guide_colorbar(barwidth=colorbar_witdh, title.position = "bottom", direction = "horizontal")) 
+	
+	if(length(xtitle) > 0)
+	{
+		g <- g + labs(x=xtitle);
+	} else {
+		g <- g + theme(axis.title.x=element_blank())
+	}
+	
+	if(length(ytitle) > 0)
+	{
+		g <- g + labs(y=ytitle);
+	} else {
+		g <- g + theme(axis.title.y=element_blank())
+	}
+	
+#	if(length(legend_title) > 0)
+#	{
+#		g <- g + labs(fill=legend_title);
+#		g <- g + scale_fill_gradient(name=legend_title, colours=color_palette)
+#	} else {
+#		g <- g + theme(legend.title=element_blank())
+#	}
+	
+	
+	if(export_to_file)
+	{
+		if(pdf_output) {
+			pdf(paste(out_fn, ".pdf", sep=""), height * pdf_scale, width * pdf_scale);
+		} else {
+			png(paste(out_fn, ".png", sep=""), height * image_scale, width * image_scale);
+		}
+	}
+
+	if(export_to_file)
+	{
+		print(g, yscale.components=NULL);
+		dev.off();
+	}
+	
+	return(g);
+}	
+	
+	
+
+# To use it,
+plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0))	
 {
 	#legend_position = c(1.0, 0.0);
 	barwitdh = 10;
@@ -21,7 +135,7 @@ plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colo
 #		max_guide_range <- max(abs(min(plot_mtx$value)), plot_mtx$value);
 #		range_limit = c(-1 * max_guide_range, max_guide_range);
 #	}
-
+	
 	g <- ggplot(plot_mtx, aes(x=variable, y=label, fill=value)) + geom_tile(aes(height=0.97, width=0.97)) +
 			theme(panel.background=element_blank(), axis.ticks=element_blank()) +
 			theme(legend.position="bottom", axis.text=element_text(family="Courier")) +
@@ -60,7 +174,7 @@ plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colo
 			png(paste(mtx_fn, ".png", sep=""), height * image_scale, width * image_scale);
 		}
 	}
-
+	
 	if(export_to_file)
 	{
 		print(g, yscale.components=NULL);
@@ -69,20 +183,17 @@ plot_heatmap_2 <- function(mtx_fn, export_to_file=T, height=2.8, width=3.5, colo
 	
 	return(g);
 }	
-	
-	
+
 
 
 
 # To use it,
 plot_heatmap <- function(mtx_fn, export_to_file=T, height=500, weight=350, font="Courier", delim=",", pdf_output=F)
 {
-	
 	mtx <- read.table(mtx_fn, header=T, sep=delim, quote="", na.strings="", stringsAsFactors=F);
 	
 	mtx$selected[which(nchar(mtx$selected) == 0)] <- " "
 	mtx[is.na(mtx$selected),1] <- " ";
-	
 	
 	max_id_len <- max(nchar(mtx$id))
 	ids <- mtx$id;
@@ -122,6 +233,8 @@ plot_heatmap <- function(mtx_fn, export_to_file=T, height=500, weight=350, font=
 	}
 	return(g);
 }
+
+
 
 list_font <- function()
 {
