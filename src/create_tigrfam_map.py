@@ -92,4 +92,77 @@ GO:0005198
 GO:0016226
 
 """
+
+"""
+
+with open("kegg2go") as IN:
+    kegg2go_lines = IN.read().splitlines()
+
+kegg2go_lines = [l for l in kegg2go_lines if not l.startswith("!")]
+kegg2go = {}
+for l in kegg2go_lines:
+    go_id = l.split(" ; ")[1]
+    kegg_id = ((l.split(" > ")[0]).strip()).replace("KEGG:", "")
+    if go_id in kegg2go.keys():
+        kegg2go[go_id].append(kegg_id)
+    else:
+        kegg2go[go_id] = [kegg_id]
+
+        
+
+with open("tigrfams2go") as IN:
+    tigrfams2go_lines = IN.read().splitlines()
+
+kegg_match = []
+
+tigrfams2go_map = {}
+tigrfams_names = {}
+go_map = {}
+for l in tigrfams2go_lines:
+    if not l.startswith("!"):
+        terms = l.split(" > ")
+        (tid, name) = terms[0].split(" ", 1)
+        tid = tid.replace("JCVI_TIGRFAMS:", "")
+        (go_term, go_id) = terms[1].split(" ; ")
+        go_term = go_term.replace("GO:", "")
+        go_map[go_id] = go_term
+        kegg_id = ""
+        if go_id in kegg2go.keys():
+            kegg_id = "|".join(kegg2go[go_id])
+            kegg_match.append(tid)
+            
+        if tid not in tigrfams2go_map.keys():
+            if len(kegg_id) > 0:
+                tigrfams2go_map[tid] = [go_id + ":" + go_term + ":" + kegg_id]
+            else:
+                tigrfams2go_map[tid] = [go_id + ":" + go_term]
+        else:
+            tigrfams_names[tid] = name
+            if len(kegg_id) > 0:
+                tigrfams2go_map[tid].append(go_id + ":"+ go_term + ":" + kegg_id)
+            else:
+                tigrfams2go_map[tid].append(go_id + ":"+ go_term)
+
+     
+"""
  
+ 
+"""
+import re
+from Bio import SeqIO
+
+
+fn = "TIGR00016"
+
+seqs = SeqIO.index(fn + ".faa", "fasta")
+seed_seqs = []
+for k in seqs.keys():
+    if re.search("Seed", k):
+        seed_seqs.append(seqs[k])
+
+with open(fn + ".seed.faa", "w") as OUT:
+    for s in seed_seqs:
+        SeqIO.write(s, OUT, "fasta")
+        
+        
+"""

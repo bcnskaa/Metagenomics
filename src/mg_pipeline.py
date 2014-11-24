@@ -482,7 +482,8 @@ for f in GZ-Cell_Y2/contig.*.fasta;do id=${f##*/}; id=${id/.fasta/}; id=${id/con
 
 ###############################################
 # http://onetipperday.blogspot.hk/2012/08/three-ways-to-trim-adaptorprimer.html
-def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=16, min_trim_quality=15, trim_win_len=4, N_percent=10):
+#def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=16, min_trim_quality=15, trim_win_len=4, N_percent=10):
+def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=50, min_trim_quality=30, trim_win_len=4, N_percent=10, save_skip=True):
     print_status("Processing" + read_1_fn + "and" + read_2_fn)    
     #"$FASTQ_MCF_HOME/fastq-mcf -o $outputfile_1 -o $outputfile_2 -l 16 -q 15 -w 4 -x 10 $ADAPTOR_SEQS $inputfile_1 $inputfile_2"
     
@@ -490,7 +491,10 @@ def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=16, min_tri
     read_2_outfn = read_2_fn.replace("."+FASTQ_EXT, ".cleaned." + FASTQ_EXT)
     
     #cmd = FASTQ_MCF_HOME + "/fastq-mcf -o " + read_1_outfn + " -o " + read_2_outfn + " -l " + min_read_len + " -q " + min_trim_quality + " -w " + trim_win_len + " -x " + N_percent + " " + adaptor_seq_fn + " " + read_1_fn + " " + read_2_fn
-    cmd = FASTQ_MCF_HOME + "/fastq-mcf -o " + str(read_1_outfn) + " -o " + str(read_2_outfn) + " -l " + str(min_read_len) + " -q " + str(min_trim_quality) + " -w " + str(trim_win_len) + " -x " + str(N_percent) + " " + adaptor_seq_fn + " " + read_1_fn + " " + read_2_fn
+    cmd = FASTQ_MCF_HOME + "/fastq-mcf -o " + str(read_1_outfn) + " -o " + str(read_2_outfn) + " -l " + str(min_read_len) + " -q " + str(min_trim_quality) + " -w " + str(trim_win_len) + " -x " + str(N_percent)
+    if save_skip:
+        cmd = cmd + " -S" 
+    cmd = cmd + " " + adaptor_seq_fn + " " + read_1_fn + " " + read_2_fn
     
     print_status("command: " + cmd)
    
