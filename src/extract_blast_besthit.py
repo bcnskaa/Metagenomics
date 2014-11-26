@@ -107,6 +107,8 @@ def main(argv):
 #         if gi != "NA":
 #             print value[1], " gi=", gi, " species=", gi_list[gi]
 
+
+
 def assign_species(subject_id, gi_list):
     gi = extract_gi(subject_id)
     if gi != "NA":
@@ -168,10 +170,10 @@ def import_blast_m6_results(infilename):
     return blast_res
 
 
+
 def import_blast_m6_results_with_filter(infilename, thres_aln_len, thres_bitscore, thres_identity, flag_nr_query):
-   if verbose:
+    if verbose:
         print("Checking if input file is a valid BLAST -m6 format.")
-    
     blast_res = defaultdict(list)
     
     print("Reading from ", infilename)
@@ -188,6 +190,7 @@ def import_blast_m6_results_with_filter(infilename, thres_aln_len, thres_bitscor
     return blast_res  
 
 
+
 # Report the best hit for every query id 
 def report_besthit(blast_m6_results):
     
@@ -197,12 +200,14 @@ def report_besthit(blast_m6_results):
         blast_besthits[qid] = sorted(blast_m6_results[qid], key=lambda x: x[11], reverse=True)[0]
     
     return blast_besthits
+
     
 
 # Print the usage of this script
 def print_usage():
     print("Usage:")
     print("python extract_blast_besthit.py BLAST-INFILE GI-LIST-INFILE OUTFILE")
+
     
 
 # Invoke the main function

@@ -554,4 +554,81 @@ with open("bla.mtx", "w") as OUT:
     
 """
 
+"""
 
+import glob
+
+bla_fn = "K00399-mgm4560350.p90.bla"
+
+
+bla_fns = glob.glob("./*.bla")
+for bla_fn in bla_fns:
+    process_blast_mapping(bla_fn)
+
+
+def process_blast_mapping(bla_fn, qid_fn=None, out_fn=None):
+    print("Processing " + bla_fn)
+    
+    with open(bla_fn) as IN:
+        bla = IN.read().splitlines()
+    bla = [b.split("\t") for b in bla]
+    sids = [b[1] for b in bla]
+    
+    
+    nr_sids = list(set(sids))
+    nr_sid_bla = {}
+    for sid in nr_sids:
+        cur_idx = -1
+        selected_bla = [b for b in bla if b[1] == sid]
+        for b in selected_bla:
+            if cur_idx == -1:
+                nr_sid_bla[sid] = b
+                cur_idx = 0
+            else:
+                if float(b[11]) > float(nr_sid_bla[sid][11]):
+                    #print(float(b[11]), " > ", float(nr_sid_bla[sid][11]))
+                    nr_sid_bla[sid] = b 
+    
+    # Import qids
+    if qid_fn is None:
+        qid_fn = bla_fn.split("-")[0] + ".fasta"
+    
+    from Bio import SeqIO
+    qid_seqs = SeqIO.index(qid_fn, "fasta")
+    #qid_seq_ids = list([k for k in qid_seqs.keys()])
+    qid_seq_descriptions = list([qid_seqs[k].description for k in qid_seqs.keys()])
+    qid_seq_ids = {(qid_seqs[k].description).split(" ", 1)[0]:(((qid_seqs[k].description).split(" ", 1)[1]).split(" GN=")[0]).replace(" OS=", "\t")  for k in qid_seqs.keys()}
+    
+    
+    import numpy
+    #nr_qids = [nr_sid_bla[k][0] for k in nr_sid_bla.keys()]
+    nr_qids = [k for k in qid_seq_ids.keys()]
+    nr_qids = list(set(nr_qids))
+    nr_qid_count = {}
+    nr_qid_mean_iden = {}
+    nr_qid_mean_len = {}
+    for qid in nr_qids:
+        selected_sid_bla = [nr_sid_bla[k] for k in nr_sid_bla.keys() if nr_sid_bla[k][0] == qid]
+        nr_qid_count[qid] = 0
+        nr_qid_mean_iden[qid] = 0.0
+        nr_qid_mean_len[qid] = 0.0
+        
+        if len(selected_sid_bla) > 0:
+            nr_qid_count[qid] = len(selected_sid_bla)
+            nr_qid_mean_iden[qid] = numpy.mean([float(nr_sid_bla[k][2]) for k in nr_sid_bla.keys() if nr_sid_bla[k][0] == qid])
+            nr_qid_mean_len[qid] = numpy.mean([float(nr_sid_bla[k][3]) for k in nr_sid_bla.keys() if nr_sid_bla[k][0] == qid])
+            #nr_qid_mean_iden[qid] = numpy.mean([float(nr_sid_bla[k][2]) for k in nr_sid_bla.keys() if nr_sid_bla[k][0] == qid])
+            #nr_qid_mean_len[qid] = numpy.mean([float(nr_sid_bla[k][3]) for k in nr_sid_bla.keys() if nr_sid_bla[k][0] == qid])
+    
+    if out_fn is None:
+        out_fn = bla_fn + ".summary"
+    
+    print("Exporting " + str(len(nr_qid_count)) + " results to " + out_fn)
+    header = ["Protein_ID", "Protein_Name", "Species", "Hit_Count_by_Read", "Mean_Hit_Identity", "Mean_Hit_Length"]
+    with open(out_fn, "w") as OUT:
+        OUT.write("\t".join(header) + "\n")
+        for qid in nr_qids:
+            summary = [qid, qid_seq_ids[qid], str(nr_qid_count[qid]), str(nr_qid_mean_iden[qid]), str(nr_qid_mean_len[qid])]
+            OUT.write("\t".join(summary) + "\n")
+
+"""
