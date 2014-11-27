@@ -509,6 +509,8 @@ with open("TIGRFAM_ROLES", "w") as OUT:
             OUT.write(tigrfam_id + "\t" + role_names[role_id] + "\n")
         
 """
+
+
 """
 from __future__ import division
 import os

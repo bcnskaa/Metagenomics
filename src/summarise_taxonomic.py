@@ -65,7 +65,9 @@ def run_blastx(in_dir="../../DistMtx/bins/specI", out_dir="blast", specI_dir="/h
     
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-        
+    
+    print("Number of fasta files to be processed=" + str(len(faa_fns)))
+
     for faa_fn in faa_fns:
         hmm_id = (os.path.basename(faa_fn)).replace(fasta_fn_ext, "")
         cmd = "~/tools/blast/bin/tblastn -query " + faa_fn + " -db " + specI_dir + "/" + hmm_id + ".fna -outfmt 6 -out " + out_dir + "/" + hmm_id + ".bla -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -max_target_seqs 3 -num_threads 16"
@@ -163,4 +165,42 @@ for f in ../../../*_5000/*.fasta;do
         cat $bla_fn | grep -e "^$id" | cut -f2 | cut -d':' -f2 >> $id.summary
     done
 done
+"""
+
+
+
+"""
+
+python extract_hmm_seq.py
+
+
+# Combined individual bin sequences
+hmm_ids=("specI" "dbCAN" "TIGRFAM")
+
+for hmm_id in ${hmm_ids[@]};do
+    for d in *_5000;do
+            sample_id=${d##*/}
+            sample_id=${sample_id/_5000/}
+    
+            combined_seq_dir=$d/DistMtx/bins/$sample_id/$hmm_id
+            mkdir -p $combined_seq_dir
+    
+            rm $combined_seq_dir/*.faa
+    
+            for bin_id in $d/DistMtx/bins/$sample_id.*;do
+                    echo "Processing $bin_id"
+                    fn_n=`ls $bin_id/$hmm_id/*.faa | wc -l`
+    
+                    if [ "$fn_n" -gt "0" ];then
+                            for hmm_fn in $bin_id/$hmm_id/*.faa;do
+                                    touch $combined_seq_dir/${hmm_fn##*/}
+                                    cat $hmm_fn >> $combined_seq_dir/${hmm_fn##*/}
+                            done
+                    fi
+            done
+    done
+done
+
+
+
 """
