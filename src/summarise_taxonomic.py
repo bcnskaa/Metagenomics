@@ -1,11 +1,20 @@
 """
  Steps:
-     1. run_blastx
-     2. map_bla2specI
-     3. make_summary
-     4. summarise
-     5. pick_otu
+     1. run_blastx: bash run_blastx.sh
+     2. map_bla2specI: 
+     3. make_summary:
+     4. summarise:
+     5. pick_otu:
+     
+     
+     import summarise_taxonomic
+     summarise_taxonomic.map_bla2specI()
+     summarise_taxonomic.make_summary()
+     summarise_taxonomic.summarise()
+     all_tax = summarise_taxonomic.pick_otu()
+     
 """
+from __future__ import print_function
 import os
 import operator
 import glob
@@ -36,7 +45,8 @@ def summarise(summary_ofn="all.tax", in_dir=".", summary_fn_ext="summary"):
         print(sorted_species[0])
         
         summary_list[bin_id] = sorted_genus[0:10]
-        summary_list[bin_id].append(sorted_species[0])
+        #summary_list[bin_id].append(sorted_species[0])
+        summary_list[bin_id].insert(0,sorted_species[0])
 
     bin_ids = summary_list.keys()
     bin_ids = sorted(bin_ids)
@@ -49,12 +59,71 @@ def summarise(summary_ofn="all.tax", in_dir=".", summary_fn_ext="summary"):
 
 
 
-"""
-"""
-def pick_otu(gg_out="/home/siukinng/db/Taxanomy/otu_id_to_greengenes.txt"):
-    print("ok")
+def get_tax_val(tax, tax_level="s__"):
+    tax_delim = ";"
+    tax_val = ""
+    val_sidx = tax.find(tax_level)
+    if val_sidx != -1:
+        val_eidx = tax.find(tax_delim, val_sidx)
+        if val_eidx == -1:
+            val_eidx = len(tax)
+        tax_val = tax[val_sidx : val_eidx]
+        tax_val = tax_val.replace(tax_level, "")
+    #print(tax_val)
+    return tax_val
 
 
+
+"""
+gg_otu_fn="/home/siukinng/db/Taxanomy/otu_id_to_greengenes.txt"
+with open(gg_otu_fn) as IN:
+    otu = IN.read().splitlines()
+o = otu[12121] 
+summarise_taxonomic.get_tax_val(o, "g__")
+otu_s = {summarise_taxonomic.get_tax_val(o, tax_level="s__"): o.split("\t")[1] for o in otu if len(summarise_taxonomic.get_tax_val(o, tax_level="s__")) > 0}
+
+otu_g = {summarise_taxonomic.get_tax_val(o, tax_level="g__"): o.split("\t")[1] for o in otu if len(summarise_taxonomic.get_tax_val(o, tax_level="g__")) > 0}
+
+
+"""
+def pick_otu(summary_ifn="all.tax", summary_ofn="all.updated.tax", gg_otu_fn="/home/siukinng/db/Taxanomy/otu_id_to_greengenes.txt"):
+    with open(summary_ifn) as IN:
+        all_tax = IN.read().splitlines()
+    all_tax = [t.split("\t") for t in all_tax]
+    
+    # Import Greengenes
+    with open(gg_otu_fn) as IN:
+        otu = IN.read().splitlines()
+    otu_s = {get_tax_val(o, tax_level="s__"): o.split("\t")[1] for o in otu if len(get_tax_val(o, tax_level="s__")) > 0}
+    #otu = {(o.split(";")[len(o.split(";")) - 1]).replace("s__",""): o.split("\t")[1] for o in otu if len(o.split(";")[len(o.split(";")) - 1]) > 3}
+    #otu_g = {(o.split(";")[len(o.split(";")) - 2]).replace("g__",""): o.split("\t")[1] for o in otu if len(o.split(";")[len(o.split(";")) - 2]) > 3}
+    otu_g = {get_tax_val(o, tax_level="g__"): o.split("\t")[1] for o in otu if len(get_tax_val(o, tax_level="g__")) > 0}
+    
+    for i in range(0, len(all_tax)):
+        tax = all_tax[i]
+        max_idx = len(tax) - 1
+        confidence = float(tax[1].split(":")[1]) / float(tax[2].split(":")[1])
+        #confidence = float(tax[max_idx].split(":")[1]) / float(tax[1].split(":")[1])
+        sp = " ".join(tax[1].split(" ")[0:2])
+        #sp = " ".join(tax[max_idx].split(" ")[0:2])
+        
+        o = ""
+        if sp in otu_s.keys():
+            o = otu_s[sp]
+            
+        if len(o) == 0:
+            g = tax[1].split(" ")[0]
+            if g in otu_g.keys():
+                o = otu_g[g]
+        
+        all_tax[i].insert(1, o)    
+        all_tax[i].insert(1, str(confidence))
+        
+    with open(summary_ofn, "w") as OUT:
+        for tax in all_tax:
+            OUT.write("\t".join(tax) + "\n")
+
+    return all_tax
 
 
 """

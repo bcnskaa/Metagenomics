@@ -36,6 +36,7 @@
     
   
 """
+from __future__ import print_function
 import os
 import sys
 import getopt
@@ -52,7 +53,8 @@ from time import strftime
 from datetime import datetime
 import math
 import numpy
-#from __future__ import print_function
+import xlsxwriter
+
 
 # To run this script, path to biopython libraries has to be included in PYTHONPATH
 from Bio import SeqIO
@@ -1649,11 +1651,12 @@ def getOverlap(x, y):
 
 
 
+
 """
  This routine processes output files from HMMER3 scan
  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
-def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=200.0, dom_overlapping_threshold=20):
+def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=100.0, hmm_tc_fn=None, dom_overlapping_threshold=20):
     print_status("Parsing HMMER3 hmmsearch outfiles")
     
     # Check path exists
@@ -1676,7 +1679,7 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
     
     file = file[0]    
     
-    return postprocess_HMMER_search_by_fn(file, mean_posterior_prob=mean_posterior_prob, hmm_score_threshold=hmm_score_threshold, dom_overlapping_threshold=dom_overlapping_threshold)
+    return postprocess_HMMER_search_by_fn(file, mean_posterior_prob=mean_posterior_prob, hmm_score_threshold=hmm_score_threshold, hmm_tc_fn=hmm_tc_fn, dom_overlapping_threshold=dom_overlapping_threshold)
     
     
     
@@ -1686,12 +1689,13 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
 """
 #def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=60.0, dom_overlapping_threshold=20):
-def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_threshold=200.0, dom_overlapping_threshold=20):
+def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_threshold=100.0, hmm_tc_fn=None, dom_overlapping_threshold=20):
 
-    print_status("Parsing HMMER3 hmmsearch outfiles")
+    print_status("Parsing HMMER3 hmmsearch outfile, " + file)
     print_status("  mean_posterior_prob=" + str(mean_posterior_prob))
     print_status("  hmm_score_threshold=" + str(hmm_score_threshold))
     print_status("  dom_overlapping_threshold=" + str(dom_overlapping_threshold))
+    
 
 #     # Check path exists
 #     if not os.path.exists(hmm_dir):
@@ -1711,6 +1715,15 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
 #     
 #     file = file[0]    
     
+    hmm_tcs = None
+    if hmm_tc_fn is not None:
+        print_status("  Trusted cutoff values will be imported from " + hmm_tc_fn)
+        with open(hmm_tc_fn) as IN:
+            hmm_tcs = IN.read().splitlines()
+        hmm_tcs = {h.split("\t")[0]:float(h.split("\t")[1]) for  h in hmm_tcs}
+        print_status("  " + str(len(hmm_tcs.keys())) + " cutoff values imported." )
+    
+    
     # ORF with HMM hits
     hmm_orf_dict = {}
     hmm_scores = []
@@ -1722,22 +1735,33 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
             #if line_n >= 3 and not line.startswtih("#"):
             if not line.startswith("#"):
                 dom = line.split()
-                  
+                tid = dom[0] 
+                hmm_id = dom[3].replace(".hmm","")
+                
                 hmm_score = float(dom[7])
                 hmm_scores.append(hmm_score)
                 
                 hmm_dom_score = float(dom[13])
                 
                 processed_dom_n += 1
-                if hmm_score >= hmm_score_threshold:
-                    tid = dom[0]
+                
+                tc_score = 0.0
+                if hmm_tcs is not None:
+                   if hmm_id in hmm_tcs.keys():
+                       tc_score = hmm_tcs[hmm_id]
+                
+                #print_status(hmm_id + " and its TC=" + str(tc_score))
+                
+                if hmm_score >= hmm_score_threshold and hmm_dom_score >= tc_score:
                     tlen = int(dom[2])
                     aln_spos = int(dom[17])
                     aln_epos = int(dom[18])
-                    hmm_id = dom[3].replace(".hmm","")
+                    
                     hmm_len = int(dom[5])
                     hmm_spos = int(dom[15])
                     hmm_epos = int(dom[16])
+                         
+                    
                                   
                     # 
                     if tid not in hmm_orf_dict.keys():

@@ -1,5 +1,6 @@
 import glob
-import process_HMM
+#import process_HMM
+import mg_pipeline
 import os
 
 hmm_id = "dbCAN"
@@ -7,10 +8,16 @@ fns = glob.glob("*_5000/Markers/" + hmm_id + "/*.dom.tbl")
 #fns = glob.glob("*_5000/Markers/bins/" + hmm_id + "/*.dom.tbl")
 ids = []
 hmm_score_threshold=200
+hmm_tc_fn = "/home/siukinng/db/Markers/" + hmm_id + "/" + hmm_id + ".tc"
 
+if not os.path.isfile(hmm_tc_fn):
+        hmm_tc_fn = None
+        
+print("Processing " + hmm_id + " and export the results to " + out_fn)
+        
 dom_tbls = {}
 for fn in fns:
-   hmm_orf_dict = process_HMM.postprocess_HMMER_search(fn, hmm_score_threshold=hmm_score_threshold)
+   hmm_orf_dict = process_HMM.postprocess_HMMER_search(fn, hmm_score_threshold=hmm_score_threshold, hmm_tc_fn=hmm_tc_fn)
    id = (os.path.basename(fn)).replace(".dom.tbl", "")
    id = id.replace("."+hmm_id, "")
    ids.append(id)
@@ -58,7 +65,27 @@ with open(hmm_id + ".tbl", "w") as OUT:
             info = dom_id
         OUT.write(dom_id + "\t" + info + "\t" + "\t".join(str(v) for v in dom_list[dom_id]) + "\n") 
 
-"""
 
+
+"""
+hmm_ids=("specI" "dbCAN" "TIGRFAM" "Pfam")
+
+for f in *_5000/Prodigal/*.faa;do
+    id=${f##*/}
+    id=${id/.faa/}
+    
+    outdir=$id"_5000/Markers/combined/bins"
+    
+    mkdir -p $outdir
+    
+    #faa_fn="$d/Prodigal/$id.faa"
+    faa_fn=$f
+    
+    for hmm_id in ${hmm_ids[*]};do
+        hmm_fn="/home/siukinng/db/Markers/"$hmm_id"/"$hmm_id".hmm"
+        cmd="~/tools/hmmer/bin/hmmsearch -o $outdir/$id.$hmm_id.out -A $outdir/$id.$hmm_id.faa --tblout $outdir/$id.$hmm_id.tbl --domtblout $outdir/$id.$hmm_id.dom.tbl --pfamtblout $outdir/$id.$hmm_id.pfam.tbl $hmm_fn $faa_fn"    
+        echo $cmd
+    done
+done
 
 """
