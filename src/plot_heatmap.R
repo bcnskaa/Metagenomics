@@ -2,11 +2,77 @@ library(lattice); # If you do not have lattice library installed, simply run ins
 library(ggplot2);   # If you do not have ggplot2 library installed, simply run install.packages("ggplot2")
 library(reshape2);
 
+# Process combined
+if(FALSE)
+{
+	source("plot_heatmap.R")
+	cols <- c(rep('character', 5), 'numeric')
+	mtx_fn = "bla.combined.mtx"
+
+	bla_mtx <- read.table(mtx_fn, sep="\t", header=F, stringsAsFactors=F)
+	
+	bla_mtx$V4 <- round(bla_mtx$V4, 3)
+	
+	#ids = sort(unique(paste(bla_mtx$V2, bla_mtx$V3, sep=".")))
+	ids = sort(unique(c(bla_mtx$V2, bla_mtx$V3)))
+	
+	mtx <- matrix(0.0, length(ids), length(ids))
+	
+	colnames(mtx) <- ids
+	rownames(mtx) <- ids
+	
+	for(i in 1 : nrow(bla_mtx))
+	{
+		cid <- bla_mtx[i, 2]
+		rid <- bla_mtx[i, 3]
+		val <- bla_mtx[i, 4];
+		
+		val[which(val > 1)] <- 1.0 
+		mtx[cid,rid] <- val;
+		mtx[rid,cid] <- val;
+	}
+	
+	plot_heatmap_mtx(mtx, out_fn="bla_mtx.combined.mtx.pdf",height=5, width=5, pdf_output=T, midpoint=0.5, colorbar_scheme=c("steelblue", "yellow", "darkred"), plot_label=T, label_size=3)
+
+	
+	library(ape)
+	out_fn="bla_mtx.combined.tree.pdf"
+	pdf(out_fn, height=5, width=5)
+	plot.phylo(as.phylo(hclust(dist(mtx))), type="fan", cex=0.8, use.edge.length = TRUE)
+	dev.off()
+	
+	pie_chart_data <- data.frame(bla_mtx$V1, )
+
+}
+
+
+if(FALSE)
+{
+	pdf("contig_info.overview.pdf", width=10, height=6)
+	#ggplot(contig_info2, aes(x=V2.y, y=V3.y, colour=V3.x)) + geom_point(aes(size=(V2.x), cex=2)) + geom_text(aes(label=V8), cex=3, hjust=-0.1,vjust=0) + xlim(10, 200) + ylim(20000,240000) + theme(panel.grid = element_blank(), panel.background = element_blank()) + scale_size_area()
+	ggplot(contig_info2, aes(x=V2.y, y=V3.y)) + geom_point(aes(size=(V2.x), cex=2, alpha=0.8)) + xlim(10, 200) + ylim(20000,240000) + theme(panel.grid = element_blank(), panel.background = element_blank()) + scale_size_area() + xlab("Number of Contig") + ylab("Mean Contig Length (bp)") # + geom_text(aes(label=V8), cex=3, hjust=-0.1,vjust=0)
+	
+	dev.off()
+	
+	pdf("contig_info.zoom.pdf", width=10, height=6)
+	ggplot(contig_info2, aes(x=V2.y, y=V3.y, colour=V3.x)) + geom_point(aes(size=(V2.x), cex=2)) + geom_text(aes(label=V8), cex=3, hjust=-0.1,vjust=0) + xlim(10, 75) + ylim(60000,240000) + theme(panel.grid = element_blank(), panel.background = element_blank()) + scale_size_area()
+	dev.off()
+}
+
+
 if(FALSE)
 {
 source("plot_heatmap.R")
 cols <- c(rep('character', 5), 'numeric')
-bla_mtx <- read.table("bla.mtx", sep="\t", header=F, stringsAsFactors=F, colClasses = cols)
+mtx_fn = "bla.mtx"
+bla_mtx <- read.table(mtx_fn, sep="\t", header=F, stringsAsFactors=F, colClasses = cols)
+
+bin_val_threshold <- 8
+bin_1_vals <- as.integer(bla_mtx$V3);
+bin_2_vals <- as.integer(bla_mtx$V5);
+selected_idx <- which(bin_1_vals < bin_val_threshold & bin_2_vals < bin_val_threshold)
+
+bla_mtx <- bla_mtx[selected_idx,]
 
 ids = sort(unique(paste(bla_mtx$V2, bla_mtx$V3, sep=".")))
 
@@ -16,20 +82,27 @@ rownames(mtx) <- ids
 
 for(i in 1 : nrow(bla_mtx))
 {
+	
 	cid <- paste(bla_mtx[i, 2], bla_mtx[i, 3], sep=".");
 	rid <- paste(bla_mtx[i, 4], bla_mtx[i, 5], sep=".");
 	val <- bla_mtx[i, 6];
-	mtx[cid,rid] <- val;
-	mtx[rid,cid] <- val;
+	if(val > 1){
+		val <- 1;
+	}
+	
+	mtx[cid,rid] <- 1 - val;
+	mtx[rid,cid] <- 1 - val;
 }
 plot_heatmap_mtx(mtx, out_fn="All",height=25, width=25, pdf_output=T, midpoint=0.5, colorbar_scheme=c("blue", "orange", "red"))
 
+library(ape)
+plot(as.phylo(hclust(dist(mtx))), type="fan", cex=0.5, use.edge.length = TRUE)
 
-selected_group_id <- "GZ-Cell"
+selected_group_id <- "SWH-Cell"
 smtx <- mtx[grep(selected_group_id, colnames(mtx)), grep(selected_group_id, colnames(mtx))]
 plot_heatmap_mtx(smtx, out_fn=paste(selected_group_id, ".mtx", sep=""),height=10, width=10, pdf_output=T, midpoint=0.5, colorbar_scheme=c("blue", "orange", "red"))
 
-
+library(ape)
 pdf(paste(selected_group_id, ".cluster.pdf", sep=""))
 plot(hclust(dist(smtx)))
 dev.off()
@@ -47,7 +120,7 @@ plot_heatmap_mtx(smtx, out_fn=paste(selected_row_id, ".", selected_col_id, ".mtx
 
 
 # To use it,
-plot_heatmap_mtx <- function(mtx, out_fn="output", export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0))
+plot_heatmap_mtx <- function(mtx, out_fn="output", export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0), plot_label=F, label_size=1)
 {
 	#legend_position = c(1.0, 0.0);
 	barwitdh = 10;
@@ -74,6 +147,11 @@ plot_heatmap_mtx <- function(mtx, out_fn="output", export_to_file=T, height=2.8,
 			#scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], limits=range_limit) +
 			scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], midpoint=midpoint) +
 			guides(fill = guide_colorbar(barwidth=colorbar_witdh, title.position = "bottom", direction = "horizontal")) 
+	
+	if(plot_label)
+	{
+		g <- g + geom_text(aes(label=value), size=label_size)
+	}
 	
 	if(length(xtitle) > 0)
 	{

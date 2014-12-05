@@ -5,11 +5,15 @@ import numpy
 from Bio import SeqIO
 
 # Calculate bin sequence len
-bin_fns = glob.glob("bin_seqs/*.fasta")
+group_id = "combined"
+fasta_fn_ext = "fa"
+
+bin_fns = glob.glob(group_id + "_seqs/*." + fasta_fn_ext)
+
 bin_lens = {}
 for bin_fn in bin_fns:
-    print("Getting length from " + bin_fn)
-    bin_id = (os.path.basename(bin_fn)).replace(".fasta", "")
+    bin_id = (os.path.basename(bin_fn)).replace("." + fasta_fn_ext, "")
+    print("Getting length from " + bin_id)
     seqs = SeqIO.index(bin_fn, "fasta")
     bin_lens[bin_id] = sum([len(str(seqs[sid].seq)) for sid in seqs])
 
@@ -20,10 +24,12 @@ for bla_fn in bla_fns:
 
     id = (os.path.basename(bla_fn)).replace(".bla", "")
     
-    qid = ".".join(id.split(".")[0:2])
-    sid = ".".join(id.split(".")[2:4])
+    qid = id.split(".")[0]
+    sid = id.split(".")[1]
+    #qid = ".".join(id.split(".")[0:2])
+    #sid = ".".join(id.split(".")[2:4])
     
-    print("Processing " + id)
+    print("Processing " + id + "(sid=" + sid + " qid=" + qid + ")")
     with open(bla_fn) as IN:
         bla_res = IN.read().splitlines()
     if bla_res is None:
@@ -38,3 +44,6 @@ for bla_fn in bla_fns:
 with open("bla.mtx", "w") as OUT:
     for k in mtx.keys():
         OUT.write(k + "\t" + k.replace(".", "\t") + "\t" + str(mtx[k]) + "\n")
+
+
+
