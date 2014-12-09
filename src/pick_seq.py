@@ -9,9 +9,6 @@ from collections import defaultdict
 from Bio import SeqIO
 
 
-
-
-
 # Main 
 def main(argv):
     try:
@@ -70,13 +67,13 @@ def main(argv):
     Import a list of fasta sequence headers
 '''
 def import_list(list_fn):
-    list = []
+    l = []
     with open(list_fn) as IN:
-        list = IN.read().splitlines()
+        l = IN.read().splitlines()
     
-    list = [f for f in list if len(f) > 0]
-    
-    return list
+    l = [f for f in l if len(f) > 0]
+    l = list(set(l))
+    return l
 
 
   

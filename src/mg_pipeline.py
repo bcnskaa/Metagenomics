@@ -484,8 +484,8 @@ for f in GZ-Cell_Y2/contig.*.fasta;do id=${f##*/}; id=${id/.fasta/}; id=${id/con
 
 ###############################################
 # http://onetipperday.blogspot.hk/2012/08/three-ways-to-trim-adaptorprimer.html
-#def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=16, min_trim_quality=15, trim_win_len=4, N_percent=10):
-def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=50, min_trim_quality=30, trim_win_len=4, N_percent=10, save_skip=True):
+def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=30, min_trim_quality=20, trim_win_len=4, N_percent=10, save_skip=True):
+#def run_fastq_mcf(read_1_fn, read_2_fn, adaptor_seq_fn, min_read_len=50, min_trim_quality=30, trim_win_len=4, N_percent=10, save_skip=True):
     print_status("Processing" + read_1_fn + "and" + read_2_fn)    
     #"$FASTQ_MCF_HOME/fastq-mcf -o $outputfile_1 -o $outputfile_2 -l 16 -q 15 -w 4 -x 10 $ADAPTOR_SEQS $inputfile_1 $inputfile_2"
     
@@ -1223,7 +1223,7 @@ def run_16s_mapping(fna_fn, outdir=None, outprefix=None, blast_bitscore_threshol
         items = bres[0].split("\t")
         bit_score = float(items[11])
         if bit_score > blast_bitscore_threshold:
-            print outprefix + "=" + items[0] + ": " + str(bit_score)
+            print_status(outprefix + "=" + items[0] + ": " + str(bit_score))
             # query, q_spos, q_epos, subject, s_spos, s_epos, length, identity, bit-score 
             mapped_16s = [items[0], int(items[6]), int(items[7]), items[1], int(items[8]), int(items[9]), int(items[3]), float(items[4]), bit_score] 
     
