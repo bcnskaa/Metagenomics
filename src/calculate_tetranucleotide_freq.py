@@ -13,16 +13,18 @@ from Bio import SeqIO
 # Input: A file containing one or more fasta sequences
 # Output: A file "tetra_freq.table" which is in tabular format
 def calculate_freq_from_fasta(fasta_fn, outtbl_fn="tetra_freq.table"):
-    print "[ calculate_freq_from_fasta ] ", "Reading sequences from ", fasta_fn
-    
+    print("[ calculate_freq_from_fasta ] Reading sequences from " + fasta_fn)
+
     seqDB = list(SeqIO.parse(fasta_fn, "fasta"))
     
-    print len(seqDB), "sequences found"
+    print(str(len(seqDB)) + " sequences found")
 
     freq_tables = {}
     for seq in seqDB:
-        print "parsing", seq.id, "(", len(seq.seq) ,"bp)"
+        print("parsing " + seq.id + " (" + str(len(seq.seq))  + "bp)")
         freq_tables[seq.id] = normalize(calculate_freq_table(str(seq.seq)))
+    
+    print("Number of frequence tables: " + str(len(freq_tables)))
     
     #freq_tables = {seq.id: calculate_freq_table(str(seq.seq)) for seq in SeqIO.parse(fasta_fn, "fasta")} 
     export_freq_table(outtbl_fn, freq_tables)
@@ -54,6 +56,8 @@ def export_freq_table(outfn, freq_table_dict):
 # Given a string (symbol: A, C, G, T) and length of kmer, we calculate occurences of each kmer in
 # the string and return a dictionary object enlisting all kmer and their count. One character sliding window is used.
 def calculate_freq_table(sequence, pattern_list=['A', 'C', 'G', 'T'], kmer_len=4):
+    sequence = sequence.upper()
+    
     # Generate a list of k-mer
     seq_tuple = [sequence[i:i + kmer_len] for i in range(1, len(sequence) - (kmer_len - 1))]
     

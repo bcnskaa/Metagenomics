@@ -76,7 +76,16 @@ def import_list(list_fn):
     return l
 
 
-  
+
+def subsample():
+    import random
+    import os
+    
+    
+    
+    
+    
+
 # Print the usage of this script 
 def print_usage():
     print("A simple python script for picking sequence based on blast result (generated with -m8 option)")
@@ -95,7 +104,7 @@ def print_usage():
 # Print status
 def print_status(msg):
     print("[]", msg)
-
+    
 
     
 # Invoke the main function

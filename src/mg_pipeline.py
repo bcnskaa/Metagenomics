@@ -1278,6 +1278,15 @@ def run_16s_mapping(fna_fn, outdir=None, outprefix=None, blast_bitscore_threshol
 
 
 """
+Using GreenGene database to search the 16s sequences from the given sequence file
+for f in *.fa;do ~/tools/blast/bin/blastn -query $f -db ~/db/Markers/GreenGene/gg_13_5.fasta -outfmt 6 -out $f.gg.bla -num_threads 6 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 80 -max_target_seqs 10;done
+"""
+def find_16s_sequences(seq_fn, ):
+    print_status("Searching 16S sequences from " + seq_fn)
+
+
+
+"""
  Invoke a NCBI web blast search
 """
 def run_ncbi_wwwblast(seq, database="nr", blast_program="blastn", expect=10, hitlist_size=50):
