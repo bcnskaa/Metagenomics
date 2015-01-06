@@ -62,12 +62,13 @@ if(FALSE)
 
 if(FALSE)
 {
-	mtx_fn <- "score_mtx"
+	source("workspace/Metagenomics/src/plot_heatmap.R")
+	mtx_fn <- "score_mtx.2000"
 	bla_mtx <- read.table(mtx_fn, sep="\t", header=T, stringsAsFactors=F)
 	labels <- bla_mtx$Label
 	plot_heatmap_mtx(bla_mtx, x_axis_labels=labels, y_axis_labels=labels, title="Unweighted Score of Genomic Similarity", out_fn=paste(mtx_fn, ".mtx", sep=""), height=5, width=5, pdf_output=T, midpoint=0.5, colorbar_scheme=c("steelblue", "yellow", "red"), plot_label=T, label_size=3, value_decimal_len=4)
 	
-	mtx_fn <- "weighted_score_mtx"
+	mtx_fn <- "weighted_score_mtx.2000"
 	bla_mtx <- read.table(mtx_fn, sep="\t", header=T, stringsAsFactors=F)
 	labels <- bla_mtx$Label
 	plot_heatmap_mtx(bla_mtx, x_axis_labels=labels, y_axis_labels=labels, title="Weighted Score of Genomic Similarity", out_fn=paste(mtx_fn, ".mtx", sep=""), height=5, width=5, pdf_output=T, midpoint=0.5, colorbar_scheme=c("steelblue", "yellow", "red"), plot_label=T, label_size=3, value_decimal_len=4)
@@ -367,4 +368,12 @@ list_font <- function()
 {
 	print(names(pdfFonts()));
 }
+
+
+test <- data.frame(x=c(1,1,2,2), y=c(1,2,1,2), w=c(0.2,0.1,0.4,0.3), h=c(0.2,0.1,0.4,0.3))
+test <- data.frame(x=c("A","A","B","B"), y=c("C","D","C","D"), w=c(0.2,0.1,0.4,0.3), h=c(0.2,0.1,0.4,0.3))
+
+library(ggplot2)
+ggplot(test, aes(x=x, y=y), xlim=c(0,2), ylim=c(0,2)) + geom_tile(aes(width=w, height=h))
+
 
