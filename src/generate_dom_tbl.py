@@ -76,7 +76,7 @@ def generate_dom_tbl(out_fn, hmm_id = "dbCAN", is_bin=False, ):
 
 
 
-def append_abund_to_dom_tbl(tbl_fn, out_fn, summary_dir="."):
+def append_abund_to_dom_tbl(tbl_fn, out_fn, list_ofn=None, summary_dir="."):
     print("Processing " + tbl_fn)
     
     with open(tbl_fn) as IN:
@@ -101,9 +101,11 @@ def append_abund_to_dom_tbl(tbl_fn, out_fn, summary_dir="."):
     row_ids = []
     dom_table = {h:[0 for i in range(line_n)] for h in header}
     dom_mtx = [["HEADER","DESC"]+header]
+    dom_list = []
     for i, l in enumerate(lines):
         l = l.split("\t")
-        row_ids.append(l[0])
+        row_id = l[0]
+        row_ids.append(row_id)
         desc.append(l[1])
         row_items = [l[0], l[1]]
         l = l[2:]
@@ -112,12 +114,18 @@ def append_abund_to_dom_tbl(tbl_fn, out_fn, summary_dir="."):
             abund = group_summary[id]
             dom_table[id][i] = abund * int(count)
             row_items.append(str(abund * int(count)))
+            dom_list.append([id, row_id, str(count), str(abund * int(count))])
         dom_mtx.append(row_items)
         
     with open(out_fn, "w") as OUT:
         for row in dom_mtx:
             OUT.write("\t".join(row) + "\n")
-            
+         
+    if list_ofn is not None:
+        with open(list_ofn, "w") as OUT:
+            for dom in dom_list:
+                OUT.write("\t".join(dom) + "\n")
+                   
         
     return dom_mtx
     
@@ -169,6 +177,22 @@ for f in *_5000/Prodigal/*.faa;do
         hmm_fn="/home/siukinng/db/Markers/"$hmm_id"/"$hmm_id".hmm"
         cmd="~/tools/hmmer/bin/hmmsearch -o $outdir/$id.$hmm_id.out -A $outdir/$id.$hmm_id.faa --tblout $outdir/$id.$hmm_id.tbl --domtblout $outdir/$id.$hmm_id.dom.tbl --pfamtblout $outdir/$id.$hmm_id.pfam.tbl $hmm_fn $faa_fn"    
         echo $cmd
+    done
+done
+
+"""
+
+
+"""
+# Generate scaffold2bin_id table
+for d in *_5000;do
+    id=${d/_5000/}
+    out_fn="$d/$id.scaffold2bin_id"
+    rm $out_fn
+    for f in $d/*.fasta;do
+        bin_id=${f##*/}
+        bin_id=${bin_id/.fasta/}
+        cat $f | grep -e "^>" | sed -e "s/>//" | sed -e "s/$/\t$bin_id/" >> $out_fn
     done
 done
 

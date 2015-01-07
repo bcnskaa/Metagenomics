@@ -204,6 +204,48 @@ def make_summary(in_dir=".", fasta_fn_ext="fasta", mapped_bla_fn_ext="mapped", s
 #         os.system(cmd)
 
 
+"""
+# all.updated.tax.finalized is a finalized version of all.updated.tax
+
+"""
+def apply_abundance(summary_ifn="all.updated.tax.finalized", out_fn=None, normalized_abund=True, abund_dir="/disk/rdisk08/siukinng/MG/scaffolds_5000/", dir_suffix="_5000", bin_summary_fn_suffix=".summary"):
+    import glob
+    import os 
+    
+    with open(summary_ifn) as IN:
+        all_tax = IN.read().splitlines()
+    all_tax = [t.split("\t") for t in all_tax if len(t.split("\t")) > 1] 
+    
+    abund = {}
+    abund_fns = glob.glob(abund_dir + "*" + dir_suffix + "/*" + bin_summary_fn_suffix)
+    for abund_fn in abund_fns:
+        sample_id = (os.path.basename(abund_fn)).replace(bin_summary_fn_suffix, "")
+        print(sample_id)
+        with open(abund_fn) as IN:
+            aa = IN.read().splitlines()
+        del aa[0]
+        
+        if normalized_abund:
+            aa = {(a.split("\t")[0]).replace(".fasta",""): float(a.split("\t")[1]) for a in aa}
+            total_aa = sum([aa[a] for a in aa.keys()])
+            print(list(aa.keys())[0])
+            aa = {a:str(aa[a] / total_aa) for a in aa.keys()}
+            abund.update(aa)
+        else:
+            abund.update({(a.split("\t")[0]).replace(".fasta",""): a.split("\t")[1] for a in aa})
+    
+    if out_fn is None:
+        out_fn = summary_ifn + ".abund"
+    
+    with open(out_fn, "w") as OUT:
+        for tax in all_tax:
+            a = abund[tax[0]]
+            g = (tax[2]).split("f__")[1]
+            g = g.split(";")[0]
+            OUT.write(tax[0] + "\t" + g + "\t" + a + "\t" + "\t".join(tax[1:]) + "\n")
+
+        
+
 
 """
 # run_blastx.sh 
@@ -271,5 +313,31 @@ for hmm_id in ${hmm_ids[@]};do
 done
 
 
+
+"""
+
+"""
+# Generate stacked bar plot
+tax_fn = "all.updated.tax.finalized.f.abund"
+tax <- read.table("all.updated.tax.finalized.f.abund", sep="\t", header=F, stringsAsFactors=F)
+tax$group <- sapply(1:length(tax$V1), function(i) { strsplit(tax$V1[i],".", fixed=T)[[1]][1]})
+
+tax <- tax[which(tax$group != "SWH-Cell55_Y2"), ]
+tax <- tax[which(tax$group != "SWH-Seed_Y0"), ]
+tax <- tax[which(tax$group != "GZ-Seed_Y0"), ]
+
+tax <- tax[,c("group", "V2", "V3")]
+tax <- aggregate(tax["V3"], by=tax[c("group","V2")], FUN=sum)
+
+library(lattice)
+#ggplot(tax, aes(x=group, y=V3, fill=V2)) + geom_bar(stat="identity", aes(group=tax$group)) + coord_polar(theta="y")
+pdf(paste(tax_fn, ".spectral.pdf" , sep=""))
+ggplot(tax, aes(x=group, y=V3, fill=V2)) + geom_bar(stat="identity", aes(group=tax$group)) + scale_fill_brewer(palette="Spectral") + theme(axis.text.x = element_text(angle = -45, hjust = 0)) + ylab("Relative Abundance") + xlab("Enrichment Group")
+dev.off()
+pdf(paste(tax_fn, ".all.pdf" , sep=""))
+ggplot(tax, aes(x=group, y=V3, fill=V2)) + geom_bar(stat="identity", aes(group=tax$group)) + theme(axis.text.x = element_text(angle = -45, hjust = 0)) + ylab("Relative Abundance") + xlab("Enrichment Group")
+dev.off()
+
+#ggplot(tax, aes(y=rep(1, nrow(tax)), x=V3, fill=V2)) + geom_bar(stat="identity", aes(group=tax$group)) + coord_polar(theta="y")
 
 """

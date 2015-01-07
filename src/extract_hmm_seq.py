@@ -39,17 +39,17 @@ def extract_combined_hmm_seq(hmm_id="specI"):
 """
 
 """
-def extract_bin_hmm_seq():
+def extract_bin_hmm_seq(hmm_id = "specI", dir_suffix = "_5000", hmm_score_threshold=50.0):
     faa_ext = "faa"
-    hmm_id = "Pfam"
-    hmm_score_threshold = 50.0
+    #hmm_id = "Pfam"
+    #hmm_score_threshold = 50.0
     hmm_tc_fn = "/home/siukinng/db/Markers/" + hmm_id + "/" + hmm_id + ".tc"
     
     if not os.path.isfile(hmm_tc_fn):
         hmm_tc_fn = None
     
     dom_tbl_suffix = ".dom.tbl"
-    dir_suffix = "_5000"   
+    #dir_suffix = "_5000"   
     sample_ids = glob.glob("*" + dir_suffix)
     sample_ids = [(os.path.basename(id)).replace(dir_suffix, "") for id in sample_ids]
     
@@ -58,6 +58,7 @@ def extract_bin_hmm_seq():
         sample_dir = "./" + sample_id + dir_suffix
         hmm_dir = sample_dir + "/Markers/bins/" + hmm_id
         bin_hmm_fns = glob.glob(hmm_dir + "/*" + dom_tbl_suffix)
+        print("bin_hmm_fns=" + str(len(bin_hmm_fns)))
         for bin_hmm_fn in bin_hmm_fns:
             bin_id = (os.path.basename(bin_hmm_fn)).replace(dom_tbl_suffix, "")
             bin_id = bin_id.replace("." + hmm_id, "")
@@ -137,3 +138,5 @@ for hmm_id in s.keys():
 for f in *.phy;do echo "Processing $f";echo -e "$f\nP\nP\nY\n" > current.cmd; ~/tools/phylip/exe/protdist < current.cmd > screenout; mv outfile $f.mtx;done
 
 """
+
+

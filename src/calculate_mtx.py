@@ -53,7 +53,7 @@ def main():
 """
 from Bio import SeqIO
 
-def calculate_mtx_with_coverage(bla_fn, relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000/CrossValidation/db/combined", abund_dir_suffix="_5000"):
+def calculate_mtx_with_coverage(bla_fn, raw_ofn=None, relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000/CrossValidation/db/combined", abund_dir_suffix="_5000"):
     query_metagenome_name = bla_fn.split(".")[0]
     subject_metagenome_name = bla_fn.split(".")[1]
     
@@ -122,25 +122,38 @@ def calculate_mtx_with_coverage(bla_fn, relative_abund=True, path_to_abund_dir="
         bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if sid in subject_metagenome_abund.keys()])    
         #bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if len(str(seqs[sid].seq)) > 3000])  
    
+    raw_data = []
     s_bla_sum = 0.0
     q_bla_sum = 0.0
     for b in bla:
         q_id = b[0]
         s_id = b[1]
         if s_id in subject_metagenome_abund.keys() and q_id in query_metagenome_abund.keys():
-        
             s = (int(b[3]) - ( int(b[5]) + int(b[4]) ))
+            raw = [q_id, s_id]
             if relative_abund:
                 s_weight = subject_metagenome_abund[s_id]
                 q_weight = query_metagenome_abund[q_id]
                 s_bla_sum = s_bla_sum + (s_weight * s)
                 q_bla_sum = q_bla_sum + (q_weight * s)
+                raw.append(str((s_weight * s)))
+                raw.append(str((q_weight * s)))         
             else:
                 s_bla_sum = s_bla_sum + s
                 q_bla_sum = q_bla_sum + s
-                
+                raw.append(str(s))
+                raw.append(str(s))
+        raw_data.append(raw)
+            
         #s_bla_sum = s_bla_sum + int(b.split("\t")[3]) - ( int(b.split("\t")[5]) + int(b.split("\t")[4]) )
         #q_bla_sum = q_bla_sum + int(b.split("\t")[3]) - ( int(b.split("\t")[5]) + int(b.split("\t")[4]) )   
+    
+    if raw_ofn is not None:
+        with open(raw_ofn, "w") as OUT:
+            for raw in raw_data:
+                OUT.write("\t".join(raw) + "\n")
+
+    
     score[subject_metagenome_name] = s_bla_sum / bin_lens[subject_metagenome_name]
     score[query_metagenome_name] = q_bla_sum / bin_lens[query_metagenome_name]
         
