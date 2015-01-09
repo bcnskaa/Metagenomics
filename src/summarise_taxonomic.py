@@ -314,7 +314,43 @@ done
 
 
 
+
+
+
+
 """
+
+
+"""
+# Generate scaffold to taxon mapping file
+import glob
+
+taxon_fn = "/disk/rdisk08/siukinng/MG/scaffolds_5000/TaxonomicAssignment/bins/blast/all.updated.tax.finalized.f.abund"
+with open(taxon_fn) as IN:
+    taxon = IN.read().splitlines()
+taxon = {t.split("\t")[0]: t.split("\t")[1] for t in taxon}
+
+scaffold2binID_fns = glob.glob("*_5000/*.scaffold2bin_id")
+
+
+# Read the scaffold information
+
+#scaffold2binID_fn = "GZ-Cell_Y1.scaffold2bin_id"
+for scaffold2binID_fn in scaffold2binID_fns:
+    with open(scaffold2binID_fn) as IN:
+        info = IN.read().splitlines()
+    #info = {i.split("\t")[0]:i.split("\t")[1] for i in info}
+    #info = {i.split("\t")[0]:taxon[i.split("\t")[1]] for i in info}
+    info = [[i.split("\t")[0], taxon[i.split("\t")[1]]] for i in info]
+
+    with open(scaffold2binID_fn.replace(".scaffold2bin_id", ".scaffold2tax_f"), "w") as OUT:
+        for id in info:
+            OUT.write("\t".join(id) + "\n")
+
+
+"""
+
+
 
 """
 # Generate stacked bar plot

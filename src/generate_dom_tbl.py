@@ -85,6 +85,7 @@ def append_abund_to_dom_tbl(tbl_fn, out_fn, list_ofn=None, summary_dir="."):
     header = header.split("\t")[2:]
     del lines[0]
     
+    # Abundance information
     nr_headers = list(set([h.split(".")[0] for h in header]))
     group_summary = {}
     for nr_header in nr_headers:
@@ -96,6 +97,7 @@ def append_abund_to_dom_tbl(tbl_fn, out_fn, list_ofn=None, summary_dir="."):
         group_summary.update(summary)
         
     
+    # Parse the dom table
     line_n = len(lines)
     desc = []
     row_ids = []
@@ -130,6 +132,143 @@ def append_abund_to_dom_tbl(tbl_fn, out_fn, list_ofn=None, summary_dir="."):
     return dom_mtx
     
 
+"""
+import generate_dom_tbl
+tbl_fn = "dbCAN.bin.abund.tbl"
+generate_dom_tbl.consolidate_dom_tbl_by_taxon(tbl_fn, melt_tbl=True)
+
+tbl_fn = "dbCAN.bin.tbl"
+generate_dom_tbl.consolidate_dom_tbl_by_taxon(tbl_fn, melt_tbl=True)
+
+"""
+def consolidate_dom_tbl_by_taxon(tbl_fn, consolidated_tbl_ofn=None, melt_tbl=False, melt_consolidated_tbl_ofn=None, taxon_fn="/home/siukinng/MG/scaffolds_5000/TaxonomicAssignment/bins/blast/all.updated.tax.finalized.f.abund"):
+    print("Processing " + tbl_fn)
+    
+    with open(tbl_fn) as IN:
+        lines = IN.read().splitlines()
+    header = lines[0]
+    header = header.split("\t")[2:]
+    del lines[0]
+    row_id = [l.split("\t")[0] for l in lines]
+    row_desc = [l.split("\t")[1] for l in lines]
+    tbl_data = [l.split("\t")[2:] for l in lines]
+    
+    # taxonomical information
+    nr_headers = list(set([h.split(".")[0] for h in header]))
+    
+    taxon = {}
+    with open(taxon_fn) as IN:
+        taxon = IN.read().splitlines()
+    taxon = {t.split("\t")[0]: t.split("\t")[1] for t in taxon}
+    
+    list_taxon = {}
+    group_taxon = {}
+    group_taxon_long = {}
+    # Generate a mapping table
+    for tid in taxon.keys():
+        group_id = tid.split(".")[0]
+        taxon_id = taxon[tid]
+        if group_id not in group_taxon.keys():
+            group_taxon[group_id] = {}
+            group_taxon_long[group_id] = {}
+        if taxon_id not in group_taxon[group_id].keys():
+            group_taxon[group_id][taxon_id] = []
+            group_taxon_long[group_id][taxon_id] = []
+        #group_taxon[group_id][taxon_id].append(tid)
+        group_taxon_long[group_id][taxon_id].append(tid)
+        group_taxon[group_id][taxon_id].append(header.index(tid))
+    
+    # Compute the number of columns remained after consolidation
+    col_n = sum([len(group_taxon[gid]) for gid in group_taxon.keys()])    
+    
+    # Generate an empty matrix for storing the merge data
+    consolidated_tbl_data = [[0.0 for j in range(col_n)] for i in range(len(tbl_data))]
+    
+    # Parse the tbl data
+    for tbl_idx, tbl in enumerate(tbl_data):
+        cur_consolidated_tbl_data_pos = 0
+        # Select group
+        for gid in group_taxon.keys():
+            for taxon_id in group_taxon[gid].keys():
+                group_sum = 0.0
+                for col_idx in group_taxon[gid][taxon_id]:
+                    group_sum = group_sum + float(tbl[col_idx])
+                #consolidated_tbl_data[tbl_idx][cur_consolidated_tbl_data_pos] = str(group_sum)
+                consolidated_tbl_data[tbl_idx][cur_consolidated_tbl_data_pos] = group_sum
+                cur_consolidated_tbl_data_pos = cur_consolidated_tbl_data_pos + 1
+                
+    if consolidated_tbl_ofn is None:
+        consolidated_tbl_ofn = tbl_fn + ".consolidated"
+    
+    print("Exporting results to " + consolidated_tbl_ofn)
+    
+    # Export the result
+    with open(consolidated_tbl_ofn, "w") as OUT:
+        # Group header:
+        group_header = ["HEADER", "DESC"]     
+        # Taxon header:
+        taxon_header = ["HEADER", "DESC"]
+        for gid in group_taxon.keys():
+            for tid in group_taxon[gid].keys():
+                group_header.append(gid)
+                taxon_header.append(tid) 
+        
+        OUT.write("\t".join(group_header) + "\n")
+        OUT.write("\t".join(taxon_header) + "\n")
+        for i, tbl in enumerate(consolidated_tbl_data):
+            OUT.write(row_id[i] + "\t" + row_desc[i] + "\t" + "\t".join([str(t) for t in tbl]) + "\n")   
+    
+    # Melt form: group_id\ttaxon_id\trow_id\tvalue   
+    if melt_tbl:
+        if melt_consolidated_tbl_ofn is None:
+            melt_consolidated_tbl_ofn = consolidated_tbl_ofn + ".melt"
+
+        print("Melted consolidated dom tbl is exporting to " + melt_consolidated_tbl_ofn)
+
+
+        with open(melt_consolidated_tbl_ofn, "w") as OUT:
+            for k, row_id in enumerate(row_id):
+                col_idx = 0
+                for i, gid in enumerate(group_taxon.keys()):    
+                    for j, tid in enumerate(group_taxon[gid].keys()):
+                        OUT.write("\t".join([gid, tid, row_id, str(consolidated_tbl_data[k][col_idx])]) + "\n")
+                        col_idx = col_idx + 1
+
+
+"""
+#Merge two tbl files for ease of post-processings
+import generate_dom_tbl
+tbl_1_fn = "dbCAN.bin.abund.tbl.consolidated.melt"
+tbl_2_fn = "dbCAN.bin.tbl.consolidated.melt"
+tbl_merged_fn = "dbCAN.bin.tbl.consolidated.melt.abund_merged"
+generate_dom_tbl.merge_melt_tbl(tbl_1_fn, tbl_2_fn, tbl_merged_fn)
+
+    
+"""
+def merge_melt_tbl(tbl_1_fn, tbl_2_fn, out_fn):
+    print("Merging " + tbl_1_fn + " and " + tbl_2_fn)
+    
+    with open(tbl_1_fn) as IN:
+        tbl_1 = IN.read().splitlines()
+    tbl_1 = {"\t".join(t.split("\t")[0:3]):t.split("\t")[3] for t in tbl_1}
+    
+    with open(tbl_2_fn) as IN:
+        tbl_2 = IN.read().splitlines()
+    #tbl_2 = [t.split("\t") for t in tbl_2]
+    tbl_2 = {"\t".join(t.split("\t")[0:3]):t.split("\t")[3] for t in tbl_2}
+    
+    
+    with open(out_fn, "w") as OUT:
+        for tid in tbl_1.keys():
+            tbl_2_val = "-"
+            if tid in tbl_2.keys():
+                tbl_2_val = tbl_2[tid]
+            tbl = [tid, tbl_1[tid], tbl_2_val]
+            
+            OUT.write("\t".join(tbl) + "\n")
+
+    
+    
 """
 # do Prodigal
 for d in *_5000;do

@@ -49,7 +49,7 @@ def main():
 
 
 """
-    bla_fn = "SWH-Seed_Y0.GZ-Seed_Y0.bla.b1000.0p80.0.bla"
+bla_fn = "SWH-Seed_Y0.GZ-Seed_Y0.bla.b1000.0p80.0.bla"
 """
 from Bio import SeqIO
 
@@ -122,6 +122,7 @@ def calculate_mtx_with_coverage(bla_fn, raw_ofn=None, relative_abund=True, path_
         bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if sid in subject_metagenome_abund.keys()])    
         #bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if len(str(seqs[sid].seq)) > 3000])  
    
+    discard_bla_n = 0
     raw_data = []
     s_bla_sum = 0.0
     q_bla_sum = 0.0
@@ -136,24 +137,26 @@ def calculate_mtx_with_coverage(bla_fn, raw_ofn=None, relative_abund=True, path_
                 q_weight = query_metagenome_abund[q_id]
                 s_bla_sum = s_bla_sum + (s_weight * s)
                 q_bla_sum = q_bla_sum + (q_weight * s)
+                raw.append(str((q_weight * s))) 
                 raw.append(str((s_weight * s)))
-                raw.append(str((q_weight * s)))         
             else:
                 s_bla_sum = s_bla_sum + s
                 q_bla_sum = q_bla_sum + s
                 raw.append(str(s))
                 raw.append(str(s))
-        raw_data.append(raw)
+            raw_data.append(raw)
+        else:
+            discard_bla_n = discard_bla_n + 1 
             
         #s_bla_sum = s_bla_sum + int(b.split("\t")[3]) - ( int(b.split("\t")[5]) + int(b.split("\t")[4]) )
         #q_bla_sum = q_bla_sum + int(b.split("\t")[3]) - ( int(b.split("\t")[5]) + int(b.split("\t")[4]) )   
+    print("Dicard_bla_n=" + str(discard_bla_n))
     
     if raw_ofn is not None:
         with open(raw_ofn, "w") as OUT:
             for raw in raw_data:
                 OUT.write("\t".join(raw) + "\n")
 
-    
     score[subject_metagenome_name] = s_bla_sum / bin_lens[subject_metagenome_name]
     score[query_metagenome_name] = q_bla_sum / bin_lens[query_metagenome_name]
         
@@ -162,7 +165,85 @@ def calculate_mtx_with_coverage(bla_fn, raw_ofn=None, relative_abund=True, path_
     return score
 
 
+
+"""
+
+import calculate_mtx
+q_id = "SWH-Cell_Y2"
+s_id = "GZ-Cell_Y2"
+raw_fn = q_id + "." + s_id + ".bla.b1000.0.bla.raw"
+q_scaffold2tax_fn = "/home/siukinng/MG/scaffolds_5000/" + q_id + "_5000/" + q_id + ".scaffold2tax_f"
+s_scaffold2tax_fn = "/home/siukinng/MG/scaffolds_5000/" + s_id + "_5000/" + s_id + ".scaffold2tax_f"
+ss = calculate_mtx.map_raw_with_taxon(raw_fn, q_scaffold2tax_fn, s_scaffold2tax_fn)
+
+
+
+for s in :
+
+
+"""
+def map_raw_with_taxon(raw_fn, q_scaffold2tax_fn, s_scaffold2tax_fn, out_fn=None):
+    # Import raw data
+    with open(raw_fn) as IN:
+        raw = IN.read().splitlines()
+    raw = [r.split("\t") for r in raw]
     
+    # import scaffold map for query ids
+    with open(q_scaffold2tax_fn) as IN:
+        q_scaffold2tax = IN.read().splitlines()
+    q_scaffold2tax = {r.split("\t")[0]:r.split("\t")[1] for r in q_scaffold2tax}
+    
+    # import scaffold map for subject ids
+    with open(s_scaffold2tax_fn) as IN:
+        s_scaffold2tax = IN.read().splitlines()
+    s_scaffold2tax = {r.split("\t")[0]:r.split("\t")[1] for r in s_scaffold2tax}
+
+    # Check out_fn    
+    if out_fn is None:
+        out_fn = raw_fn + ".mapped"
+    
+    q_total = {}
+    s_total = {}
+    
+    discard_n = 0
+    # Perform mapping
+    with open(out_fn, "w") as OUT:
+        for r in raw:
+            q_id = r[0]
+            s_id = r[0]
+            if q_id not in q_scaffold2tax.keys():
+                discard_n = discard_n + 1
+                continue
+            q_tax = q_scaffold2tax[q_id]
+            if s_id not in s_scaffold2tax.keys():
+                discard_n = discard_n + 1
+                continue
+            s_tax = s_scaffold2tax[s_id]
+            q_val = float(r[2])
+            s_val = float(r[3])
+            
+            if q_tax not in q_total.keys():
+                q_total[q_tax] = 0.0
+            q_total[q_tax] = q_total[q_tax] + q_val
+            
+            if s_tax not in s_total.keys(): 
+                s_total[s_tax] = 0.0
+            s_total[s_tax] = s_total[s_tax] + s_val  
+             
+            OUT.write("\t".join([q_tax, s_tax, r[2], r[3]]) + "\n")
+            
+    #for q in q_total.keys():
+    #    q_total[q] = q_total[q]
+    q_total_len = sum([q_total[q] for q in q_total.keys()])
+    q_total = {q:q_total[q]/q_total_len for q in q_total.keys()}
+    
+    s_total_len = sum([s_total[s] for s in s_total.keys()])
+    s_total = {s:s_total[s]/s_total_len for s in s_total.keys()}
+       
+    return [q_total, s_total] 
+    
+
+
 """   
     /home/siukinng/MG/scaffolds/CrossValidation/db/combined
     for f in *.fa;do ~/tools/blast/bin/makeblastdb -dbtype nucl -in $f;done
@@ -191,7 +272,7 @@ for i, sample_id_s in enumerate(sample_ids):
         bla_fn = sample_id_q + "." + sample_id_s + fn_suffix
         if os.path.isfile(bla_fn):
             #scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, relative_abund=True)
-            scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_2000", path_to_seq_dir="/home/siukinng/MG/scaffolds_2000/CrossValidation/db/combined", abund_dir_suffix="_2000");
+            scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, raw_ofn=bla_fn + ".raw", relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000/CrossValidation/db/combined", abund_dir_suffix="_5000");
             weighted_score_mtx[i][j] = scores[sample_id_s]
             weighted_score_mtx[j][i] = scores[sample_id_q]
             print(sample_id_s + " vs " + sample_id_q + " = " + str(weighted_score_mtx[i][j]) + ", " + str(weighted_score_mtx[j][i]))
@@ -212,7 +293,7 @@ for i, sample_id_s in enumerate(sample_ids):
         bla_fn = sample_id_q + "." + sample_id_s + fn_suffix
         if os.path.isfile(bla_fn):
             #scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, relative_abund=False)
-            scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, relative_abund=False, path_to_abund_dir="/home/siukinng/MG/scaffolds_2000", path_to_seq_dir="/home/siukinng/MG/scaffolds_2000/CrossValidation/db/combined", abund_dir_suffix="_2000");
+            scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, relative_abund=False, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000/CrossValidation/db/combined", abund_dir_suffix="_5000");
 
             score_mtx[i][j] = scores[sample_id_s]
             score_mtx[j][i] = scores[sample_id_q]
