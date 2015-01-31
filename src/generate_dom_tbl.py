@@ -4,7 +4,7 @@ import os
 import mg_pipeline
 
 
-def generate_dom_tbl(out_fn, hmm_id = "dbCAN", is_bin=False, ):
+def generate_dom_tbl(out_fn, hmm_id = "dbCAN", is_bin=False):
     #hmm_id = "dbCAN"
     if is_bin:
         fns = glob.glob("*_5000/Markers/bins/" + hmm_id + "/*.dom.tbl")
@@ -19,7 +19,8 @@ def generate_dom_tbl(out_fn, hmm_id = "dbCAN", is_bin=False, ):
             hmm_tc_fn = None
             
     print("Processing " + hmm_id + " and export the results to " + out_fn)
-            
+    
+         
     dom_tbls = {}
     for fn in fns:
        #hmm_orf_dict = process_HMM.postprocess_HMMER_search(fn, hmm_score_threshold=hmm_score_threshold, hmm_tc_fn=hmm_tc_fn)
@@ -267,6 +268,48 @@ def merge_melt_tbl(tbl_1_fn, tbl_2_fn, out_fn):
             
             OUT.write("\t".join(tbl) + "\n")
 
+    
+
+def count_gene(out_fn=None, fasta_fn_dir=".", fasta_fn_ext="renamed_faa"):
+    from Bio import SeqIO
+    import glob
+    import os
+    
+    fasta_fns = glob.glob(fasta_fn_dir + "/*."+fasta_fn_ext)
+    if len(fasta_fns) == 0:
+        print("No file can be read.")
+        return None
+    
+    row_ids_fns = {(os.path.basename(f)).replace(fasta_fn_ext, ""):f for f in fasta_fns}
+    row_ids = list(row_ids_fns.keys())
+    
+    bin_ids = {}
+    # Construct a list of all bin ids
+    for fasta_fn in fasta_fns:
+        seqs = SeqIO.index(fasta_fn, "fasta")    
+        seq_ids = [(id[::-1].split("_",1)[1])[::-1] for id in list(seqs.keys())]
+        for id in seq_ids:
+            if id not in bin_ids.keys():
+                bin_ids[id] = [0 for i in range(len(row_ids))]
+        
+    for i, row_id in enumerate(row_ids):
+        seqs = SeqIO.index(row_ids_fns[row_id], "fasta")
+        seq_ids = list(seqs.keys())
+        for seq_id in seq_ids:
+            seq_id = (seq_id[::-1].split("_",1)[1])[::-1]
+            bin_ids[seq_id][i] = bin_ids[seq_id][i] + 1
+        
+    if out_fn is None:
+        out_fn = "count_genes"
+       
+    with open(out_fn, "w") as OUT:
+        bids = list(bin_ids.keys())
+        OUT.write("ID\t" + "\t".join(bids) + "\n")
+        for i, row_id in enumerate(row_ids):
+            OUT.write(row_id)
+            for bid in bids:
+                OUT.write("\t" + str(bin_ids[bid][i]))   
+            OUT.write("\n") 
     
     
 """
