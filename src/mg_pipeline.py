@@ -1820,6 +1820,7 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
 
 
 
+
 """
  
 """
@@ -1833,6 +1834,7 @@ def generate_dom_tbl(hmm_orf_dict):
             hmm_dom_tbl[hmm_id].append(elm)
         
     return hmm_dom_tbl
+
 
 
 

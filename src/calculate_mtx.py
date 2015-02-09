@@ -367,3 +367,69 @@ for s_id in seqs:
 print(len_abund / total_len_abund)
     
 """
+
+
+
+"""
+import os
+import glob
+from Bio import SeqIO
+
+fa_fns = glob.glob("*.fasta")
+ids = {(f.split("_")[2].split("+")[0][0])+(f.split("_")[2].split("+")[1][0:2]):f for f in fa_fns}
+
+out_fn = "testtest"
+list_map = {}
+combined_seqs = {}
+
+for id in ids:
+    seqs = SeqIO.index(ids[id], "fasta")
+
+    for seq_id in seqs.keys():
+        new_seq_id = id + "_" + seq_id.split("|")[1]
+        list_map[new_seq_id] = seqs[seq_id].description
+        combined_seqs[new_seq_id] = str(seqs[seq_id].seq)
+
+
+with open(out_fn, "w") as OUT:
+    for seq_id in combined_seqs.keys():
+        OUT.write(">" + seq_id + "\n" + combined_seqs[seq_id] + "\n\n")
+        
+    
+with open(out_fn + ".map", "w") as OUT: 
+    for seq_id in list_map.keys():
+        OUT.write(seq_id + "\t" + list_map[seq_id] + "\n")
+    
+
+
+import os
+import glob
+from Bio import SeqIO
+
+sample_id = "SC2"
+#old_sample_id = sample_id
+old_sample_id = "SWH-Cell_Y2"
+faa_fn = sample_id + "_meta.pfam.faa.raw" 
+faa_ofn = sample_id + "_meta.pfam.faa" 
+
+#seqs = SeqIO.index(faa_fn, "fasta")
+seqs = remove_duplicate(faa_fn)
+with open(faa_ofn, "w") as OUT:
+    for seq_id in seqs.keys():
+        #OUT.write(">" + seq_id.replace("scaffold", old_sample_id) + "\n" + str(seqs[seq_id].seq).replace("*", "") + "\n")
+        OUT.write(">" + seq_id.replace(old_sample_id, sample_id) + "\n" + (seqs[seq_id]).replace("*", "") + "\n")
+
+
+"""
+
+def remove_duplicate(faa_fn):
+    from Bio import SeqIO
+    import os
+    seq_list = {}
+    for record in SeqIO.parse(open(faa_fn),'fasta'):
+        print(record.id)
+        if record.id not in seq_list.keys():
+            seq_list[record.id] = str(record.seq)
+    return seq_list
+
+            
