@@ -169,8 +169,13 @@ def report_besthit(blast_results):
     blast_besthits = {}
     
     for qid in blast_results.keys():
-        blast_besthits[qid] = sorted(blast_results[qid], key=lambda x: x[11], reverse=True)[0]
-    
+        if qid not in blast_besthits.keys():
+            #print(len(blast_results[qid]))
+            blast_besthits[qid] = (sorted(blast_results[qid], key=lambda x: float(x[11]), reverse=True))[0]
+            #test = sorted(blast_results[qid], key=lambda x: float(x[11]), reverse=True)
+            #for t in test:
+            #    print("\t".join(t))
+
     return blast_besthits
 
 

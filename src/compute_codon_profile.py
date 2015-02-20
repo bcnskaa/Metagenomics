@@ -11,6 +11,16 @@ import compute_codon_profile
 codon_tbls = compute_codon_profile.process_all()
 compute_codon_profile.export_codon_tbl(codon_tbls, "clostridium.codons")
 
+
+
+import compute_codon_profile
+import glob
+import os
+fns = glob.glob("./*.faa")
+id2fns = {os.path.basename(f)[::-1].split(".", 1)[1][::-1]:f for f in fns}
+codon_tbls = compute_codon_profile.process_all_fn(id2fns)
+compute_codon_profile.export_codon_tbl(codon_tbls, "GZ-Xyl_Y2.codons")
+
 """
 
 def generate_codon_table():
@@ -40,16 +50,25 @@ def compute_codon_profile(seq_fn):
     return codon_table
 
 
-def process_all(dir="./*"):
+
+def process_all_fn(id2fns):
+    codon_tbls = {}
+    for id in id2fns:
+        print("Processing " + id)
+        codon_tbls[id] = compute_codon_profile(id2fns[id])
+    return codon_tbls
+    
+
+def process_all(dir="./*", fn_ext=".ffn"):
     ffn_dirs = glob.glob(dir)
     
     codon_tbls = {}
     for ffn_dir in ffn_dirs:
         if not os.path.isdir(ffn_dir):
             continue
-        ffns = glob.glob(ffn_dir + "/*.ffn")
+        ffns = glob.glob(ffn_dir + "/*" + fn_ext)
         if len(ffns) == 0:
-            print(ffn_dir + " skpped")
+            print(ffn_dir + " skipped")
             continue
         species_id = os.path.basename(ffn_dir)
         print("Processing " + species_id)

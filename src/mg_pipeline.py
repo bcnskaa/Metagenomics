@@ -1487,6 +1487,7 @@ def blastx():
     
 
 
+
 """
  Based on given threshold values, this routine will invoke filter_blast_res.py.
 """

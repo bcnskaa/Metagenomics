@@ -165,6 +165,77 @@ def calculate_mtx_with_coverage(bla_fn, raw_ofn=None, relative_abund=True, path_
     return score
 
 
+"""
+
+import calculate_mtx
+calculate_mtx.blast_bins("/home/siukinng/MG/scaffolds_5000/GZ-Cell_Y2_5000", "/home/siukinng/MG/scaffolds_5000/GZ-Cell_Y1_5000")
+
+import calculate_mtx
+calculate_mtx.process_all_samples()
+
+"""
+def process_all_samples():
+    sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+    for s_sample_id in sample_ids:
+        for q_sample_id in sample_ids:
+            blast_bins("/home/siukinng/MG/scaffolds_5000/"+q_sample_id+"_5000", "/home/siukinng/MG/scaffolds_5000/"+s_sample_id+"_5000", out_dir=".", seq_fn_ext=".fasta")
+
+
+def process_all_samples_to_reference(sample_ids):
+    #sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+    map_to_ref_dir = "./blast_to_ref"
+    if not os.path.isdir(map_to_ref_dir):
+        os.makedirs(map_to_ref_dir)
+    for sample_id in sample_ids:
+        fa_fns = glob.glob("/home/siukinng/MG/scaffolds_5000/"+sample_id+"_5000" + "/*.fasta")
+        for fa_fn in fa_fns:
+            bin_id = (os.path.basename(fa_fn)).replace(".fasta", "")
+            out_fn = bin_id + "+all_fna.bla"
+            mg_pipeline.blastn(fa_fn, "/home/siukinng/db/BacteriaDB/all_fna.fna", outdir=map_to_ref_dir, outfn=out_fn, num_threads=16, perc_identity=85, max_target_seqs=2, evalue=1e-30)
+ 
+ 
+
+import mg_pipeline
+import glob
+import os
+def blast_bins(q_dir, s_dir, out_dir=".", seq_fn_ext=".fasta"):    
+    s_fa_fns = glob.glob(s_dir + "/*" + seq_fn_ext)
+    q_fa_fns = glob.glob(q_dir + "/*" + seq_fn_ext)
+    
+    s_sample_id = os.path.basename(s_dir)
+    s_sample_outdir = out_dir + "/" + s_sample_id
+    if not os.path.isdir(s_sample_outdir):
+        os.makedirs(out_dir + "/" + s_sample_id)
+    for s_fa_fn in s_fa_fns:
+        cmd = "ln -s " + s_fa_fn + " " + s_sample_outdir + "/" + os.path.basename(s_fa_fn)
+        os.system(cmd)
+    
+    q_sample_id = os.path.basename(q_dir)
+    q_sample_outdir = out_dir + "/" + q_sample_id
+    if not os.path.isdir(q_sample_outdir):
+        os.makedirs(out_dir + "/" + q_sample_id)
+    for q_fa_fn in q_fa_fns:
+        cmd = "ln -s " + q_fa_fn + " " + q_sample_outdir + "/" + os.path.basename(q_fa_fn)
+        os.system(cmd)
+            
+    s_fa_fns = glob.glob(s_sample_outdir + "/*" + seq_fn_ext)
+    q_fa_fns = glob.glob(q_sample_outdir + "/*" + seq_fn_ext)
+    for s_fa_fn in s_fa_fns:
+        cmd = "~/tools/blast/bin/makeblastdb -dbtype nucl -in " + s_fa_fn
+        os.system(cmd)
+        
+    for q_fa_fn in q_fa_fns:
+        cmd = "~/tools/blast/bin/makeblastdb -dbtype nucl -in " + q_fa_fn
+        os.system(cmd)
+         
+    for s_fa_fn in s_fa_fns:
+        s_id = os.path.basename(s_fa_fn).replace(seq_fn_ext, "")
+        for q_fa_fn in q_fa_fns:
+            q_id = os.path.basename(q_fa_fn).replace(seq_fn_ext, "")
+            out_fn = q_id + "+" + s_id + ".bla"
+            mg_pipeline.blastn(q_fa_fn, s_fa_fn, outdir=out_dir, outfn=out_fn, num_threads=16, perc_identity=90, max_target_seqs=1, evalue=1e-60)
+            
+
 
 """
 
@@ -261,7 +332,7 @@ def map_raw_with_taxon(raw_fn, q_scaffold2tax_fn, s_scaffold2tax_fn, out_fn=None
 import calculate_mtx
 import os
 
-sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2"]
+sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
 
 weighted_score_mtx = [[0 for x in range(len(sample_ids))] for x in range(len(sample_ids))] 
 #fn_suffix = ".bla.b1000.0p80.0.bla"
