@@ -57,7 +57,7 @@ def export_perc(out_fn="all_perc.stat"):
     import map_read_to_reference
 
     all_perc = map_read_to_reference.process_all_dirs(".", 150)
-    sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ-Seed_Y0", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+    sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     
     with open(out_fn, "w") as OUT:
         OUT.write("Species\t" + "\t".join(sample_ids) + "\n")
@@ -69,7 +69,7 @@ def export_perc(out_fn="all_perc.stat"):
                     line.append(str(perc[sample_id]))
                 else:
                     line.append("0.0")
-            OUT.write("\t".join(line))
+            OUT.write("\t".join(line) + "\n")
 
 
 """

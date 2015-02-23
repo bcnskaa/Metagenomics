@@ -165,9 +165,117 @@ def map_emirge_to_bins(bins_dir, emirge_fa_fn):
         cmd = "python /home/siukinng/tools/scripts/filter_blast_res.py -q -i " + bla_fn
         os.system(cmd)
         
+
+
+"""
+import process_EMIRGE
+
+process_EMIRGE.rename_16S()
+
+sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+
+
+
+"""
+def rename_16S():
+    import os
+    
+    out_dir = "."
+    sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+    for sample_id in sample_ids:
+        print("Processing " + sample_id)
+        fa_fn = out_dir + "/" + sample_id + "/" + sample_id + ".16S.fasta"
+        fa_outfn = out_dir + "/" + sample_id + "/" + sample_id + ".16S.renamed.fasta"
+        
+        # cat SWH-Seed_Y0.16S.fasta | sed "s/>/>SWH-Seed_Y0|/" > SWH-Seed_Y0.16S.renamed.fasta
+        cmd = "cat " + fa_fn + " | sed 's/>/>" + sample_id + "|/' > " + fa_outfn
+        os.system(cmd)
         
         
+
+
+"""
+import re
+from Bio import SeqIO
+in_fn = "all_samples.16S.fasta"
+out_fn = in_fn.replace(".fasta",".renamed.cell.fasta")
+
+seqs = SeqIO.index("all_samples.16S.fasta", "fasta")
+sample_ids_abbrev = {"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}
+#selected_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "SWH-Xyl_Y2", "SWH-Xyl_Y1"]
+selected_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell_Y1", "SWH-Cell55_Y2"]
+
+with open(out_fn, "w") as OUT:
+    for seq_id in seqs.keys():
+        if seq_id.split("|")[0] not in selected_ids:
+            continue
+        id = sample_ids_abbrev[seq_id.split("|")[0]] + "." + seq_id.split("|")[1]
+        print("exporting " + id)
+        #seqs[seq_id].desc = id
+        #seqs[seq_id].id = id
+        OUT.write(">"+id +"\n" + str(seqs[seq_id].seq) + "\n")
+        #SeqIO.write(seqs[seq_id], OUT, "fasta")
+
+
+"""       
+
+def rename_plotfile_name_to_greengene(bla_infn, infn="plotfile", gg_tax_fn="/home/siukinng/db/Markers/GreenGene/gg_13_5_taxonomy.txt"):
+    import re
+    with open(infn) as IN:
+        intree = IN.read().splitlines()
         
+    print("Reading from " + gg_tax_fn)
+    with open(gg_tax_fn) as IN:
+        gg = IN.read().splitlines()
+    gg = {g.split("\t")[0]:g.split("\t")[1].replace(" ", "") for g in gg}
+    
+    with open(bla_infn) as IN:
+        gg2 = IN.read().splitlines()
+    gg2 = {g.split("\t")[0]:g.split("\t")[0]+" ("+g.split("\t")[1]+")" for g in gg2}
+    
+    gg.update(gg2)
+    
+    with open(infn + ".renamed", "w") as OUT:
+        for l in intree:
+            m = re.findall("\((.+?)\) show", l)
+            if len(m) > 0:
+                m = m[0]
+                if m in gg.keys():
+                    OUT.write("(" + gg[m] + ") show\n")
+                else:
+                    OUT.write(l + "\n")
+            else:
+                OUT.write(l + "\n")
+
+        
+
+def rename_intree_name_to_greengene(infn="intree", gg_tax_fn="/home/siukinng/db/Markers/GreenGene/gg_13_5_taxonomy.txt"):
+    import re
+    with open(infn) as IN:
+        intree = IN.read()
+        
+    print("Reading from " + gg_tax_fn)
+    with open(gg_tax_fn) as IN:
+        gg = IN.read().splitlines()
+    gg = {g.split("\t")[0]:g.split("\t")[1].replace(" ", "") for g in gg}
+    
+    matches = re.findall("\(+(.+?)\:", intree)
+    if matches is not None:
+        for m in matches:
+            if m in gg.keys():
+                print("Replacing " + m + " to " + gg[m])
+                intree = intree.replace("("+m+":", "("+gg[m]+":")
+    
+    with open(infn + ".renamed", "w") as OUT:
+        OUT.write(intree)
+     
+       
+        
+def extract_16S_from_greengene():
+    sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+    
+    
+    cmd = "cat GZ-Cell_Y1.16S-gg_13_5.bla  | sed 's/\t/ /g' | cut -d' ' -f2 > "     
 
        
     
