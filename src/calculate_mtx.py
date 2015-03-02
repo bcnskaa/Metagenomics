@@ -248,7 +248,7 @@ def process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng/db/Bacter
             bin_id = (os.path.basename(fa_fn)).replace(fa_fn_ext, "")
             #out_fn = bin_id + "+all_fna.bla"
             out_fn = bin_id + "+" + os.path.basename(db_fn) + ".bla"
-            mg_pipeline.blastn(fa_fn, db_fn, outdir=map_to_ref_dir, outfn=out_fn, num_threads=16, perc_identity=89, max_target_seqs=1, evalue=1e-60)
+            mg_pipeline.blastn(fa_fn, db_fn, outdir=map_to_ref_dir, outfn=out_fn, num_threads=16, perc_identity=75, max_target_seqs=1, evalue=1e-50)
 
 
 
@@ -298,7 +298,7 @@ def blast_bins(q_dir, s_dir, out_dir=".", seq_fn_ext=".fasta"):
         for q_fa_fn in q_fa_fns:
             q_id = os.path.basename(q_fa_fn).replace(seq_fn_ext, "")
             out_fn = q_id + "+" + s_id + ".bla"
-            mg_pipeline.blastn(q_fa_fn, s_fa_fn, outdir=out_dir, outfn=out_fn, num_threads=16, perc_identity=90, max_target_seqs=1, evalue=1e-60)
+            mg_pipeline.blastn(q_fa_fn, s_fa_fn, outdir=out_dir, outfn=out_fn, num_threads=16, perc_identity=75, max_target_seqs=1, evalue=1e-50)
             
 
 

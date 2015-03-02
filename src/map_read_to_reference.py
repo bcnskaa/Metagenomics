@@ -52,7 +52,12 @@ def process_all_dirs(dir, cutoff_len):
     return fq_perc
 
 
+"""
+import map_read_to_reference
+map_read_to_reference.export_perc()
 
+
+"""
 def export_perc(out_fn="all_perc.stat"):
     import map_read_to_reference
 
@@ -70,6 +75,10 @@ def export_perc(out_fn="all_perc.stat"):
                 else:
                     line.append("0.0")
             OUT.write("\t".join(line) + "\n")
+
+
+
+
 
 
 """
@@ -134,7 +143,7 @@ def estimate_fq_coverage(fq_fn, mask_lower_case=False):
             lens = re.split("[a-z]+", seq)
         else:
             lens = re.split("n+", seq)
-            
+            re
         for l in lens:
             l = len(l)
             if l == 0:
@@ -146,3 +155,71 @@ def estimate_fq_coverage(fq_fn, mask_lower_case=False):
     return lens_count
 
 
+"""
+import map_read_to_reference
+
+bla_fn = "GZ-Cell_Y2+all_prokaryotes+BacterialDB.fasta.bla"
+selected_sid_tbl = map_read_to_reference.extract_sid_tax(bla_fn)
+
+
+
+
+lens = map_read_to_reference.compute_sid_match_len(bla_fn)
+sorted_sids = sorted(lens.items(), key=lambda x:x[1], reverse=True)
+
+
+lens[sorted_sids[0]]
+tax_fn = "/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.txt"
+with open(tax_fn) as IN:
+    tax = IN.read().splitlines()
+tax1 = {t.split("\t")[12]:[t.split("\t")[4], t.split("\t")[5], t.split("\t")[0]] for t in tax}
+tax2 = {t.split("\t")[8]:[t.split("\t")[4], t.split("\t")[5], t.split("\t")[0]] for t in tax}
+tax1.update(tax2)
+
+sid_tbl = {}
+for sid in sorted_sids:
+    sid = sid[0]
+    if sid in tax1.keys():
+        sid_tbl[sid] = tax1[sid]
+
+selected_sid_tbl = {ss[0]:sid_tbl[ss[0]] for ss in sorted_sids if ss[1] > 40000 and ss[0] in sid_tbl.keys()}    
+
+"""
+def extract_sid_tax(bla_fn, cutoff=40000, tax_fn="/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.txt"):
+    lens = compute_sid_match_len(bla_fn)
+    sorted_sids = sorted(lens.items(), key=lambda x:x[1], reverse=True)
+
+    with open(tax_fn) as IN:
+        tax = IN.read().splitlines()
+    tax1 = {t.split("\t")[12]:[t.split("\t")[4], t.split("\t")[5], t.split("\t")[0]] for t in tax}
+    tax2 = {t.split("\t")[8]:[t.split("\t")[4], t.split("\t")[5], t.split("\t")[0]] for t in tax}
+    tax1.update(tax2)
+    
+    sid_tbl = {}
+    for sid in sorted_sids:
+        sid = sid[0]
+        if sid in tax1.keys():
+            sid_tbl[sid] = tax1[sid]
+    selected_sid_tbl = {ss[0]:sid_tbl[ss[0]] for ss in sorted_sids if ss[1] > cutoff and ss[0] in sid_tbl.keys()}
+    
+    for sid in selected_sid_tbl.keys():
+        selected_sid_tbl[sid].append(lens[sid])
+    
+    return selected_sid_tbl
+   
+
+def compute_sid_match_len(bla_fn):
+    with open(bla_fn) as IN:
+        bla = IN.read().splitlines()
+    bla = [b.split("\t") for b in bla]
+    
+    sid_match_lens = {}
+    for b in bla:
+        sid = b[1]
+        len = int(b[3])
+        if sid not in sid_match_lens.keys():
+            sid_match_lens[sid] = 0
+        sid_match_lens[sid] = sid_match_lens[sid] + len
+        
+    return sid_match_lens
+        
