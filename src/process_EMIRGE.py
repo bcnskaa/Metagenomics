@@ -1,3 +1,14 @@
+def run():
+    dir="lab"
+    insert_size=500
+    insert_size_sd=50
+    read_len=90  
+
+    working_dir = "/home/siukinng/MG/EMIRGE"
+    
+    
+    
+    
 
 """
 
@@ -22,15 +33,21 @@ done
 # Post-process EMIRGE results
 for d in *;do ~/tools/EMIRGE/bin/emirge_rename_fasta.py $d/iter.40 > $d/$d.16S.fasta;done
 
-
+# Merge all 16S sequences
+cmd = 'echo -n "" > all_samples.16S.renamed.fasta'
+os.system(cmd)
+cmd= "for f in */*.16S.renamed.fasta;do cat $f >> all_samples.16S.renamed.fasta;done"
+os.system(cmd)
 
 # Generate a summary of EMIRGE results
-for f in *;do id=${f};count=$(cat $f/$f.16S.fasta | grep -c ">");echo -e "$f\t$count";done
+cmd='for f in *;do id=${f};if [ -d $f ];then count=$(cat $f/$f.16S.fasta | grep -c ">");echo -e "$f\t$count";fi; done'
+os.system(cmd)
 
 
 
 # Blast the EMIRGE results
-for d in *;do ~/tools/blast/bin/blastn -query $d/$d.16S.fasta -db ~/db/Markers/GreenGene/gg_13_5.fasta -outfmt 6 -out $d/$d.16S-gg_13_5.bla -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 90 -max_target_seqs 2 -num_threads 14;done
+cmd='for d in *;do if [ -d $d ];then ~/tools/blast/bin/blastn -query $d/$d.16S.renamed.fasta -db ~/db/Markers/GreenGene/gg_13_5.fasta -outfmt 6 -out $d/$d.16S.renamed+gg_13_5.bla -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 89 -max_target_seqs 1 -num_threads 16;fi;done'
+os.system(cmd)
 
 
 # Link the fasta sequences
@@ -134,21 +151,24 @@ def get_tax_from_greengene(bla2taxids, greengene_tax_fn="/home/siukinng/db/Marke
 
 
 """
-import test
+import process_EMIRGE
 import glob
+import os
 
+#sample_ids = glob.glob("*")
 
-sample_ids = glob.glob(".")
-
-sample_ids = [f for f in sample_ids if os.path.isdir(f)]
+#sample_ids = [f for f in sample_ids if os.path.isdir(f)]
+sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
 for sample_id in sample_ids:
-    emirge_fa_fn = sample_id + "/" + sample_id + ".16S.fasta"
+    emirge_fa_fn = sample_id + "/" + sample_id + ".16S.renamed.fasta"
     if os.path.isfile(emirge_fa_fn):
         bins_dir = "/home/siukinng/MG/scaffolds_2000/" + sample_id + "_2000"
-        test.map_emirge_to_bins(bins_dir, emirge_fa_fn)
+        process_EMIRGE.map_emirge_to_bins(bins_dir, emirge_fa_fn)
+
+
 
 """
-def map_emirge_to_bins(bins_dir, emirge_fa_fn):
+def map_emirge_to_bins(bins_dir, emirge_fa_fn, separator="+"):
     import glob
     import os 
 
@@ -159,8 +179,8 @@ def map_emirge_to_bins(bins_dir, emirge_fa_fn):
     
     bins_fns = glob.glob(bins_dir + "/*.fasta")
     for bins_fn in bins_fns:
-        bla_fn = outdir + (os.path.basename(bins_fn)).replace(".fasta", "") + "-"+ (os.path.basename(emirge_fa_fn)).replace(".fasta", "") + ".bla"
-        cmd = "/home/siukinng/tools/blast/bin/blastn -query " + bins_fn + " -db " + emirge_fa_fn + " -out " + bla_fn + " -outfmt 6 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 90 -max_target_seqs 2 -num_threads 14"
+        bla_fn = outdir + (os.path.basename(bins_fn)).replace(".fasta", "") + separator + (os.path.basename(emirge_fa_fn)).replace(".fasta", "") + ".bla"
+        cmd = "/home/siukinng/tools/blast/bin/blastn -query " + bins_fn + " -db " + emirge_fa_fn + " -out " + bla_fn + " -outfmt 6 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 89 -max_target_seqs 1 -num_threads 14"
         os.system(cmd)
         cmd = "python /home/siukinng/tools/scripts/filter_blast_res.py -q -i " + bla_fn
         os.system(cmd)
@@ -193,31 +213,43 @@ def rename_16S():
         
         
 
-
 """
-import re
-from Bio import SeqIO
-in_fn = "all_samples.16S.fasta"
-out_fn = in_fn.replace(".fasta",".renamed.cell.fasta")
+import process_EMIRGE
+sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+sample_ids_abbrev = {"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}    
+for sample_id in sample_ids:
+    print("Processing " + sample_id)
+    fa_fn = sample_id + "/" + sample_id +".16S.fasta"
+    process_EMIRGE.rename_16S_2(sample_ids_abbrev[sample_id], in_fn = fa_fn)
+    
+"""
+def rename_16S_2(id_prefix, in_fn = "all_samples.16S.fasta", out_fn = None):
+    import re
+    from Bio import SeqIO
+    sample_ids_abbrev = {"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}
+    
+    if out_fn is None:
+        out_fn = in_fn.replace(".fasta",".renamed.fasta")
+    
+    seqs = SeqIO.index(in_fn, "fasta")
+    #selected_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "SWH-Xyl_Y2", "SWH-Xyl_Y1"]
+    #selected_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell_Y1", "SWH-Cell55_Y2"]
+    
+    with open(out_fn, "w") as OUT:
+        for seq_id in seqs.keys():
+            #if seq_id.split("|")[0] not in selected_ids:
+            #if seq_id.split("|")[0] not in sample_ids_abbrev.keys():
+            #    continue
+            #id = sample_ids_abbrev[seq_id.split("|")[0]] + "." + seq_id.split("|")[1]
+            id = id_prefix + "." + seq_id.split("|")[0]
+            print("exporting " + id)
+            #seqs[seq_id].desc = id
+            #seqs[seq_id].id = id
+            OUT.write(">"+id +"\n" + str(seqs[seq_id].seq) + "\n")
+            #SeqIO.write(seqs[seq_id], OUT, "fasta")
 
-seqs = SeqIO.index("all_samples.16S.fasta", "fasta")
-sample_ids_abbrev = {"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}
-#selected_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "SWH-Xyl_Y2", "SWH-Xyl_Y1"]
-selected_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell_Y1", "SWH-Cell55_Y2"]
 
-with open(out_fn, "w") as OUT:
-    for seq_id in seqs.keys():
-        if seq_id.split("|")[0] not in selected_ids:
-            continue
-        id = sample_ids_abbrev[seq_id.split("|")[0]] + "." + seq_id.split("|")[1]
-        print("exporting " + id)
-        #seqs[seq_id].desc = id
-        #seqs[seq_id].id = id
-        OUT.write(">"+id +"\n" + str(seqs[seq_id].seq) + "\n")
-        #SeqIO.write(seqs[seq_id], OUT, "fasta")
-
-
-"""       
+      
 
 def rename_plotfile_name_to_greengene(bla_infn, infn="plotfile", gg_tax_fn="/home/siukinng/db/Markers/GreenGene/gg_13_5_taxonomy.txt"):
     import re
@@ -241,7 +273,7 @@ def rename_plotfile_name_to_greengene(bla_infn, infn="plotfile", gg_tax_fn="/hom
             if len(m) > 0:
                 m = m[0]
                 if m in gg.keys():
-                    OUT.write("(" + gg[m] + ") show\n")
+                    OUT.write("(" + m + "=" + gg[m] + ") show\n")
                 else:
                     OUT.write(l + "\n")
             else:
@@ -270,12 +302,31 @@ def rename_intree_name_to_greengene(infn="intree", gg_tax_fn="/home/siukinng/db/
         OUT.write(intree)
      
        
-        
-def extract_16S_from_greengene():
+"""
+
+"""    
+def extract_16S_from_greengene(gg_seq_fn="/home/siukinng/db/Markers/GreenGene/gg_13_5.fasta"):
+    from Bio import SeqIO
+    
     sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     
-    
-    cmd = "cat GZ-Cell_Y1.16S-gg_13_5.bla  | sed 's/\t/ /g' | cut -d' ' -f2 > "     
+    for sample_id in sample_ids:
+        print("Processing " + sample_id)
+        bla_fn = sample_id + "/" + sample_id + ".16S.renamed+gg_13_5.bla"
+        with open(bla_fn) as IN:
+            bla = IN.read().splitlines()
+        sids = [b.split("\t")[1] for b in bla]
+        seqs = SeqIO.index(gg_seq_fn, "fasta")
+        out_fn = bla_fn + ".sid.fasta"
+        with open(out_fn, "w") as OUT:
+            for sid in sids:
+                if sid in seqs.keys():
+                    seq = str(seqs[sid].seq)
+                    OUT.write(">" + sid + "\n" + seq + "\n")
 
+    
+    #cmd = "cat GZ-Cell_Y1.16S.renamed+gg_13_5.bla  | sed 's/\t/ /g' | cut -d' ' -f2 > GZ-Cell_Y1.16S.renamed+gg_13_5.bla.sid"     
+    
+    
        
     

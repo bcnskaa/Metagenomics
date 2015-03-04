@@ -53,6 +53,7 @@ bla_fn = "SWH-Seed_Y0.GZ-Seed_Y0.bla.b1000.0p80.0.bla"
 """
 from Bio import SeqIO
 
+cache = {}
 def calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fa", subject_metagenome_fa_fn=None, query_metagenome_fa_fn=None, subject_metagenome_abund_fn=None, query_metagenome_abund_fn=None, raw_ofn=None, relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000/CrossValidation/db/combined", abund_dir_suffix="_5000", id_separator='.'):
     import os
     
@@ -62,6 +63,9 @@ def calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fa", subject_meta
     subject_metagenome_name = id.split(id_separator)[1]
     #query_metagenome_name = bla_fn.split(id_separator)[0]
     #subject_metagenome_name = bla_fn.split(id_separator)[1]
+    
+#    if query_metagenome_name not in cache.keys():
+        
     
     if query_metagenome_abund_fn is None:
         query_metagenome_abund_fn = path_to_abund_dir + "/" + query_metagenome_name + abund_dir_suffix + "/" + query_metagenome_name + ".abund"
@@ -179,6 +183,132 @@ def calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fa", subject_meta
     #mtx[id] = sum([int(b.split("\t")[3]) - (int(b.split("\t")[5]) + int(b.split("\t")[4])) for b in bla_res]) / ((bin_lens[qid] + bin_lens[sid]) / 2)
             
     return score
+# def calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fa", subject_metagenome_fa_fn=None, query_metagenome_fa_fn=None, subject_metagenome_abund_fn=None, query_metagenome_abund_fn=None, raw_ofn=None, relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000/CrossValidation/db/combined", abund_dir_suffix="_5000", id_separator='.'):
+#     import os
+#     
+#     id = (os.path.basename(bla_fn)[::-1].split(".",1)[1])[::-1]
+#     
+#     query_metagenome_name = id.split(id_separator)[0]
+#     subject_metagenome_name = id.split(id_separator)[1]
+#     #query_metagenome_name = bla_fn.split(id_separator)[0]
+#     #subject_metagenome_name = bla_fn.split(id_separator)[1]
+#     
+#     if query_metagenome_abund_fn is None:
+#         query_metagenome_abund_fn = path_to_abund_dir + "/" + query_metagenome_name + abund_dir_suffix + "/" + query_metagenome_name + ".abund"
+#     if subject_metagenome_abund_fn is None:
+#         subject_metagenome_abund_fn = path_to_abund_dir + "/" + subject_metagenome_name + abund_dir_suffix + "/" + subject_metagenome_name + ".abund"
+#  
+#  
+#     score = {query_metagenome_name:0.0, subject_metagenome_name:0.0}
+# 
+#     with open(bla_fn) as IN:
+#         bla = IN.read().splitlines()
+#     bla = [b.split("\t") for b in bla]
+#     
+#     if len(bla) == 0:
+#         return score
+#     
+#     
+#     with open(query_metagenome_abund_fn) as IN:
+#         query_metagenome_abund = IN.read().splitlines()
+#     if len(query_metagenome_abund) > 0:
+#         query_metagenome_abund = {a.split("\t")[0]:float(a.split("\t")[1]) for a in query_metagenome_abund}
+#     else:
+#         print("query metagenome " + query_metagenome_name + " does not have abundance information.")
+#         return score
+#     
+#     
+#     with open(subject_metagenome_abund_fn) as IN:
+#         subject_metagenome_abund = IN.read().splitlines()
+#     if len(subject_metagenome_abund) > 0:
+#         subject_metagenome_abund = {a.split("\t")[0]:float(a.split("\t")[1]) for a in subject_metagenome_abund}
+#     else:
+#         print("subject metagenome " + subject_metagenome_name + " does not have abundance information.")
+#         return score
+# 
+# 
+#     if relative_abund:
+#         query_metagenome_abund_total = sum([float(query_metagenome_abund[q]) for q in query_metagenome_abund.keys()])
+#         query_metagenome_abund = {q : float(query_metagenome_abund[q]) / query_metagenome_abund_total for q in query_metagenome_abund.keys()}
+#         subject_metagenome_abund_total = sum([float(subject_metagenome_abund[q]) for q in subject_metagenome_abund.keys()])
+#         subject_metagenome_abund = {q : float(subject_metagenome_abund[q]) / subject_metagenome_abund_total for q in subject_metagenome_abund.keys()}
+# 
+# 
+#     bin_lens = {}
+#     if query_metagenome_fa_fn is None:
+#         fa_fn = path_to_seq_dir + "/" + query_metagenome_name + metagenome_fa_fn_ext
+#     else:
+#         fa_fn = query_metagenome_fa_fn
+#         
+#     print("Getting length from " + fa_fn + " for " + query_metagenome_name)
+#     seqs = SeqIO.index(fa_fn, "fasta")
+#     #bin_lens[query_metagenome_name] = sum([len(str(seqs[sid].seq)) * query_metagenome_abund[sid] for sid in seqs if sid in query_metagenome_abund.keys()]) 
+#     
+#     q_discard_n = sum([1 for sid in seqs if sid not in query_metagenome_abund.keys()])
+#     print("q_discard_n=" + str(q_discard_n))
+#     if relative_abund:
+#         bin_lens[query_metagenome_name] = sum([len(str(seqs[sid].seq)) * query_metagenome_abund[sid] for sid in seqs if sid in query_metagenome_abund.keys()]) 
+#     else:
+#         bin_lens[query_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if sid in query_metagenome_abund.keys()]) 
+#         #bin_lens[query_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if len(str(seqs[sid].seq)) > 3000])       
+# 
+#     if subject_metagenome_fa_fn is None:
+#         fa_fn = path_to_seq_dir + "/" + subject_metagenome_name + metagenome_fa_fn_ext
+#     else:
+#         fa_fn = subject_metagenome_fa_fn
+#         
+#     print("Getting length from " + fa_fn + " for " + subject_metagenome_name)
+#     seqs = SeqIO.index(fa_fn, "fasta")
+#     #bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) * subject_metagenome_abund[sid] for sid in seqs if sid in subject_metagenome_abund.keys()])    
+#     s_discard_n = sum([1 for sid in seqs if sid not in subject_metagenome_abund.keys()])
+#     print("s_discard_n=" + str(s_discard_n))
+#     if relative_abund:
+#         bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) * subject_metagenome_abund[sid] for sid in seqs if sid in subject_metagenome_abund.keys()])    
+#     else:
+#         bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if sid in subject_metagenome_abund.keys()])    
+#         #bin_lens[subject_metagenome_name] = sum([len(str(seqs[sid].seq)) for sid in seqs if len(str(seqs[sid].seq)) > 3000])  
+#    
+#     discard_bla_n = 0
+#     raw_data = []
+#     s_bla_sum = 0.0
+#     q_bla_sum = 0.0
+#     for b in bla:
+#         q_id = b[0]
+#         s_id = b[1]
+#         if s_id in subject_metagenome_abund.keys() and q_id in query_metagenome_abund.keys():
+#             s = (int(b[3]) - ( int(b[5]) + int(b[4]) ))
+#             raw = [q_id, s_id]
+#             if relative_abund:
+#                 s_weight = subject_metagenome_abund[s_id]
+#                 q_weight = query_metagenome_abund[q_id]
+#                 s_bla_sum = s_bla_sum + (s_weight * s)
+#                 q_bla_sum = q_bla_sum + (q_weight * s)
+#                 raw.append(str((q_weight * s))) 
+#                 raw.append(str((s_weight * s)))
+#             else:
+#                 s_bla_sum = s_bla_sum + s
+#                 q_bla_sum = q_bla_sum + s
+#                 raw.append(str(s))
+#                 raw.append(str(s))
+#             raw_data.append(raw)
+#         else:
+#             discard_bla_n = discard_bla_n + 1 
+#             
+#         #s_bla_sum = s_bla_sum + int(b.split("\t")[3]) - ( int(b.split("\t")[5]) + int(b.split("\t")[4]) )
+#         #q_bla_sum = q_bla_sum + int(b.split("\t")[3]) - ( int(b.split("\t")[5]) + int(b.split("\t")[4]) )   
+#     print("Dicard_bla_n=" + str(discard_bla_n))
+#     
+#     if raw_ofn is not None:
+#         with open(raw_ofn, "w") as OUT:
+#             for raw in raw_data:
+#                 OUT.write("\t".join(raw) + "\n")
+# 
+#     score[subject_metagenome_name] = s_bla_sum / bin_lens[subject_metagenome_name]
+#     score[query_metagenome_name] = q_bla_sum / bin_lens[query_metagenome_name]
+#         
+#     #mtx[id] = sum([int(b.split("\t")[3]) - (int(b.split("\t")[5]) + int(b.split("\t")[4])) for b in bla_res]) / ((bin_lens[qid] + bin_lens[sid]) / 2)
+#             
+#     return score
 
 
 """
