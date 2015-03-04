@@ -54,6 +54,7 @@ from datetime import datetime
 import math
 import numpy
 import xlsxwriter
+import stat
 
 
 # To run this script, path to biopython libraries has to be included in PYTHONPATH
@@ -2141,6 +2142,7 @@ def create_link():
 
 # Assert 
 def assert_proc(fn_to_be_asserted):
+    #return os.path.isfile(fn_to_be_asserted) and os.stat(fn_to_be_asserted)[stat.ST_SIZE] != 0
     return os.path.isfile(fn_to_be_asserted) and os.stat(fn_to_be_asserted)[stat.ST_SIZE] != 0
         
         

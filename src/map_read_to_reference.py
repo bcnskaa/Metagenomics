@@ -79,6 +79,35 @@ def export_perc(out_fn="all_perc.stat"):
 
 
 
+"""
+# Blast all bin fasta to reference genomes
+len="2000"
+
+echo "" > batch_cmd
+sample_ids=( SWH-Cell_Y1 SWH-Cell_Y2 GZ-Cell_Y1 GZ-Cell_Y2 SWH-Xyl_Y2 SWH-Xyl_Y1 GZ-Xyl_Y2 GZ-Xyl_Y1 GZ-Seed_Y0 SWH-Seed_Y0 SWH-Cell55_Y2 )
+for f in ~/MG/scaffolds_5000/mapping_to_references/*/*.fasta;do
+        id=${f##*/}
+        id=${id/.fasta/}
+        if [ -d "./$id" ];then
+                echo $id
+                mkdir $id
+                db_fn="./$id/$id.fasta"
+                ln -s $f $db_fn
+                ~/tools/blast/bin/makeblastdb -in $db_fn -dbtype nucl
+                for sample_id in ${sample_ids[*]};do
+                        sample_dir="/home/siukinng/MG/scaffolds_$len/"$sample_id"_"$len
+                        for bin_fn in $sample_dir/*.fasta;do
+                                bin_id=${bin_fn##*/}
+                                bin_id=${bin_id/.fasta/}
+                                cmd="~/tools/blast/bin/blastn -query $bin_fn -db $db_fn -outfmt 6 -perc_identity 89 -max_target_seqs 1 -evalue 1e-50 -out ./$id/$bin_id-$id.bla -num_threads 16"
+                                echo $cmd >> batch_cmd
+                        done
+                done
+        fi
+done
+"""
+
+
 
 
 """
@@ -158,7 +187,7 @@ def estimate_fq_coverage(fq_fn, mask_lower_case=False):
 """
 import map_read_to_reference
 
-bla_fn = "GZ-Cell_Y2+all_prokaryotes+BacterialDB.fasta.bla"
+bla_fn = "blast_to_ref/" + "GZ-Cell_Y2.001+all_prokaryotes+BacterialDB.fasta.bla"
 selected_sid_tbl = map_read_to_reference.extract_sid_tax(bla_fn)
 
 

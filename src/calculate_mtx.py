@@ -228,12 +228,12 @@ calculate_mtx.process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng
 
 import calculate_mtx
 sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
-calculate_mtx.process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng/db/BioProject_Prokaryotes/all_prokaryotes+BacterialDB.fasta", fa_fn_ext=".fa")
+calculate_mtx.process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng/db/BioProject_Prokaryotes/all_prokaryotes+BacterialDB.fasta", fa_fn_ext=".fasta")
 
 
 
 """
-def process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng/db/BacteriaDB/all_fna.fna", fa_fn_ext=".fasta"):
+def process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng/db/BacteriaDB/all_fna.fna", binning_len=5000, fa_fn_ext=".fasta"):
     import glob 
     #sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     map_to_ref_dir = "./blast_to_ref"
@@ -241,7 +241,7 @@ def process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng/db/Bacter
         os.makedirs(map_to_ref_dir)
     
     for sample_id in sample_ids:
-        fa_fns = glob.glob("/home/siukinng/MG/scaffolds_5000/"+sample_id+"_5000/*"+fa_fn_ext)
+        fa_fns = glob.glob("/home/siukinng/MG/scaffolds_" + str(binning_len) + "/"+sample_id+"_" + str(binning_len) + "/*"+fa_fn_ext)
         print("Number of fasta files to be processed for " + sample_id + ": " + str(len(fa_fns)))
         for fa_fn in fa_fns:
             print("Processing " + fa_fn)
@@ -251,7 +251,9 @@ def process_all_samples_to_reference(sample_ids, db_fn="/home/siukinng/db/Bacter
             mg_pipeline.blastn(fa_fn, db_fn, outdir=map_to_ref_dir, outfn=out_fn, num_threads=16, perc_identity=75, max_target_seqs=1, evalue=1e-50)
 
 
-
+"""
+# Bin to bin
+"""
 def process_all_samples():
     sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     for s_sample_id in sample_ids:
@@ -503,13 +505,24 @@ def calculate_score_mtx(score_mtx_fn="score_mtx", fn_suffix = ".bla.b1000.0.bla"
             OUT.write(sample_id + "\t" + "\t".join([str(s) for s in score_mtx[i]]) + "\n")  
     
     
+"""
+import os 
+cmd = "ln -s ~/tools/scripts/calculate_mtx.py"
+os.system(cmd)
+cmd = "ln -s ~/tools/scripts/mg_pipeline.py"
+os.system(cmd)
 
-def calculate_score_mtx_for_all_bins(score_mtx_fn="score_mtx_bins", weighted_score_mtx_fn="weighted_score_mtx_bins", bla_dir=".", fn_suffix=".bla", id_separator="+"):
+import calculate_mtx
+
+calculate_mtx.calculate_score_mtx_for_all_bins(bla_dir="bins", binning_size="2000")
+
+"""
+def calculate_score_mtx_for_all_bins(binning_size="5000", score_mtx_fn="score_mtx_bins", weighted_score_mtx_fn="weighted_score_mtx_bins", bla_dir=".", fn_suffix=".bla", id_separator="+"):
     import calculate_mtx
     import os
     import glob
     
-    path_to_abund_dir="/home/siukinng/MG/scaffolds_5000"
+    path_to_abund_dir="/home/siukinng/MG/scaffolds_" + binning_size
     sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     bin_ids = {}
     melt_bin_ids = []
@@ -519,7 +532,7 @@ def calculate_score_mtx_for_all_bins(score_mtx_fn="score_mtx_bins", weighted_sco
     
     # estimate the number of bin groups for each sample
     for bla_fn in bla_fns:
-        bin_id = (os.path.basename(bla_fn)).split("+")[0]
+        bin_id = (os.path.basename(bla_fn)).split(id_separator)[0]
         sample_id = bin_id.split(".")[0]
         bin_id2_sample_id[bin_id] = sample_id
         if sample_id not in bin_ids.keys():
@@ -544,26 +557,24 @@ def calculate_score_mtx_for_all_bins(score_mtx_fn="score_mtx_bins", weighted_sco
     weighted_score_mtx = [[0.0 for x in range(len(melt_bin_ids))] for x in range(len(melt_bin_ids))] 
     for i, s_bin_id in enumerate(melt_bin_ids):
         for j, q_bin_id in enumerate(melt_bin_ids):
-            bla_fn = q_bin_id + id_separator + s_bin_id + ".bla"
+            bla_fn = bla_dir + "/" + q_bin_id + id_separator + s_bin_id + ".bla"
             if os.path.isfile(bla_fn): 
-#                scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fasta", subject_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_5000/" + s_bin_id+".fasta", query_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_5000/" + q_bin_id+".fasta", subject_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_5000/" + bin_id2_sample_id[s_bin_id]+".abund", query_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_5000/" + bin_id2_sample_id[q_bin_id]+".abund", relative_abund=False, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000", abund_dir_suffix="_5000", id_separator=id_separator);
-#                score_mtx[i][j] = scores[s_bin_id]
-#                score_mtx[j][i] = scores[q_bin_id]
+                scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fasta", subject_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_" + binning_size + "/" + s_bin_id+".fasta", query_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_" + binning_size + "/" + q_bin_id+".fasta", subject_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_"+binning_size+"/" + bin_id2_sample_id[s_bin_id]+".abund", query_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_"+binning_size+"/" + bin_id2_sample_id[q_bin_id]+".abund", relative_abund=False, path_to_abund_dir="/home/siukinng/MG/scaffolds_"+binning_size, path_to_seq_dir="/home/siukinng/MG/scaffolds_"+binning_size, abund_dir_suffix="_"+binning_size, id_separator=id_separator);
+                score_mtx[i][j] = scores[s_bin_id]
+                score_mtx[j][i] = scores[q_bin_id]
                  
-                weighted_scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fasta", subject_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_5000/" + s_bin_id+".fasta", query_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_5000/" + q_bin_id+".fasta", subject_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_5000/" + bin_id2_sample_id[s_bin_id]+".abund", query_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_5000/" + bin_id2_sample_id[q_bin_id]+".abund", relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000", abund_dir_suffix="_5000", id_separator=id_separator);
+                weighted_scores = calculate_mtx.calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fasta", subject_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_" + binning_size +"/" + s_bin_id+".fasta", query_metagenome_fa_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_" + binning_size +"/" + q_bin_id+".fasta", subject_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[s_bin_id] + "_"+binning_size+"/" + bin_id2_sample_id[s_bin_id]+".abund", query_metagenome_abund_fn=path_to_abund_dir+"/"+bin_id2_sample_id[q_bin_id] + "_"+binning_size+"/" + bin_id2_sample_id[q_bin_id]+".abund", relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_"+binning_size, path_to_seq_dir="/home/siukinng/MG/scaffolds_"+binning_size, abund_dir_suffix="_"+binning_size, id_separator=id_separator);
                 weighted_score_mtx[i][j] = weighted_scores[s_bin_id]
                 weighted_score_mtx[j][i] = weighted_scores[q_bin_id]                 
-                #print(s_bin_id + " vs " + q_bin_id + " = " + str(score_mtx[i][j]) + ", " + str(score_mtx[j][i]) + " weighted: " + str(weighted_score_mtx[i][j]) + ", " + str(weighted_score_mtx[j][i]))
+                print(s_bin_id + " vs " + q_bin_id + " = " + str(score_mtx[i][j]) + ", " + str(score_mtx[j][i]) + " weighted: " + str(weighted_score_mtx[i][j]) + ", " + str(weighted_score_mtx[j][i]))
                 print(s_bin_id + " vs " + q_bin_id + " weighted: " + str(weighted_score_mtx[i][j]) + ", " + str(weighted_score_mtx[j][i]))
-
-        
-#     if score_mtx_fn is None:
-#         score_mtx_fn = "score_mtx_bins"
-#         
-#     with open(score_mtx_fn, "w") as OUT:
-#         OUT.write("Label\t" + "\t".join(melt_bin_ids) + "\n")
-#         for i, bin_id in enumerate(melt_bin_ids):
-#             OUT.write(bin_id + "\t" + "\t".join([str(s) for s in score_mtx[i]]) + "\n")  
+    
+    if score_mtx_fn is None:
+         score_mtx_fn = "score_mtx_bins"
+    with open(score_mtx_fn, "w") as OUT:
+         OUT.write("Label\t" + "\t".join(melt_bin_ids) + "\n")
+         for i, bin_id in enumerate(melt_bin_ids):
+             OUT.write(bin_id + "\t" + "\t".join([str(s) for s in score_mtx[i]]) + "\n")  
      
     if weighted_score_mtx_fn is None:
         weighted_score_mtx_fn = "weighted_score_mtx_bins"
@@ -699,4 +710,16 @@ def remove_duplicate(faa_fn):
             seq_list[record.id] = str(record.seq)
     return seq_list
 
-            
+
+
+def rename_bla_fns(dir="."):
+    import glob
+    import sys
+    
+    bla_fns = glob.glob("*.bla")
+    for bla_fn in bla_fns:
+        new_bla_fn = "+".join([".".join(bla_fn.split(".")[0:2]), ".".join(bla_fn.split(".")[2:4])])
+        cmd = "mv " + bla_fn + " " + new_bla_fn +".bla"
+        os.system(cmd)
+
+        

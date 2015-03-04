@@ -7,11 +7,11 @@ import glob
 """
 
 """
-def extract_combined_hmm_seq(hmm_id="specI"):
+def extract_combined_hmm_seq(hmm_id="specI", dir_suffix="_5000"):
     faa_ext = "faa"
     #hmm_id = "specI"
 
-    dir_suffix = "_5000"    
+    #dir_suffix = "_5000"    
     sample_ids = glob.glob("*" + dir_suffix)
     sample_ids = [id.replace(dir_suffix, "") for id in sample_ids]
     group_id = "combined"
@@ -37,6 +37,8 @@ def extract_combined_hmm_seq(hmm_id="specI"):
 
 
 """
+import extract_hmm_seq
+extract_hmm_seq.extract_bin_hmm_seq(dir_suffix = "_2000")
 
 """
 def extract_bin_hmm_seq(hmm_id = "specI", dir_suffix = "_5000", hmm_score_threshold=50.0):
@@ -140,3 +142,16 @@ for f in *.phy;do echo "Processing $f";echo -e "$f\nP\nP\nY\n" > current.cmd; ~/
 """
 
 
+def split_hmm_profiles(outdir=".", hmm_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm"):
+    import re
+    
+    with open(hmm_fn) as IN:
+        hmm = IN.read().split("//\n")
+    
+    for h in hmm:
+        hmm_id = re.findall("\nACC\s+(.+?).\w+\n", h)
+        if len(hmm_id) > 0:
+            hmm_id = hmm_id[0]
+            with open(outdir + "/" + hmm_id + ".hmm", "w") as OUT:
+                OUT.write(h + "//")
+        

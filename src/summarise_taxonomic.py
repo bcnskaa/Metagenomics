@@ -7,7 +7,36 @@
      5. pick_otu:
      
      
+     binning_len = "2000"
+     hmm_profile = "specI"
+     
+     import extract_hmm_seq
+     #extract_hmm_seq.extract_bin_hmm_seq(dir_suffix = dir_suffix)
+
      import summarise_taxonomic
+     import glob
+     
+     sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ-Seed_Y0", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+     for sample_id in sample_ids:
+         working_dir = "/home/siukinng/MG/scaffolds_"+binning_len+"/"+sample_id+"_"+binning_len+"/DistMtx/bins/"
+         for bin_dir in glob.glob(working_dir + "/*"):
+             bin_id = os.path.basename(bin_dir)
+             # /home/siukinng/MG/scaffolds_2000/GZ-Cell_Y1_2000/DistMtx/bins/GZ-Cell_Y1.001/specI
+             summarise_taxonomic.run_blastx(bin_dir + "/"+hmm_profile, out_dir="blast/"+bin_id)
+  
+dirs = glob.glob(".")  
+for dir in dirs:
+    summarise_taxonomic.map_bla2specI(dir)
+for dir in dirs:
+    summarise_taxonomic.make_summary(dir)
+
+summarise_taxonomic.summarise()
+all_tax = summarise_taxonomic.pick_otu()   
+summary_ifn="all.updated.tax"
+summarise_taxonomic.apply_abundance(summary_ifn=summary_ifn, out_fn=None, normalized_abund=True, abund_dir="/disk/rdisk08/siukinng/MG/scaffolds_"+binning_len+"/", dir_suffix="_"+binning_len, bin_summary_fn_suffix=".summary")
+ 
+ 
+  
      summarise_taxonomic.map_bla2specI()
      summarise_taxonomic.make_summary()
      summarise_taxonomic.summarise()
@@ -126,6 +155,8 @@ def pick_otu(summary_ifn="all.tax", summary_ofn="all.updated.tax", gg_otu_fn="/h
     return all_tax
 
 
+
+
 """
  
 """
@@ -138,8 +169,8 @@ def run_blastx(in_dir="../../DistMtx/bins/specI", out_dir="blast", specI_dir="/h
     print("Number of fasta files to be processed=" + str(len(faa_fns)))
 
     for faa_fn in faa_fns:
-        hmm_id = (os.path.basename(faa_fn)).replace(fasta_fn_ext, "")
-        cmd = "~/tools/blast/bin/tblastn -query " + faa_fn + " -db " + specI_dir + "/" + hmm_id + ".fna -outfmt 6 -out " + out_dir + "/" + hmm_id + ".bla -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -max_target_seqs 3 -num_threads 16"
+        hmm_id = (os.path.basename(faa_fn)).replace("."+fasta_fn_ext, "")
+        cmd = "~/tools/blast/bin/tblastn -query " + faa_fn + " -db " + specI_dir + "/" + hmm_id + ".fna -outfmt 6 -out " + out_dir + "/" + hmm_id + ".bla -evalue 1e-30 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -max_target_seqs 1 -num_threads 16"
         print(cmd)
         os.system(cmd)
         
@@ -221,6 +252,7 @@ def apply_abundance(summary_ifn="all.updated.tax.finalized", out_fn=None, normal
     for abund_fn in abund_fns:
         sample_id = (os.path.basename(abund_fn)).replace(bin_summary_fn_suffix, "")
         print(sample_id)
+        print("Reading from " + abund_fn)
         with open(abund_fn) as IN:
             aa = IN.read().splitlines()
         del aa[0]
@@ -228,7 +260,7 @@ def apply_abundance(summary_ifn="all.updated.tax.finalized", out_fn=None, normal
         if normalized_abund:
             aa = {(a.split("\t")[0]).replace(".fasta",""): float(a.split("\t")[1]) for a in aa}
             total_aa = sum([aa[a] for a in aa.keys()])
-            print(list(aa.keys())[0])
+            print("Checking=" + list(aa.keys())[0])
             aa = {a:str(aa[a] / total_aa) for a in aa.keys()}
             abund.update(aa)
         else:
@@ -237,11 +269,15 @@ def apply_abundance(summary_ifn="all.updated.tax.finalized", out_fn=None, normal
     if out_fn is None:
         out_fn = summary_ifn + ".abund"
     
+    print("Generating " + out_fn)
+    
     with open(out_fn, "w") as OUT:
         for tax in all_tax:
+            print("Processing " + tax[0])
             a = abund[tax[0]]
             g = (tax[2]).split("f__")[1]
             g = g.split(";")[0]
+            print("G=" + g)
             OUT.write(tax[0] + "\t" + g + "\t" + a + "\t" + "\t".join(tax[1:]) + "\n")
 
         
@@ -375,5 +411,20 @@ ggplot(tax, aes(x=group, y=V3, fill=V2)) + geom_bar(stat="identity", aes(group=t
 dev.off()
 
 #ggplot(tax, aes(y=rep(1, nrow(tax)), x=V3, fill=V2)) + geom_bar(stat="identity", aes(group=tax$group)) + coord_polar(theta="y")
+
+"""
+
+
+
+"""
+import mg_pipeline
+import glob
+
+
+hmm_fn = glob.glob("*.hmm")
+hmm_fn = hmm_fn[0]
+faa_fns = glob.glob("*.faa")
+for faa_fn in faa_fns:
+    mg_pipeline.running_HMMER_search(hmm_fn, faa_fn, outdir=".")
 
 """
