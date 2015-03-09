@@ -852,4 +852,8 @@ def rename_bla_fns(dir="."):
         cmd = "mv " + bla_fn + " " + new_bla_fn +".bla"
         os.system(cmd)
 
+
+
+def infer_partnership():
+    
         

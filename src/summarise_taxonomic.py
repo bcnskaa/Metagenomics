@@ -132,19 +132,28 @@ def pick_otu(summary_ifn="all.tax", summary_ofn="all.updated.tax", gg_otu_fn="/h
         tax = all_tax[i]
         max_idx = len(tax) - 1
         confidence = float(tax[1].split(":")[1]) / float(tax[2].split(":")[1])
+        completeness = 0.0
+        
         #confidence = float(tax[max_idx].split(":")[1]) / float(tax[1].split(":")[1])
         sp = " ".join(tax[1].split(" ")[0:2])
         #sp = " ".join(tax[max_idx].split(" ")[0:2])
         
         o = ""
+        # If species name exists in the otu_table
         if sp in otu_s.keys():
             o = otu_s[sp]
-            
+        
+        # If no species name exists, try using genius name
         if len(o) == 0:
             g = tax[1].split(" ")[0]
             if g in otu_g.keys():
                 o = otu_g[g]
         
+        # If no genius name is found, we give them a default name
+        # k__Unknown;p__Unknown;c__Unknown;o__Unknown;f__Unknown;g__Unknown;s__
+        if len(o) == 0:
+            o = "k__Unknown;p__Unknown;c__Unknown;o__Unknown;f__Unknown;g__Unknown;s__"
+
         all_tax[i].insert(1, o)    
         all_tax[i].insert(1, str(confidence))
         
@@ -238,8 +247,9 @@ def make_summary(in_dir=".", fasta_fn_ext="fasta", mapped_bla_fn_ext="mapped", s
 """
 # all.updated.tax.finalized is a finalized version of all.updated.tax
 
+
 """
-def apply_abundance(summary_ifn="all.updated.tax.finalized", out_fn=None, normalized_abund=True, abund_dir="/disk/rdisk08/siukinng/MG/scaffolds_5000/", dir_suffix="_5000", bin_summary_fn_suffix=".summary"):
+def apply_abundance(summary_ifn="all.updated.tax", out_fn=None, normalized_abund=True, abund_dir="/disk/rdisk08/siukinng/MG/scaffolds_5000/", dir_suffix="_5000", bin_summary_fn_suffix=".summary"):
     import glob
     import os 
     
