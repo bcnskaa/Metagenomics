@@ -60,14 +60,13 @@ class DistMtx:
 
     """
     return the element at the position i, j
-    """     
+    """
     def get(self, i, j):
         if i > 0 and j > 0 and i < len(self.header) and j < len(self.header):
             return self.distmtx[i][j]
         else:
             print("Warning: " + str(i) + ", " + str(j) + " not found.")
             return None
-
 
 
     def get_by_ids(self, row_id, col_id):
@@ -94,6 +93,7 @@ class DistMtx:
 
     def getIDs(self):
         return self.header
+
     
     
     def get_pair_values(self, pair_keys):
@@ -127,7 +127,8 @@ class DistMtx:
     
         return vals
        
-        
+    
+       
     """
     Get the averaged match pair
     """
@@ -212,8 +213,11 @@ def import_node_abund(abund_fn="all.updated.tax.abund.lst"):
     abund = {a.split("\t")[1] : float(a.split("\t")[3]) for a in abund}
     return abund
         
-        
- 
+  
+
+      
+"""
+""" 
 def process_graph(cutoff=0.8, excluding_diagonal=True, gml_outfn=None, node_factor=1000):
     import networkx as nx
     import matplotlib.pyplot as plt

@@ -73,7 +73,10 @@ def extract_tax_from_ncbi(acc_id, db="taxonomy"):
     
     
     
+    
+"""
 
+"""
 def extract_acc_from_fasta_ids(fasta_fn):
     from Bio import SeqIO
     
@@ -86,7 +89,9 @@ def extract_acc_from_fasta_ids(fasta_fn):
 
 
 
+"""
 
+"""
 def map_acc_2_taxids(acc_ids, tax_id_fn="tax_slv_ssu_nr_119.acc_taxid"):
     with open(tax_id_fn) as IN:
         taxids = IN.read().splitlines()
@@ -108,7 +113,7 @@ def import_tax_tbl(tax_tbl_fn):
         tax_tbl = IN.read().splitlines()
     tax_tbl = {l.split("\t")[1]:l for l in tax_tbl}
     return tax_tbl
-    
+
   
     
 def map_taxid_2_tax(acc_id_2_taxid_map, tax_tbl_fn="tax_ncbi_ssu_ref_119.txt"):
@@ -249,7 +254,7 @@ def rename_16S_2(id_prefix, in_fn = "all_samples.16S.fasta", out_fn = None):
             #SeqIO.write(seqs[seq_id], OUT, "fasta")
 
 
-      
+
 
 def rename_plotfile_name_to_greengene(bla_infn, infn="plotfile", gg_tax_fn="/home/siukinng/db/Markers/GreenGene/gg_13_5_taxonomy.txt"):
     import re
@@ -300,8 +305,9 @@ def rename_intree_name_to_greengene(infn="intree", gg_tax_fn="/home/siukinng/db/
     
     with open(infn + ".renamed", "w") as OUT:
         OUT.write(intree)
-     
-       
+
+
+
 """
 
 """    
