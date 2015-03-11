@@ -1684,7 +1684,7 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
     #for file in glob.glob("*.dom.tbl"):
     
     file = glob.glob(hmm_dir + "/*.dom.tbl")
-    if len(file) != 1:
+    if len(file) != 0:
         print_status("Does not find any .dom.tbl in the folder \"" + hmm_dir + "\"")
         return None
     

@@ -214,7 +214,7 @@ def main(argv):
             ids = [id for id in ids if id not in blacklist]
         print str(excluded_id_count - len(ids)) + " IDs are excluded."
         
-        candidates = process_all(fasta_fn, ids)
+        candidates = process_all(fasta_fn, out_fn=output_fn, selected_ids=ids)
     elif blast_fn is not None:
         opt = "qid"
         if search_query_id:
@@ -223,22 +223,22 @@ def main(argv):
             print "Search will be based on Subject IDs."
             opt = "sid"
             
-        candidates = process_selected_by_blast(blast_fn, fasta_fn, selected_id=opt, excluded_ids=blacklist)
+        candidates = process_selected_by_blast(blast_fn=blast_fn, fasta_fn=fasta_fn, out_fn=output_fn, selected_id=opt, excluded_ids=blacklist)
     else:
-        candidates = process_all(fasta_fn, excluded_ids=blacklist)
+        candidates = process_all(fasta_fn, out_fn=output_fn, excluded_ids=blacklist)
     
 
-    if len(candidates) > 0:
-        with open(output_fn, "w") as OUT:
-            for k in candidates.keys():
-                s = "\n".join(candidates[k])
-                if len(s) > 0:
-                    OUT.write(s + "\n")
+#     if len(candidates) > 0:
+#         with open(output_fn, "w") as OUT:
+#             for k in candidates.keys():
+#                 s = "\n".join(candidates[k])
+#                 if len(s) > 0:
+#                     OUT.write(s + "\n")
         print("Number of items processed: " + str(len(candidates)))
     
     
 
-def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_threshold=500, seq_len_threshold=50):
+def process_all(fasta_fn, out_fn=None, selected_ids=None, excluded_ids=None, blast_bitscore_threshold=500, seq_len_threshold=50):
     seq_db = SeqIO.index(fasta_fn, "fasta")
     
     global blast_program
@@ -252,6 +252,10 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
     
     print("Number of sequences to be processed: " + str(len(selected_seqs)))
     
+    
+    if out_fn is not None:
+        OUT = open(out_fn, "w")
+    
     idx = 0
     candidates = {}
     for s in selected_seqs:
@@ -259,7 +263,7 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
         seq = str(s.seq)
         
         if len(seq) < seq_len_threshold:
-            print(sid + " is shorter than " + seq_len_threshold + " characters, skipped.")
+            print(sid + " is shorter than " + str(seq_len_threshold) + " characters, skipped.")
             continue
         
         print("Blasting [" + str(idx) + " out of " + str(len(selected_seqs)) + "] " + sid + " (" + str(len(seq)) + " bp).")
@@ -268,6 +272,7 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
         if len(seq) > MAX_SEQ_LEN:
             seq = seq[0:MAX_SEQ_LEN]
             
+        
         records = run_ncbi_wwwblast(seq, blast_program=blast_program)     
         candidate_species = []
         if records is not None:
@@ -277,10 +282,20 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
                         species = str((alignment.title).split("|")[4])
                         species = species.strip()
                         #candidate_species.append(species)
-                        candidate_species.append(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score) + ":" + str(alignment.hsps[0].identities))
-                        print(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score) + ":" + str(alignment.hsps[0].identities))
-        
+                        candidate = sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score) + ":" + str(alignment.hsps[0].identities)
+                        candidate_species.append(candidate)
+                        
+                        #candidate_species.append(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score) + ":" + str(alignment.hsps[0].identities))
+                        #print(sid + ":" + str(len(seq)) + ":" + species + ":" + str(alignment.length) + ":" + str(alignment.hsps[0].score) + ":" + str(alignment.hsps[0].identities))
+                        print(candidate)
+                        if out_fn is not None:
+                            OUT.write(candidate + "\n")
+    
         candidates[sid] = candidate_species
+        
+        
+    if out_fn is not None:
+        OUT.close()
         
 #         if idx == 4:
 #             break
@@ -289,7 +304,7 @@ def process_all(fasta_fn, selected_ids=None, excluded_ids=None, blast_bitscore_t
  
 
 
-def process_selected_by_blast(blast_fn, fasta_fn, selected_id="qid", excluded_ids=None, bitscore_threshold=1000, blast_bitscore_threshold=600):
+def process_selected_by_blast(blast_fn, fasta_fn, out_fn=None, selected_id="qid", excluded_ids=None, bitscore_threshold=1000, blast_bitscore_threshold=600):
     # Import blast
     #bitscore_threshold = 1000
     #blast_bitscore_threshold = 600
@@ -312,7 +327,7 @@ def process_selected_by_blast(blast_fn, fasta_fn, selected_id="qid", excluded_id
         res_ids = [id for id in res_ids if id not in excluded_ids]
         print str(excluded_id_count - len(res_ids)) + " IDs are excluded."
     
-    candidates = process_all(fasta_fn, res_ids)
+    candidates = process_all(fasta_fn=fasta_fn, out_fn=out_fn,  selected_ids=res_ids)
     
 #     seq_db = SeqIO.index(fasta_fn, "fasta")
 #     
