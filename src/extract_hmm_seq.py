@@ -1,7 +1,12 @@
-import mg_pipeline
 from Bio import SeqIO
-import os
 import glob
+
+
+import sys
+import os
+sys.path.append(os.path.abspath("/home/siukinng/tools/scripts"))
+
+import mg_pipeline
 
 
 """
@@ -132,17 +137,52 @@ for hmm_id in s.keys():
     with open(out_fn, "w") as OUT:
         SeqIO.write(seqs, OUT, "fasta")
 """
+def export_hmm_profile(profile_acc_id, out_fn=None):
+    hmm = extract_hmm_profile_from_db(profile_acc_id)
+    if hmm is not None:
+        if out_fn is None:
+            out_fn = profile_acc_id + ".hmm"
+        
+        with open(out_fn, "w") as OUT:
+            OUT.write(hmm + "//\n")
+        
+    
+        
+        
+
+def extract_hmm_profile_from_db(profile_acc_id, hmm_db=None, hmm_db_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm"):
+    import re
+    
+    if hmm_db is None:
+        hmm_db = import_hmm_db(hmm_db_fn)
+    
+    if profile_acc_id in hmm_db.keys():
+        return hmm_db[profile_acc_id]
+    else:
+        return None
+    
 
 
+def import_hmm_db(hmm_db_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm", excluding_acc_version=True):
+    import re
+    
+    print("Importing HMM Database")
+    
+    hmm_db = {}
+    with open(hmm_db_fn) as IN:
+        hmms = IN.read().split("//\n")
+    del hmms[len(hmms) - 1]
+    hmm_db = {re.findall("\nACC\s+(.+)\n", hmm)[0].split(".")[0]:hmm for hmm in hmms}
+    
+    return hmm_db
+
+  
 
 """
-
 for f in *.phy;do echo "Processing $f";echo -e "$f\nP\nP\nY\n" > current.cmd; ~/tools/phylip/exe/protdist < current.cmd > screenout; mv outfile $f.mtx;done
-
+    
 """
-
-
-def split_hmm_profiles(outdir=".", hmm_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm"):
+def split_hmm_profiles(outdir=".", hmm_db_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm"):
     import re
     
     with open(hmm_fn) as IN:
@@ -155,3 +195,31 @@ def split_hmm_profiles(outdir=".", hmm_fn="/home/siukinng/db/Markers/Pfam/Pfam.h
             with open(outdir + "/" + hmm_id + ".hmm", "w") as OUT:
                 OUT.write(h + "//")
         
+
+
+
+def prepare_pfam_db_info(out_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm.info", pfam_db_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm"):
+    import re
+    with open(pfam_db_fn) as IN:
+        hmms = IN.read()
+    hmms = hmms.split("//\n")
+    del hmms[len(hmms) - 1]
+    
+    #hmm_map = {}
+    OUT = open(out_fn, "w")
+    for hmm in hmms:
+        hmm_name = re.findall("\nNAME\s+(.+)\n", hmm)[0]
+        hmm_acc = re.findall("\nACC\s+(.+)\n", hmm)[0]
+        hmm_desc = re.findall("\nDESC\s+(.+)\n", hmm)[0]
+        OUT.write(hmm_name + "\t" + hmm_acc + "|" + hmm_desc + "\n")
+    OUT.close()
+        
+    
+"""
+
+hmm_id=""
+hmm_fn="$hmm_id.hmm"
+tc_val=$(cat cohesin/PF00963.hmm | grep -e "TC" | tr -s " " | cut -d" " -f2)
+for f in ../../../*_2000/Prodigal/bins/*.faa;do bin_id=${f##*/};bin_id=${bin_id/.faa/};echo "~/tools/hmmer/bin/hmmsearch --max -T $tc_val -o $bin_id-$hmm_id.out -A $bin_id-$hmm_id.aln --tblout $bin_id-$hmm_id.tbl --domtbl $bin_id-$hmm_id.dom.tbl --pfamtblout $bin_id-$hmm_id.pfam.tbl $hmm_fn $f";done
+
+"""

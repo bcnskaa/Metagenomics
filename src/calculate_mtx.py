@@ -2,7 +2,11 @@ from __future__ import division
 import os
 import glob 
 import numpy
+import sys
 from Bio import SeqIO
+
+
+sys.path.append(os.path.abspath("/home/siukinng/tools/scripts"))
 
 
 def main():
@@ -855,5 +859,25 @@ def rename_bla_fns(dir="."):
 
 
 def infer_partnership():
+    print("Not implemented")
     
-        
+
+
+def estimate_snp(fa_fn):
+    print("Import fasta sequence")
+    
+    from Bio import SeqIO
+    import re
+    
+    
+    seqs = SeqIO.index(fa_fn, "fasta")
+    
+    variable_locus_n = 0
+    consensus_seqs = {}
+    for seq_id in seqs.keys():
+        consensus_seqs[seq_id] = re.sub("\.+", ".", str(seqs[seq_id].seq).upper().replace("A", ".").replace("G",".").replace("C", ".").replace("T",".").replace("N", "."))
+        variable_locus_n = variable_locus_n + len(consensus_seqs[seq_id].replace(".",""))
+    
+    return consensus_seqs
+    
+    

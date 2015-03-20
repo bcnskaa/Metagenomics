@@ -1655,6 +1655,7 @@ def running_HMMER_search(hmm_profile_fn, prot_faa_fn, outdir=HMMER_OUTDIR, outfn
         return False
 
 
+
 # Return the length of overlapping between two regions
 def getOverlap(x, y):
     #print "x[1]=", x[1], ", y[1]=", y[1], ", x[0]=", x[0], ", y[0]=", y[0]

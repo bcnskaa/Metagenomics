@@ -3,20 +3,29 @@ import glob
 import os
 import mg_pipeline
 
+"""
+min_contig_size=2000
+hmm_id = "Pfam"
+out_fn=hmm_id+".bin.tbl"
+generate_dom_tbl.generate_dom_tbl(out_fn, hmm_id = hmm_id, is_bin=True, min_contig_size=min_contig_size)
+generate_dom_tbl.append_abund_to_dom_tbl(out_fn, min_contig_size=min_contig_size)
 
-def generate_dom_tbl(out_fn, hmm_id = "dbCAN", is_bin=False):
+
+
+"""
+def generate_dom_tbl(out_fn=None, hmm_id = "dbCAN", is_bin=False, min_contig_size=5000, hmm_score_threshold=200):
     #hmm_id = "dbCAN"
     if is_bin:
-        fns = glob.glob("*_5000/Markers/bins/" + hmm_id + "/*.dom.tbl")
+        fns = glob.glob("*_"+str(min_contig_size)+"/Markers/bins/" + hmm_id + "/*.dom.tbl")
     else:
-        fns = glob.glob("*_5000/Markers/" + hmm_id + "/*.dom.tbl")
+        fns = glob.glob("*_"+str(min_contig_size)+"/Markers/" + hmm_id + "/*.dom.tbl")
 
     ids = []
-    hmm_score_threshold=200
+    #hmm_score_threshold=200
     hmm_tc_fn = "/home/siukinng/db/Markers/" + hmm_id + "/" + hmm_id + ".tc"
     
     if not os.path.isfile(hmm_tc_fn):
-            hmm_tc_fn = None
+        hmm_tc_fn = None
             
     print("Processing " + hmm_id + " and export the results to " + out_fn)
     
@@ -66,7 +75,14 @@ def generate_dom_tbl(out_fn, hmm_id = "dbCAN", is_bin=False):
     #         specI_info = IN.read().splitlines()
     #     specI_info = {v.split("\t")[0]:v.split("\t")[1] for v in specI_info}
     
-    with open(hmm_id + ".tbl", "w") as OUT:
+    if out_fn is None:
+        if is_bin:
+            out_fn = hmm_id + ".bin." + str(hmm_score_threshold) + ".tbl"
+        else:
+            out_fn = hmm_id + "." + str(hmm_score_threshold) + ".tbl"
+    
+    #with open(hmm_id + ".tbl", "w") as OUT:
+    with open(out_fn, "w") as OUT:
         OUT.write("HEADER\tDESC\t" + "\t".join(dom_list["header"]) + "\n")
         for dom_id in dom_ids:
             if dom_id in hmm_info.keys():
@@ -76,8 +92,10 @@ def generate_dom_tbl(out_fn, hmm_id = "dbCAN", is_bin=False):
             OUT.write(dom_id + "\t" + info + "\t" + "\t".join(str(v) for v in dom_list[dom_id]) + "\n") 
 
 
+"""
 
-def append_abund_to_dom_tbl(tbl_fn, out_fn, list_ofn=None, summary_dir="."):
+"""
+def append_abund_to_dom_tbl(tbl_fn, out_fn=None, list_ofn=None, summary_dir=".", min_contig_size=5000):
     print("Processing " + tbl_fn)
     
     with open(tbl_fn) as IN:
@@ -90,7 +108,7 @@ def append_abund_to_dom_tbl(tbl_fn, out_fn, list_ofn=None, summary_dir="."):
     nr_headers = list(set([h.split(".")[0] for h in header]))
     group_summary = {}
     for nr_header in nr_headers:
-        summary_fn = "/disk/rdisk08/siukinng/MG/scaffolds_5000/" + nr_header + "_5000/"+ nr_header+ ".summary"
+        summary_fn = "/disk/rdisk08/siukinng/MG/scaffolds_"+str(min_contig_size)+"/" + nr_header + "_"+str(min_contig_size)+"/"+ nr_header+ ".summary"
         with open(summary_fn) as IN:
             summary = IN.read().splitlines()
         del summary[0]
@@ -119,7 +137,10 @@ def append_abund_to_dom_tbl(tbl_fn, out_fn, list_ofn=None, summary_dir="."):
             row_items.append(str(abund * int(count)))
             dom_list.append([id, row_id, str(count), str(abund * int(count))])
         dom_mtx.append(row_items)
-        
+    
+    if out_fn is None:
+        out_fn = tbl_fn.replace(".tbl", ".abund.tbl")
+       
     with open(out_fn, "w") as OUT:
         for row in dom_mtx:
             OUT.write("\t".join(row) + "\n")
@@ -379,3 +400,6 @@ for d in *_5000;do
 done
 
 """
+
+
+    
