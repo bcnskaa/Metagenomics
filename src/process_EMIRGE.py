@@ -63,7 +63,7 @@ qid="SWH"
 ~/tools/blast/bin/blastn -query $qid.16S.fasta -db $sid.16S.fasta -outfmt 6 -out $qid.16S-$sid.16S.bla -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 90 -max_target_seqs 2 -num_threads 8
 
 
--evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 90 -max_target_seqs 1 -num_threads 14
+#-evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 90 -max_target_seqs 1 -num_threads 14
 
 
 """
@@ -92,7 +92,7 @@ def extract_acc_from_fasta_ids(fasta_fn):
 """
 
 """
-def map_acc_2_taxids(acc_ids, tax_id_fn="tax_slv_ssu_nr_119.acc_taxid"):
+def map_acc_2_taxids(acc_ids, tax_id_fn="/home/siukinng/tools/EMIRGE/db/tax_slv_ssu_nr_119.acc_taxid"):
     with open(tax_id_fn) as IN:
         taxids = IN.read().splitlines()
     taxids = {tid.split("\t")[0]: tid.split("\t")[1] for tid in taxids}
@@ -116,7 +116,7 @@ def import_tax_tbl(tax_tbl_fn):
 
   
     
-def map_taxid_2_tax(acc_id_2_taxid_map, tax_tbl_fn="tax_ncbi_ssu_ref_119.txt"):
+def map_taxid_2_tax(acc_id_2_taxid_map, tax_tbl_fn="/home/siukinng/tools/EMIRGE/db/tax_ncbi_ssu_ref_119.txt"):
     tax_tbl = import_tax_tbl(tax_tbl_fn)
     
     acc_id_2_tax_map = {}
