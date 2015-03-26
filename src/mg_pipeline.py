@@ -1,6 +1,6 @@
 #!/share/apps/Python-2.7.4/bin/python
 
-# 2014 SKWoolf bcnskaa AT gmail DOT com
+# 2015 SK
 
 """
  This pipeline script is in a highly integrated and automatic manner designed for analyzing paired-end metagenomic data generated
@@ -105,7 +105,8 @@ ADAPTOR_SEQS = DB_HOME + "/Sequencing/adaptors.fa"
 # NCBI 16S database
 NCBI16S_DB = DB_HOME + "/Markers/ncbi16s/16SMicrobial.idx.fa"
 NCBI16S_GI_IDX = DB_HOME + "/Markers/ncbi16s/16SMicrobial.idx"
-
+GREENGENE_DB_TAX = DB_HOME + "/Markers/GreenGene/gg_13_5_taxonomy.txt"
+GREENGENE_DB = DB_HOME + "/Markers/GreenGene/gg_13_5.fasta"
 EMIRGE_16S_DB = EMIRGE_HOME + "/db/SSURef_111_candidate_db.fasta"
 
 CAZY_DB = DB_HOME + "/Markers/CAZy/CAZy_id.lst.retrieved.faa"
@@ -796,8 +797,9 @@ def run_MaxBin(contig_fn, merged_read_fn, maxbin_outdir=BINNING_OUTDIR + "/MaxBi
  min_total_contig_len: Minimum value of accumulative length of a bin group
  marker_gene_yield: Number of marker gene observed in a bin group
 """
-def postprocess_MaxBin(maxbin_outdir, min_total_contig_len=1000000, marker_gene_yield=50.0):
+def postprocess_MaxBin(maxbin_outdir, out_fn_prefix=None, min_total_contig_len=1000000, marker_gene_yield=50.0):
     print_status("Processing outputs from MaxBin (" + maxbin_outdir + ")")  
+    
     
     maxbin_summary_fn = glob.glob(maxbin_outdir + "/*.summary")
     
@@ -815,6 +817,20 @@ def postprocess_MaxBin(maxbin_outdir, min_total_contig_len=1000000, marker_gene_
     cmd = "for f in " + maxbin_outdir + "/*.fasta;do mv $f ${f/.fasta/." + FASTA_DNA_EXT + "};done"
     if not VERBOSE_ONLY:
         os.system(cmd)
+    
+    
+    # Consolidate scaffolds from individual bins into one single group
+    if out_fn_prefix is None:
+        out_fn_prefix = maxbin_summary_fn[::-1].split(".", 1)[1][::-1]
+    consolidated_out_fn = out_fn_prefix + ".fasta"
+    
+    if os.path.isfile(consolidated_out_fn):
+        os.remove(consolidated_out_fn)
+        
+    cmd = "for f in " + maxbin_outdir + "/*."+ FASTA_DNA_EXT + ";do cat $f >> " + consolidated_out_fn + ";done"
+    if not VERBOSE_ONLY:
+        os.system(cmd) 
+    
     
     # List the content of outdir
     maxbin_fns = glob.glob(maxbin_outdir + "/*." + FASTA_DNA_EXT)
@@ -1408,6 +1424,28 @@ def pick_seqs(seq_fn, seq_ids, format="fasta"):
 
 
 
+def get_seq_lens(seq_fn, seq_ids=None, format="fasta"):    
+    if seq_ids is not None:
+        print_status("Retrieving length of " + str(len(seq_ids)) + " sequences from " + seq_fn)
+    else:
+        print_status("Retrieving length of all sequences from " + seq_fn)
+    
+    # Build an index of the sequences available in the file
+    seqs = SeqIO.index(seq_fn, format)
+
+    seq_lens = {}
+    # Check if the seq_id is existed in the index
+    for seq_id in seqs.keys():
+        if seq_ids is not None:
+            if seq_id in seq_ids:
+                seq_lens[seq_id] = len(str(seqs[seq_id].seq))
+        else:
+            seq_lens[seq_id] = len(str(seqs[seq_id].seq))
+      
+    return seq_lens
+
+
+
 ####### Functional annotation stage #########
 """
  BLAST
@@ -1418,25 +1456,42 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
 
     # Name the outfile
     if outfn is None:
-        subject_id = db_fn
+        subject_id = os.path.basename(db_fn)
+        subject_id = (subject_id[::-1].split(".", 1)[1])[::-1]  # Extract the first part
         
-        if len(subject_id.split("/")) > 1:
-            subject_id = subject_id.split("/")[len(subject_id.split("/")) - 1]
+        #subject_id = db_fn
+        #if len(subject_id.split("/")) > 1:
+        #    subject_id = subject_id.split("/")[len(subject_id.split("/")) - 1]
         
-        query_id = query_fn
-        if len(query_fn.split("/")) > 0:
-            tmp = query_id.split("/")
-            query_id = tmp[len(tmp) - 1]
-            query_id = (query_id[::-1].split(".", 1)[1])[::-1]  # Extract the first part
+        
+        query_id = os.path.basename(query_fn)
+        query_id = (query_id[::-1].split(".", 1)[1])[::-1]  # Extract the first part
+        
+        #query_id = query_fn
+        #if len(query_fn.split("/")) > 0:
+        #    tmp = query_id.split("/")
+        #    query_id = tmp[len(tmp) - 1]
+        #    query_id = (query_id[::-1].split(".", 1)[1])[::-1]  # Extract the first part
                   
         outfn = query_id + "-" + subject_id + ".bla"
 
-    # We have to check if the output directory existed, if not, we make it
+    if outdir is None:
+        outdir = "."
+        
+    # We have to check if the output directory existed, if not, we will create it
     if outdir != ".":
         if not os.path.exists(outdir):
             print_status("Output directory, " + outdir + ", does not exist, we will create it.")
             os.makedirs(outdir)     
-            
+
+
+ 
+    if outdir.endswith("/"):   
+        outfn = outdir + outfn  
+    else:
+        outfn = outdir + "/" + outfn    
+
+    
     cmd = BLAST_HOME + "/bin/" + blast_program + " -db " + db_fn + " -outfmt " + str(outfmt) + " -num_threads " + str(num_threads)
     
     if evalue is not None:
@@ -1454,7 +1509,8 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
     if max_target_seqs is not None: 
         cmd = cmd + " -max_target_seqs " + str(max_target_seqs)     
     
-    cmd = cmd + " -query " + query_fn + " -out " + outdir + "/" + outfn
+    #cmd = cmd + " -query " + query_fn + " -out " + outdir + "/" + outfn
+    cmd = cmd + " -query " + query_fn + " -out " + outfn
     
     print_status("command: " + cmd)
       
@@ -1462,7 +1518,11 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
         os.system(cmd)
     #os.system(cmd)
     
-    return outfn
+    if os.path.isfile(outfn):
+        return outfn
+    else:
+        print(outfn + " is not found.")
+        return None
 
 
 
@@ -1471,7 +1531,7 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
 """    
 def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, evalue=1e-10):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
-    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastp")
+    return blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastp")
     
 
     
@@ -1480,7 +1540,7 @@ def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, be
 """
 def blastn(query_fn, db_fn, outdir=".",outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, evalue=1e-10):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
-    blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastn")
+    return blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastn")
     
 
  
@@ -1925,6 +1985,37 @@ def summarize_hmm_orf_dict(hmm_orf_dict, hmm_list=None, discard_redundant_domain
     return hmm_profiles
  
 
+
+"""
+
+"""
+def map_scaffold_ids2_bin_id(scaffold_ids, maxbin_dir, bin_fa_fn_ext=".fa"):
+    bin_fa_fns = glob.glob(maxbin_dir + "/*" + bin_fa_fn_ext)
+
+    if len(bin_fa_fns) == 0:
+        print_status("No bin group is found at " + maxbin_dir + "(*" + bin_fa_fn_ext + ")")
+        return None  
+    print_status(str(len(bin_fa_fns))+ " items to be processed.")
+       
+    scaffold_ids2_bin_id_map = {}
+    for bin_fa_fn in bin_fa_fns:
+        bin_id = os.path.basename(bin_fa_fn)[::-1].split(".", 1)[1][::-1]
+        
+        seqs = SeqIO.index(bin_fa_fn, "fasta")
+        seq_ids = list(seqs.keys())
+        
+        for seq_id in seq_ids:
+            scaffold_ids2_bin_id_map[seq_id] = bin_id
+
+    mapped_res = {}
+    for scaffold_id in scaffold_ids:
+        if scaffold_id in scaffold_ids2_bin_id_map.keys():
+            mapped_res[scaffold_id] = scaffold_ids2_bin_id_map[scaffold_id]
+        
+    return mapped_res
+    
+    
+    
 
 """
  Mapping identified HMM domains to bin_groups
