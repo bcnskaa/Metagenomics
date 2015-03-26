@@ -64,9 +64,12 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
         
         sids = [bla_res[k] for k in bla_res.keys()]
         
+        
+        print("Getting length of scaffolds...")
         scaffold_lens = mg_pipeline.get_seq_lens(consolidated_bin_fa_fn)
+        #scaffold_ids = list(scaffold_lens.keys())
         
-        
+        #print("scaffold_ids['1']=" + scaffold_ids[1])
         #for sid in sids:
         #    print(sid)
 
@@ -93,7 +96,7 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
             if k in bla_res.keys():
                 scaffold_id = bla_res[k]
                 if scaffold_id in scaffold_lens.keys():
-                    scafford_len = scaffold_lens[scaffold_id]
+                    scaffold_len = scaffold_lens[scaffold_id]
             bin_id = "Not_binned"
             if scaffold_id in bin_map_res.keys():
                 bin_id = bin_map_res[scaffold_id]
