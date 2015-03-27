@@ -64,6 +64,10 @@ from Bio import Seq
 from Bio.Blast import NCBIXML
 from Bio.Blast import NCBIWWW
 
+# Global variables
+HOME = "/home/siukinng"
+TOOLS_HOME = HOME + "/tools"
+SCRIPTS_HOME = TOOLS_HOME + "/scripts"
 
 sys.path.append(os.path.abspath(SCRIPTS_HOME))
 
@@ -72,10 +76,6 @@ import process_EMIRGE
 
 
 ####################### Apps Path #######################
-# Global variables
-HOME = "/home/siukinng"
-TOOLS_HOME = HOME + "/tools"
-SCRIPTS_HOME = TOOLS_HOME + "/scripts"
 
 # Paths to individual packages' home directories
 BBMAP_HOME = TOOLS_HOME + "/BBMap"
