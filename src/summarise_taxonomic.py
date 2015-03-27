@@ -168,6 +168,7 @@ def pick_otu(summary_ifn="all.tax", summary_ofn="all.updated.tax", gg_otu_fn="/h
 
 """
  
+
 """
 def run_blastx(in_dir="../../DistMtx/bins/specI", out_dir="blast", specI_dir="/home/siukinng/db/Markers/specI/sequences", fasta_fn_ext="faa"):
     faa_fns = glob.glob(in_dir + "/*." + fasta_fn_ext)
@@ -183,7 +184,8 @@ def run_blastx(in_dir="../../DistMtx/bins/specI", out_dir="blast", specI_dir="/h
         print(cmd)
         os.system(cmd)
         
-  
+
+
 """
  
 """     

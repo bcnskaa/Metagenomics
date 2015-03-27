@@ -17,10 +17,21 @@ sys.path.append(os.path.abspath(SCRIPTS_HOME))
 import mg_pipeline
 
 
+"""
 
+
+import process_EMIRGE
+sample_ids_abbrev={"L1-1B":"L1-1B", "S1-1B":"S1-1B"}
+sample_home_dir = "/disk/rdisk08/siukinng/samples/marine_projects/whales"
+
+process_EMIRGE.process_EMIRGE(sample_ids_abbrev=sample_ids_abbrev, sample_home_dir=sample_home_dir)
+
+
+
+"""
 
 #def process_EMIRGE(sample_ids_abbrev={"GZ-Cell_Y2":"GC2"}, sample_dir="/home/siukinng/MG/scaffolds_2000/", EMIRGE_HOME=mg_pipeline.EMIRGE_HOME):
-def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}, sample_dir="/home/siukinng/MG/scaffolds_2000/", EMIRGE_HOME=mg_pipeline.EMIRGE_HOME):
+def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}, sample_home_dir="/home/siukinng/MG/scaffolds_2000/", binning_sub_dir=None, EMIRGE_HOME=mg_pipeline.EMIRGE_HOME):
     import glob
     import os
 
@@ -29,11 +40,13 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
     sample_ids = list(sample_ids_abbrev.keys())
     
     for sample_id in sample_ids:
-        print("Processing " + sample_id)
-        emirge_fa_fn = post_process_EMIRGE(dir=sample_id)
+
+        mg_pipeline.print_status("Processing " + sample_id)
+        #emirge_fa_fn = post_process_EMIRGE(dir= "./" + sample_id)
+        emirge_fa_fn = post_process_EMIRGE(dir= "./" + sample_id + "/Markers/EMIRGE")
         
         if emirge_fa_fn is None:
-            print(sample_id + " skipped")
+            mg_pipeline.print_status(sample_id + " skipped")
             continue
         
         if not os.path.isfile(emirge_fa_fn):
@@ -43,40 +56,48 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
         if not os.path.isfile(renamed_emirge_fa_fn):
             continue 
         
-        print("Mapping " + renamed_emirge_fa_fn + " to bins")
+        mg_pipeline.print_status("Mapping " + renamed_emirge_fa_fn + " to bins")
         
         #emirge_fa_fn = sample_id + "/" + sample_id + ".16S.renamed.fasta"
         #emirge_fa_fn = sample_id + "/" + sample_id + ".16S.renamed.fasta"
         
         
-        binning_dir = sample_dir
+        binning_dir = sample_home_dir
         if not binning_dir.endswith("/"): 
             binning_dir = binning_dir + "/"
-        binning_dir = binning_dir + sample_id + "/"
+        binning_dir = binning_dir + sample_id + "/Binning/MaxBin/"
+        #consolidated_bin_fa_fn = binning_dir + sample_id + ".fasta"
+        #if binning_sub_dir is not None:
         consolidated_bin_fa_fn = binning_dir + sample_id + ".fasta"
+        #else:
+        #    consolidated_bin_fa_fn = binning_dir + sample_id + ".fasta"
+        
         bla_res = map_emirge_to_consolidated_bin(consolidated_bin_fa_fn, renamed_emirge_fa_fn)
         if bla_res is not None:
-            print("Number of blast results: " + str(len(bla_res)))
-            
+            mg_pipeline.print_status("Number of blast results: " + str(len(bla_res)))
+                
         if consolidated_bin_fa_fn is None:
-            print("Unable to process " + consolidated_bin_fa_fn)
+            mg_pipeline.print_status("Unable to process " + consolidated_bin_fa_fn)
             continue
         
         sids = [bla_res[k] for k in bla_res.keys()]
         
         
-        print("Getting length of scaffolds...")
+        mg_pipeline.print_status("Getting length of scaffolds...")
         scaffold_lens = mg_pipeline.get_seq_lens(consolidated_bin_fa_fn)
         #scaffold_ids = list(scaffold_lens.keys())
         
         #print("scaffold_ids['1']=" + scaffold_ids[1])
         #for sid in sids:
         #    print(sid)
-
+        
         bin_map_res = mg_pipeline.map_scaffold_ids2_bin_id(sids, binning_dir)
         
-        # Rename the bin_group into bin_group_abbrev
+        # Rename the bin_group into a bin_group_abbrev
         bin_map_res = {k.replace(sample_id, sample_ids_abbrev[sample_id]):bin_map_res[k] for k in bin_map_res.keys()}
+        
+        
+        
         
 #         print("bla_res")
 #         for k in bla_res.keys():
@@ -101,7 +122,7 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
             if scaffold_id in bin_map_res.keys():
                 bin_id = bin_map_res[scaffold_id]
             tax = tax_map[k]  
-            print(k + "\t" + bin_id + "\t" + scaffold_id + "\t" + str(scaffold_len) + "\t" + tax)
+            mg_pipeline.print_status(k + "\t" + bin_id + "\t" + scaffold_id + "\t" + str(scaffold_len) + "\t" + tax)
             OUT.write(k + "\t" + bin_id + "\t" + scaffold_id + "\t" + str(scaffold_len) + "\t" + tax + "\n")
         OUT.close()
         
@@ -232,7 +253,7 @@ def map_acc_2_taxids(acc_ids, tax_id_fn=mg_pipeline.EMIRGE_HOME+"/db/tax_slv_ssu
         if i in taxids.keys():
             acc_id_2_taxid_map[i] = taxids[i]
         else:
-            print(i + " is not found.")
+            mg_pipeline.print_status(i + " is not found.")
 
     return acc_id_2_taxid_map
     
@@ -264,6 +285,8 @@ def map_taxid_2_tax(acc_id_2_taxid_map, tax_tbl_fn=mg_pipeline.EMIRGE_HOME+"/db/
 def post_process_EMIRGE(dir=".", out_fn=None, EMIRGE_HOME=mg_pipeline.EMIRGE_HOME):
     import os
     import sys
+    
+    mg_pipeline.print_status("Processing EMIRGE result at " + dir)
     
     # Post-process EMIRGE results
     if not os.path.isdir(dir):
@@ -334,7 +357,7 @@ def map_emirge_to_greengene(emirge_fa_fn, out_bla_fn=None, outdir=None, separato
     import os 
 
     if not os.path.isfile(emirge_fa_fn):
-        print("File not existed: " + emirge_fa_fn + ".")
+        mg_pipeline.print_status("File not existed: " + emirge_fa_fn + ".")
         return None
     
     if outdir is None:
@@ -350,7 +373,7 @@ def map_emirge_to_greengene(emirge_fa_fn, out_bla_fn=None, outdir=None, separato
         
     bla_fn = mg_pipeline.blastn(query_fn=emirge_fa_fn, db_fn=green_gene_db, outdir=outdir, outfn=out_bla_fn, max_target_seqs=1, perc_identity=89, num_threads=14, evalue=1e-35)
     if bla_fn is None:
-        print("Blasting " + emirge_fa_fn + " failed.")
+        mg_pipeline.print_status("Blasting " + emirge_fa_fn + " failed.")
         return None
         
     cmd = "python " + mg_pipeline.SCRIPTS_HOME + "/filter_blast_res.py -q -i " + bla_fn
@@ -373,7 +396,7 @@ def map_emirge_to_consolidated_bin(consolidated_bin_fa_fn, emirge_fa_fn, bla_out
     import os
     
     if not os.path.isfile(emirge_fa_fn):
-        print("File not existed: " + emirge_fa_fn + ".")
+        mg_pipeline.print_status("File not existed: " + emirge_fa_fn + ".")
         return None
     
     cmd = "/home/siukinng/tools/blast/bin/makeblastdb -in " + emirge_fa_fn + " -dbtype nucl"
@@ -394,7 +417,7 @@ def map_emirge_to_consolidated_bin(consolidated_bin_fa_fn, emirge_fa_fn, bla_out
     bla_fn = mg_pipeline.blastn(query_fn=consolidated_bin_fa_fn, db_fn=emirge_fa_fn, outdir=outdir, outfn=bla_fn, max_target_seqs=1, perc_identity=89, num_threads=14, evalue=1e-35)
         
     if bla_fn is None:
-        print("Blasting " + emirge_fa_fn + " against " + consolidated_bin_fa_fn + " failed.")
+        mg_pipeline.print_status("Blasting " + emirge_fa_fn + " against " + consolidated_bin_fa_fn + " failed.")
         return None
         
     cmd = "python " + mg_pipeline.SCRIPTS_HOME + "/filter_blast_res.py -q -i " + bla_fn
@@ -420,7 +443,7 @@ def map_emirge_to_bins(bins_dir, emirge_fa_fn, outdir=None, separator="+", bin_f
     import os 
 
     if not os.path.isfile(emirge_fa_fn):
-        print("File not existed: " + emirge_fa_fn + ".")
+        mg_pipeline.print_status("File not existed: " + emirge_fa_fn + ".")
         return None
 
     cmd = "/home/siukinng/tools/blast/bin/makeblastdb -in " + emirge_fa_fn + " -dbtype nucl"
@@ -434,7 +457,7 @@ def map_emirge_to_bins(bins_dir, emirge_fa_fn, outdir=None, separator="+", bin_f
     
     bins_fns = glob.glob(bins_dir + "/*" + bin_fa_fn_ext)
     for bins_fn in bins_fns:
-        print("Mapping 16S sequences to " + bins_fn)
+        mg_pipeline.print_status("Mapping 16S sequences to " + bins_fn)
         #bla_fn = outdir + (os.path.basename(bins_fn)).replace(".fasta", "") + separator + (os.path.basename(emirge_fa_fn)).replace(".fasta", "") + ".bla"
         #cmd = "/home/siukinng/tools/blast/bin/blastn -query " + bins_fn + " -db " + emirge_fa_fn + " -out " + bla_fn + " -outfmt 6 -evalue 1e-10 -best_hit_score_edge 0.05 -best_hit_overhang 0.25 -perc_identity 89 -max_target_seqs 1 -num_threads 14"
         
@@ -475,7 +498,7 @@ def rename_16S(out_dir = ".", sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y
     out_dir = "."
     #sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     for sample_id in sample_ids:
-        print("Processing " + sample_id)
+        mg_pipeline.print_status("Processing " + sample_id)
         #fa_fn = out_dir + "/" + sample_id + "/" + sample_id + ".16S.fasta"
         fa_fn = out_dir + "/" + sample_id + "/" + sample_id + ".16S.fasta"
         fa_outfn = out_dir + "/" + sample_id + "/" + sample_id + ".16S.renamed.fasta"
@@ -504,7 +527,7 @@ def rename_16S_2(id_prefix, in_fn = "all_samples.16S.fasta", out_fn = None):
     #sample_ids_abbrev = {"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}
     
     if not os.path.isfile(in_fn):
-        print("File not existed: " + in_fn + ".")
+        mg_pipeline.print_status("File not existed: " + in_fn + ".")
         return None
     
     if out_fn is None:
@@ -547,7 +570,7 @@ def rename_plotfile_name_to_greengene(bla_infn, infn="plotfile", gg_tax_fn="/hom
     with open(infn) as IN:
         intree = IN.read().splitlines()
         
-    print("Reading from " + gg_tax_fn)
+    mg_pipeline.print_status("Reading from " + gg_tax_fn)
     with open(gg_tax_fn) as IN:
         gg = IN.read().splitlines()
     gg = {g.split("\t")[0]:g.split("\t")[1].replace(" ", "") for g in gg}
@@ -577,7 +600,7 @@ def rename_intree_name_to_greengene(infn="intree", gg_tax_fn="/home/siukinng/db/
     with open(infn) as IN:
         intree = IN.read()
         
-    print("Reading from " + gg_tax_fn)
+    mg_pipeline.print_status("Reading from " + gg_tax_fn)
     with open(gg_tax_fn) as IN:
         gg = IN.read().splitlines()
     gg = {g.split("\t")[0]:g.split("\t")[1].replace(" ", "") for g in gg}
@@ -586,7 +609,7 @@ def rename_intree_name_to_greengene(infn="intree", gg_tax_fn="/home/siukinng/db/
     if matches is not None:
         for m in matches:
             if m in gg.keys():
-                print("Replacing " + m + " to " + gg[m])
+                mg_pipeline.print_status("Replacing " + m + " to " + gg[m])
                 intree = intree.replace("("+m+":", "("+gg[m]+":")
     
     with open(infn + ".renamed", "w") as OUT:
@@ -603,7 +626,7 @@ def extract_16S_from_greengene(gg_seq_fn="/home/siukinng/db/Markers/GreenGene/gg
     sample_ids = ["GZ-Xyl_Y2", "GZ-Xyl_Y1", "GZ-Seed_Y0", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     
     for sample_id in sample_ids:
-        print("Processing " + sample_id)
+        mg_pipeline.print_status("Processing " + sample_id)
         bla_fn = sample_id + "/" + sample_id + ".16S.renamed+gg_13_5.bla"
         with open(bla_fn) as IN:
             bla = IN.read().splitlines()
