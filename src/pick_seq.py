@@ -51,16 +51,39 @@ def main(argv):
     
     # Call the Bio.SeqIO
     # Create a dict index on the fasta sequence file
-    fasta_seqs_idx = SeqIO.index(fasta_fn, "fasta")
-    exported_n = 0
-    with open(outfn, "w") as OUT:
-        for id in list:
-            if id in fasta_seqs_idx.keys():
-                exported_n += 1
-                SeqIO.write(fasta_seqs_idx[id], OUT, "fasta")
+#     fasta_seqs_idx = SeqIO.index(fasta_fn, "fasta")
+#     exported_n = 0
+#     with open(outfn, "w") as OUT:
+#         for id in list:
+#             if id in fasta_seqs_idx.keys():
+#                 exported_n += 1
+#                 SeqIO.write(fasta_seqs_idx[id], OUT, "fasta")
+    exported_n = pick_seq(list, fasta_fn, outfn)
     
     print "Number of sequence exported: " + str(exported_n)
    
+
+
+def pick_seq(id_list, fasta_fn, outfn, is_append=False):
+    exported_n = 0
+    
+    if not os.path.isfile(fasta_fn):
+        print(fasta_fn + " is not found.")
+        return exported_n
+    
+    fasta_seqs_idx = SeqIO.index(fasta_fn, "fasta")
+    if is_append:
+        OUT = open(outfn, "a")
+    else:
+        OUT = open(outfn, "w")
+
+    for id in id_list:
+        if id in fasta_seqs_idx.keys():
+            exported_n += 1
+            SeqIO.write(fasta_seqs_idx[id], OUT, "fasta")
+    OUT.close()
+    return exported_n
+
 
 
 '''
@@ -76,14 +99,14 @@ def import_list(list_fn):
     return l
 
 
-
-def subsample():
-    import random
-    import os
-    
-    
-    
-    
+# 
+# def subsample():
+#     import random
+#     import os
+#     
+#     
+#     
+#     
     
 
 # Print the usage of this script 

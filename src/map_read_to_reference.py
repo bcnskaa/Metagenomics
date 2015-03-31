@@ -1,6 +1,9 @@
 from __future__ import print_function
 from __future__ import division
 
+
+LOG = None
+
 """
 
 sample_id="GZ-Cell_Y2"
@@ -37,18 +40,55 @@ all_perc = map_read_to_reference.process_all_dirs(".", 150)
 
 """
 
-def process_all_dirs(dir, cutoff_len):
+def process_all_dirs(dir, cutoff_len=200, mask_lower_case=False, print_log=True):
     import glob
     import os
+    
+    if print_log:
+        LOG = open("all_perc.log", "w")
+    else:
+        LOG = None
     
     dirs = glob.glob(dir + "/*")
     dirs = [d for d in dirs if os.path.isdir(d)]
     fq_perc = {}
     for dir in dirs:
-        percs = process_all(dir, cutoff_len)
+        percs = process_all(dir, cutoff_len, mask_lower_case=mask_lower_case)
         if len(percs) > 0:
             #fq_perc.update(percs)
             fq_perc[os.path.basename(dir)] = percs
+        
+    export_perc(all_perc=fq_perc)
+        
+    if print_log:
+        LOG.close()
+        
+    return fq_perc
+
+
+
+def process_all_fq(fq_dir, cutoff_len, mask_lower_case=False, print_log=True):
+    import glob
+    import os
+    global LOG
+    
+    if print_log:
+        LOG = open("all_perc.log", "w")
+    else:
+        LOG = None
+    
+    fq_fns = glob.glob(fq_dir + "/*.fq")
+    fq_perc = {}
+    for fq_fn in fq_fns:
+        print("Processing " + fq_fn)
+        percs = get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=mask_lower_case)
+        fq_perc[fq_fn.replace(".fq", "")] = percs
+    
+    
+    
+    if print_log:
+        LOG.close()
+        
     return fq_perc
 
 
@@ -58,11 +98,29 @@ map_read_to_reference.export_perc()
 
 
 """
-def export_perc(out_fn="all_perc.stat"):
+def expprt_perc2(all_perc, out_fn="all_perc.stat"):
+    sample_ids = list(all_perc.keys())
+    with open(out_fn, "w") as OUT:
+        OUT.write("Species\t" + "\t".join(sample_ids) + "\n")
+        for species_id in all_perc.keys():
+            line = [species_id]
+            perc = all_perc[species_id]
+            for sample_id in sample_ids:
+                if sample_id in perc.keys():
+                    line.append(str(perc[sample_id]))
+                else:
+                    line.append("0.0")
+            OUT.write("\t".join(line) + "\n")
+
+
+def export_perc(out_fn="all_perc.stat", all_perc=None, dir=".", mask_lower_case=False, cutoff_len=150, sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]):
     import map_read_to_reference
 
-    all_perc = map_read_to_reference.process_all_dirs(".", 150)
-    sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
+    if all_perc is None:
+        print("Export_perc will extract info from the current directory.")
+        all_perc = map_read_to_reference.process_all_dirs(".", 150)
+        
+    #sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     
     with open(out_fn, "w") as OUT:
         OUT.write("Species\t" + "\t".join(sample_ids) + "\n")
@@ -116,7 +174,26 @@ import map_read_to_reference
 all_perc = map_read_to_reference.process_all("Clostridium_thermocellum", 150)
 
 """
-def process_all(dir, cutoff_len):
+# def process_all(dir, cutoff_len):
+#     import glob
+#     import os
+#     
+#     excluding_ext = "-" + os.path.basename(dir) + ".fq"
+#     
+#     fq_perc = {}
+#     fq_fns = glob.glob(dir + "/*.fq")
+#     for fq_fn in fq_fns:
+#         id = os.path.basename(fq_fn)
+#         id = id.replace(excluding_ext, "")
+#         if (os.stat(fq_fn)).st_size < 100:
+#             fq_perc[id] = 0.0
+#             continue
+#         fq_perc[id] = get_perc_cutoff(fq_fn, cutoff_len)
+#         
+#     return fq_perc
+
+
+def process_all(dir, cutoff_len, mask_lower_case=False):
     import glob
     import os
     
@@ -130,13 +207,14 @@ def process_all(dir, cutoff_len):
         if (os.stat(fq_fn)).st_size < 100:
             fq_perc[id] = 0.0
             continue
-        fq_perc[id] = get_perc_cutoff(fq_fn, cutoff_len)
+        fq_perc[id] = get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=mask_lower_case)
         
     return fq_perc
 
 
 
-def get_perc_cutoff(fq_fn, cutoff_len):
+
+def get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=False):
     from Bio import SeqIO
     import re
     
@@ -146,13 +224,25 @@ def get_perc_cutoff(fq_fn, cutoff_len):
       
     #print("Seq len from " + fq_fn + ": " + str(seq_len))  
                 
-    lens = estimate_fq_coverage(fq_fn)
+    lens = estimate_fq_coverage(fq_fn, mask_lower_case=mask_lower_case)
+    
+    if len(lens) == 0:
+        return -1.0
+    
     #print("Lens=" + str(len(lens)))
     
-    sum_len = sum([int(lens[l]) * int(l) for l in lens.keys() if int(l) > cutoff_len])
-    print("Length of sequence from " + fq_fn + ": " + str(seq_len) + ", Lens=" + str(len(lens)) + ", Total sum=" + str(sum_len) + ", Perc=" + str((sum_len / seq_len) * 100))
+    sum_len = sum([int(lens[l]) * int(l) for l in lens.keys() if int(l) >= cutoff_len])
+    print_log("Length of sequence from " + fq_fn + ": " + str(seq_len) + ", Lens=" + str(len(lens)) + ", Total sum=" + str(sum_len) + ", Perc=" + str((sum_len / seq_len) * 100))
     
     return (sum_len / seq_len) * 100
+
+
+
+def print_log(msg):
+    global LOG
+    print(msg)
+    if LOG is not None:
+        LOG.write(msg + "\n")
 
 
 

@@ -297,7 +297,7 @@ def post_process_EMIRGE(dir=".", out_fn=None, EMIRGE_HOME=mg_pipeline.EMIRGE_HOM
     if out_fn is None:
         out_fn = dir + "/all.16S.fasta"
         
-    cmd = EMIRGE_HOME + "/bin/emirge_rename_fasta.py " + dir + "/iter.40 > " + out_fn
+    cmd = mg_pipeline.EMIRGE_HOME + "/bin/emirge_rename_fasta.py " + dir + "/iter.40 > " + out_fn
     os.system(cmd)
     
     return out_fn

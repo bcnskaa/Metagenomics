@@ -71,9 +71,6 @@ SCRIPTS_HOME = TOOLS_HOME + "/scripts"
 
 sys.path.append(os.path.abspath(SCRIPTS_HOME))
 
-import process_EMIRGE
-
-
 
 ####################### Apps Path #######################
 
@@ -140,6 +137,13 @@ TMP_OUTDIR = "temp"
 HMMER_OUTDIR = MARKER_OUTDIR + "/HMMER"
 
 VERBOSE_ONLY = False
+
+
+
+import process_EMIRGE
+
+
+
 
 
 ######### Main subroutine 
@@ -1546,9 +1550,9 @@ def blast(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, eva
 """
  Do blastp
 """    
-def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, perc_identity=80, max_target_seqs=2, evalue=1e-10):
+def blastp(query_fn, db_fn, outdir=".", outfn=None, outfmt=6, num_threads=16, best_hit_score_edge=0.05, best_hit_overhang=0.25, max_target_seqs=2, evalue=1e-10):
     # blastp -query ../../Prodigal/contig.fa.prodigal.faa -db ~/db/Markers/CAZy/CAZy_id.lst.retrieved.faa -outfmt 6 -out contig.fa.prodigal-CAZy_id.lst.retrieved.bla  -num_threads 16
-    return blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=perc_identity, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastp")
+    return blast(query_fn=query_fn, db_fn=db_fn, outdir=outdir, outfn=outfn, outfmt=outfmt, num_threads=num_threads, best_hit_score_edge=best_hit_score_edge, best_hit_overhang=best_hit_overhang, perc_identity=None, max_target_seqs=max_target_seqs, evalue=evalue, blast_program="blastp")
     
 
     
@@ -1636,8 +1640,13 @@ def run_EMIRGE(read_1_fn, read_2_fn, DIR=MARKER_OUTDIR + "/EMIRGE", out_fa_fn=No
     if not VERBOSE_ONLY:
         os.system(cmd)  
     
+    if not os.path.isdir(DIR):
+        os.makedirs(DIR)
+        
     if out_fa_fn is None:
+        print_status(DIR + " does not exist, we will create it.")
         out_fa_fn = DIR + "/all.16S.fasta" 
+    
     
     cmd = EMIRGE_HOME + "/bin/emirge_rename_fasta.py " + DIR + "/iter.40 > " + out_fa_fn
     print_status("command: " + cmd)
@@ -2194,7 +2203,6 @@ def generate_map_table(bin_groups, outfn_prefix):
     
     
   
-    
     
    
 """
