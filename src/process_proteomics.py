@@ -14,6 +14,13 @@ import mg_pipeline
 import pick_seq
 
 
+"""
+
+import process_proteomics
+process_proteomics.process_proteomics("identified_ids.lst", "../../db/all_Y1+2/SWH-Cell_Y1+Y2.faa")
+
+
+"""
 def process_proteomics(lst_fn, fa_fn, lst_ofn=None, map_to_nr=False):
     [lst_ofn, nr_ids, export_id_n] = tidy_sids(lst_fn, lst_ofn)
     print("Extracting " + str(len(nr_ids)) + " sequences")
@@ -87,7 +94,7 @@ def map_sid_to_nr(bla_fn, out_fn=None, gi_fn="/home/siukinng/db/BacteriaDB/all_f
         
         
 
-def map_sid_to_gi(bla_fn, out_fn=None, gi_fn="/home/siukinng/db/BacteriaDB/all_faa.gi.lst"): 
+def map_sid_to_gi(bla_fn, id_fn=None, out_fn=None, gi_fn="/home/siukinng/db/BacteriaDB/all_faa.gi.lst"): 
     print("Reading from " + gi_fn)
     with open(gi_fn) as IN:
         gi = IN.read().splitlines()
@@ -98,12 +105,15 @@ def map_sid_to_gi(bla_fn, out_fn=None, gi_fn="/home/siukinng/db/BacteriaDB/all_f
     bla_lst = {}
     with open(bla_fn) as IN:
         bla = IN.read().splitlines()
+        
     for b in bla:
         qid = b.split("\t")[0]
         sid = b.split("\t")[1]
         if qid not in bla_lst.keys():
             bla_lst[qid] = []
-        bla_lst[qid].append(sid)
+            bla_lst[qid].append(sid)
+    
+    
     
     if out_fn is None:
         out_fn = bla_fn + ".summary"
@@ -130,24 +140,56 @@ def map_sid_to_gi(bla_fn, out_fn=None, gi_fn="/home/siukinng/db/BacteriaDB/all_f
 rm protein_id2bin_id.map;for f in *.faa;do bin_id=${f};bin_id=${bin_id/.faa/};bin_id=${bin_id/GZ-Cell_Y2./GC2_};ids=$(cat $f | grep -e "^>" | sed "s/>//" |  cut -d" " -f1 | sed "s/scaffold_/GC2_/");for id in ${ids[*]};do echo -e "$id\t$bin_id" >> protein_id2bin_id.map;done;done
 
 """
-def map_protein_ids2bin_id(id_fn, map_fn="protein_id2bin_id.map"):
+def map_protein_ids2bin_id(summary_fn, map_fn="protein_id2bin_id.map", id_mapped_fn=None, delimiter="\t"):
     with open(map_fn) as IN:
         protein_id2bin_id_map = IN.read().splitlines()
     protein_id2bin_id_map = {p.split("\t")[0]:p.split("\t")[1] for p in protein_id2bin_id_map}
     
-    with open(id_fn) as IN:
-        ids = IN.read().splitlines() 
+    with open(summary_fn) as IN:
+        summary = IN.read().splitlines() 
+    ids = {s.split(delimiter)[0]:s for s in summary}
         
-    OUT = open(id_fn + ".mapped", "w")
-    for id in ids:
+    if id_mapped_fn is None:
+        id_mapped_fn = summary_fn + ".mapped"
+    
+    OUT = open(id_mapped_fn, "w")
+    for id in ids.keys():
         if id in protein_id2bin_id_map.keys():
-            OUT.write(id + "\t" + protein_id2bin_id_map[id]+"\n")
+            OUT.write(ids[id] + "\t" + protein_id2bin_id_map[id]+"\n")
         else:
-            OUT.write(id + "\t" + "Not binned\n")        
+            OUT.write(ids[id] + "\t" + "Not binned\n")        
     OUT.close()
         
-    
 
+
+
+def combine_bin_id(bin_fa_fns, header_prefix="scaffold", sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-Seed_Y0":"GS0", "GZ-Cell_Y1":"GC1", "GZ-Cell_Y2":"GC2", "SWH-Xyl_Y2":"SX2", "SWH-Xyl_Y1":"SX1", "SWH-Seed_Y0":"SS0", "SWH-Cell_Y1":"SC1", "SWH-Cell_Y2":"SC2", "SWH-Cell55_Y2":"S52"}):
+    print("Combining bin files (" + str(len(bin_fa_fns)) + ")")
+    
+    bin_id_map = {}
+    for bin_fa_fn in bin_fa_fns:
+        print("Reading from " + bin_fa_fn)
+        sample_id = os.path.basename(bin_fa_fn)
+        bin_id = sample_id[::-1].split(".", 1)[1][::-1]
+        sample_id = bin_id.split(".", 1)[0]
+        new_sample_id = sample_ids_abbrev[sample_id]
+        print(sample_id + " to " + new_sample_id)
+        if sample_id in sample_ids_abbrev.keys():
+            bin_id = bin_id.replace(sample_id, new_sample_id)
+            #bin_id = bin_id.replace(".", "_")
+            
+            print("bin_id=" + bin_id)
+            
+            seqs = SeqIO.index(bin_fa_fn, "fasta")
+            seq_ids = list(seqs.keys())
+            
+            m = {seq_id.replace(header_prefix, new_sample_id):bin_id for seq_id in seq_ids}
+            bin_id_map.update(m)
+        else:
+            print(sample_id + " does not exist in the provided sample id list.")
+    
+    return bin_id_map
+    
 
 """
 

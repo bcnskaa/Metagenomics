@@ -35,12 +35,15 @@ eval $cmd
 
 import map_read_to_reference
 
-all_perc = map_read_to_reference.process_all_dirs(".", 150)
+cutoff_len = 800
+all_perc = map_read_to_reference.process_all_dirs(".", cutoff_len)
+sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ-Seed_Y0", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
 
+map_read_to_reference.expprt_perc2(all_perc, "all_perc.l" + str(cutoff_len) + "_wolowermask.stat", sample_ids)
 
 """
 
-def process_all_dirs(dir, cutoff_len=200, mask_lower_case=False, print_log=True):
+def process_all_dirs(dir, cutoff_len=200, mask_lower_case=False, print_log=True, delimiter="+"):
     import glob
     import os
     
@@ -53,7 +56,7 @@ def process_all_dirs(dir, cutoff_len=200, mask_lower_case=False, print_log=True)
     dirs = [d for d in dirs if os.path.isdir(d)]
     fq_perc = {}
     for dir in dirs:
-        percs = process_all(dir, cutoff_len, mask_lower_case=mask_lower_case)
+        percs = process_all(dir, cutoff_len, mask_lower_case=mask_lower_case, delimiter=delimiter)
         if len(percs) > 0:
             #fq_perc.update(percs)
             fq_perc[os.path.basename(dir)] = percs
@@ -98,8 +101,14 @@ map_read_to_reference.export_perc()
 
 
 """
-def expprt_perc2(all_perc, out_fn="all_perc.stat"):
-    sample_ids = list(all_perc.keys())
+def expprt_perc2(all_perc, out_fn="all_perc.stat", sample_ids=None):
+    species_ids = list(all_perc.keys())
+    if sample_ids is None:
+        sample_ids = []
+        for species_id in species_ids:
+            sample_ids = sample_ids + list(all_perc[species_id].keys())
+        sample_ids = list(set(sample_ids))
+    
     with open(out_fn, "w") as OUT:
         OUT.write("Species\t" + "\t".join(sample_ids) + "\n")
         for species_id in all_perc.keys():
@@ -113,12 +122,13 @@ def expprt_perc2(all_perc, out_fn="all_perc.stat"):
             OUT.write("\t".join(line) + "\n")
 
 
-def export_perc(out_fn="all_perc.stat", all_perc=None, dir=".", mask_lower_case=False, cutoff_len=150, sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]):
+
+def export_perc(out_fn="all_perc.stat", all_perc=None, dir=".", mask_lower_case=False, cutoff_len=150, sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ-Seed_Y0", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Seed_Y0", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]):
     import map_read_to_reference
 
     if all_perc is None:
         print("Export_perc will extract info from the current directory.")
-        all_perc = map_read_to_reference.process_all_dirs(".", 150)
+        all_perc = map_read_to_reference.process_all_dirs(".", cutoff_len, mask_lower_case)
         
     #sample_ids = ["GZ-Cell_Y2", "GZ-Cell_Y1", "GZ", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y2", "SWH-Xyl_Y1", "SWH", "SWH-Cell_Y1", "SWH-Cell_Y2", "SWH-Cell55_Y2"]
     
@@ -131,6 +141,7 @@ def export_perc(out_fn="all_perc.stat", all_perc=None, dir=".", mask_lower_case=
                 if sample_id in perc.keys():
                     line.append(str(perc[sample_id]))
                 else:
+                    print(sample_id + " is not found in the " + species_id +" perc list.")
                     line.append("0.0")
             OUT.write("\t".join(line) + "\n")
 
@@ -193,11 +204,11 @@ all_perc = map_read_to_reference.process_all("Clostridium_thermocellum", 150)
 #     return fq_perc
 
 
-def process_all(dir, cutoff_len, mask_lower_case=False):
+def process_all(dir, cutoff_len, mask_lower_case=False, delimiter="+"):
     import glob
     import os
     
-    excluding_ext = "-" + os.path.basename(dir) + ".fq"
+    excluding_ext = delimiter + os.path.basename(dir) + ".fq"
     
     fq_perc = {}
     fq_fns = glob.glob(dir + "/*.fq")
