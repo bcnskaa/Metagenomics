@@ -1,8 +1,115 @@
 from __future__ import print_function
 from __future__ import division
 
+import glob
+import os
+import numpy
+import sys
+from Bio import SeqIO
+
+
+sys.path.append(os.path.abspath("/home/siukinng/tools/scripts"))
+
+
+import mg_pipeline
+import pick_seq
+import filter_blast_res
+import process_bam
+import process_binning
+
 
 LOG = None
+
+
+def map_all_fa(wd_dir=".", fa_fn_ext="fa", fq_dir=".", fq_fn_ext="fq", ref_fa_fn=None):
+    fa_fns = glob.glob(wd_dir + "/*." + fa_fn_ext)
+    
+    if len(fa_fns) == 0:
+        mg_pipeline.print_status("No fasta file is found at " + wd_dir)
+        return 0
+    
+    if ref_fa_fn is None:
+        sids = get_all_ref_sids(fa_fns)
+        ref_fa_fn = wd_dir + "/combined_ref.fasta"
+        status = process_binning.generate_ref_genomes(sids, ref_fa_fn)
+    
+        if len([k for k in status.keys() if status[k] != 0]) == 0:
+            mg_pipeline.print_status("Problem on preparing reference genomes, aborted.")
+            return None
+    else:
+        if len(os.path.dirname(ref_fa_fn)) == 0:
+            ref_fa_fn = wd_dir + "/" + ref_fa_fn
+    
+    for fa_fn in fa_fns:
+        sample_id = (os.path.basename(fa_fn))[::-1].split(".",1)[1][::-1]
+        mg_pipeline.print_status("Processing " + sample_id + " (" + fa_fn + ")")
+        
+        mg_pipeline.print_status("Checking fq files: ")
+        read_1_fn = fq_dir + "/" + sample_id + "_1.fq"
+        read_2_fn = fq_dir + "/" + sample_id + "_2.fq"
+        if not mg_pipeline.assert_proc(read_1_fn) or not mg_pipeline.assert_proc(read_1_fn):
+            mg_pipeline.print_status(read_1_fn + " or " + read_2_fn + " is not found, sample skipped.")
+            continue
+        else:
+            mg_pipeline.print_status(read_1_fn + " and " + read_2_fn + " will be used.")
+                
+        [sorted_bam_fn, fq_fn, cov_fn] = map_read_to_reference(sample_id, read_1_fn, read_2_fn, fa_fn, ref_fa_fn)
+    
+    
+    
+
+def map_read_to_reference(sample_id, read_1_fq, read_2_fq, contig_fa_fn, ref_fa_fn=None, ref_ids=None, subject_id=None, out_dir="."):
+    mg_pipeline.print_status("Initializing mapping process...")
+    
+    if ref_fa_fn is None:
+        if subject_id is not None:
+            ref_fa_fn = out_dir + "/" + subject_id + ".fa"
+            prefix = sample_id + "+" + subject_id
+        else:
+            ref_fa_fn = out_dir + "/" + sample_id + ".ref.fa"
+            prefix = sample_id + "+" + "ref"
+        
+        ref_nr_sids = ref_ids
+        if ref_nr_sids is None:
+            ref_nr_sids = process_binning.mapping_contigs_to_references(contig_fa_fn)
+        status = process_binning.generate_ref_genomes(ref_nr_sids, ref_fa_fn)
+        
+        if len([k for k in status.keys() if status[k] != 0]) == 0:
+            mg_pipeline.print_status("Problem on preparing reference genomes.")
+    else:
+        prefix = sample_id + "+" + os.path.splitext((os.path.basename(ref_fa_fn)))[0]
+        
+    sorted_bam_fn = mg_pipeline.run_bwa(prefix, read_1_fq, read_2_fq, ref_fa_fn)
+    
+    if sorted_bam_fn is None:
+        mg_pipeline.print_status("Problem on generating a sorted bam file.")
+
+    
+    fq_fn = prefix + ".fq"
+    if not mg_pipeline.assert_proc(fq_fn):
+        if mg_pipeline.generate_fq_from_bam(sorted_bam_fn, ref_fa_fn, fq_fn) is None:
+            mg_pipeline.print_status("Problem on preparing fq file.")
+    else:
+        mg_pipeline.print_status(fq_fn + " exists.")
+        
+    cov_fn = mg_pipeline.generate_coverage_from_bam(sorted_bam_fn) 
+    if cov_fn is None:
+        mg_pipeline.print_status("Problem on generating a coverage file.")
+    
+    return [sorted_bam_fn, fq_fn, cov_fn]
+
+
+
+def get_all_ref_sids(contig_fa_fns):
+
+    sids = []
+    for contig_fa_fn in contig_fa_fns:
+        ids = process_binning.mapping_contigs_to_references(contig_fa_fn)
+        if len(ids) > 0:
+            sids = sids + ids
+    
+    return list(set(sids))
+    
 
 """
 
@@ -101,7 +208,7 @@ map_read_to_reference.export_perc()
 
 
 """
-def expprt_perc2(all_perc, out_fn="all_perc.stat", sample_ids=None):
+def export_perc2(all_perc, out_fn="all_perc.stat", sample_ids=None):
     species_ids = list(all_perc.keys())
     if sample_ids is None:
         sample_ids = []
@@ -257,6 +364,9 @@ def print_log(msg):
 
 
 
+
+
+
 def estimate_fq_coverage(fq_fn, mask_lower_case=False):
     from Bio import SeqIO
     import re
@@ -289,7 +399,7 @@ def estimate_fq_coverage(fq_fn, mask_lower_case=False):
 import map_read_to_reference
 
 bla_fn = "blast_to_ref/" + "GZ-Cell_Y2.001+all_prokaryotes+BacterialDB.fasta.bla"
-selected_sid_tbl = map_read_to_reference.extract_sid_tax(bla_fn)
+selected_sid_tbl = map_read_to_reference.extract_tax_from_sid(bla_fn)
 
 
 
@@ -315,7 +425,7 @@ for sid in sorted_sids:
 selected_sid_tbl = {ss[0]:sid_tbl[ss[0]] for ss in sorted_sids if ss[1] > 40000 and ss[0] in sid_tbl.keys()}    
 
 """
-def extract_sid_tax(bla_fn, cutoff=40000, tax_fn="/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.txt"):
+def extract_tax_from_sid(bla_fn, cutoff=40000, tax_fn="/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.txt"):
     lens = compute_sid_match_len(bla_fn)
     sorted_sids = sorted(lens.items(), key=lambda x:x[1], reverse=True)
 
@@ -336,8 +446,21 @@ def extract_sid_tax(bla_fn, cutoff=40000, tax_fn="/home/siukinng/db/BioProject_P
         selected_sid_tbl[sid].append(lens[sid])
     
     return selected_sid_tbl
-   
 
+
+
+
+
+
+
+
+
+def assign_contigs_to_sid(bla_fn, contig_fa_fn, contig2sid_tbl_fn=None, cutoff=40000, blast_len_cutoff=3000):
+    print("")
+    
+
+"""
+"""
 def compute_sid_match_len(bla_fn):
     with open(bla_fn) as IN:
         bla = IN.read().splitlines()

@@ -10,7 +10,7 @@ from collections import defaultdict
 # Main 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"hqsi:o:b:l:p:k:")
+        opts, args = getopt.getopt(argv,"hqsi:o:b:l:p:k:e:")
     except getopt.GetoptError:
         print_usage()
         sys.exit(2)
@@ -25,7 +25,8 @@ def main(argv):
     nr_sid_outfn = None
     # used with -k option
     sid_desc_fn = None
-
+    excluded_blast_fn = None
+    excluded_qids = []
 
     for opt, arg in opts:
         if opt == '-h':
@@ -55,6 +56,11 @@ def main(argv):
         elif opt == "-k":
             sid_desc_fn = arg
             print "Subject ID map:", sid_desc_fn
+        elif opt == "-e":
+            excluded_blast_fn = arg
+            excluded_qids = get_nr_ids(import_blast_res(excluded_blast_fn))
+            
+            print str(len(excluded_qids)) + " query IDs found in " + excluded_blast_fn + " will be excluded." 
         else:
             print("Unrecognized option", opt)
             print_usage()
@@ -83,6 +89,8 @@ def main(argv):
             outfn += "p" + `t_identity`
         if flag_unique_query:  
             outfn += "q"
+        if len(excluded_qids) > 0:
+            outfn += "e"
     
     # Specify an outfilename for dumping unique subject id
     if flag_unique_subject:
@@ -109,9 +117,13 @@ def main(argv):
     # Export the filtered results to an outfile
     print "Exporting filtered results to", outfn
     export_n = 0
+    excluded_n = 0
     with open(outfn, "w") as out:
         for qid, hits in res.items():
-            
+            if qid in excluded_qids:
+                excluded_n = excluded_n + 1
+                continue
+
             # Deal with unique query id
             if flag_unique_query:
                 export_n = export_n + 1
@@ -153,6 +165,8 @@ def main(argv):
             #[out.write("\t".join([r, "\n"])) for r in res[qid]]
     print export_n, "exported"
 
+    if len(excluded_qids) > 0:
+        print str(excluded_n) + " row(s) excluded."
 
     # Sort and dump non-redundant to stdout
     if nr_sid_outfn is not None:
@@ -204,6 +218,7 @@ def import_subject_id_desc(infilename):
     return sid_desc
 
 
+
 # Print the usage of this script
 def print_usage():
     print("A simple python script for filtering blast result (generated with -outfmt 6 option) using threshold values")
@@ -216,15 +231,17 @@ def print_usage():
     print("      -b FLOAT   Bit-score threshold for filtering [optional, default=0.0]")
     print("      -l INT     Alignment length threshold for filtering [optional, default=0]")
     print("      -p FLOAT   Identity percentage threshold for filtering [optional, default=0.0]")
-    print("      -s STRING  Dump non-redundant subject id")
-    print("      -q STRING  Dump non-redundant query id")
+    print("      -s STRING  Dump non-redundant subject id [optional]")
+    print("      -q STRING  Dump non-redundant query id [optional]")
+    print("      -e STRING  BLAST input file; query ids found in this BLAST file are filtered out from the the input file specified by -i option [optional]")
     print(" ")
     print(" ") 
-    print("Ver 0.2")
+    print("Ver 0.3")
+
 
 
 # Import blast results
-def import_blast_res(infilename, thres_aln_len, thres_bitscore, thres_identity):
+def import_blast_res(infilename, thres_aln_len = None, thres_bitscore = None, thres_identity = None):
     # 
     blast_res = defaultdict(list)
     
@@ -269,6 +286,30 @@ def import_blast_res(infilename, thres_aln_len, thres_bitscore, thres_identity):
     
     # Exit
     return blast_res  
+
+
+
+def get_nr_ids(blast_res, is_query_id_selected=True): 
+    ids = []
+    #for b in blast_res:
+    for qid in blast_res.keys():
+        bs = blast_res[qid]
+        for b in bs:
+            #items = b.split("\t")
+            #if len(items) < 2:
+            #    continue
+            if is_query_id_selected:
+                ids.append(b[0])
+            else:
+                ids.append(b[1])
+    ids = list(set(ids))
+    
+    return ids
+    
+    
+    
+
+
 
  
 # Invoke the main function

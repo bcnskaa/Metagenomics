@@ -78,6 +78,7 @@ sys.path.append(os.path.abspath(SCRIPTS_HOME))
 BBMAP_HOME = TOOLS_HOME + "/BBMap"
 BLAST_HOME = TOOLS_HOME + "/blast"
 BOWTIE2_HOME = TOOLS_HOME + "/"
+BWA_HOME = TOOLS_HOME + "/bwa"
 DECONSEQ_HOME = TOOLS_HOME + "/deconseq"
 EMIRGE_HOME = TOOLS_HOME + "/EMIRGE"
 ESOM_HOME = TOOLS_HOME + "/ESOM"
@@ -87,6 +88,7 @@ HMMER_HOME = TOOLS_HOME + "/hmmer"
 IDBA_UD_HOME = TOOLS_HOME + "/idba_ud"
 MAXBIN_HOME = TOOLS_HOME + "/MaxBin"
 PRODIGAL_HOME = TOOLS_HOME + "/Prodigal"
+SAMTOOLS_HOME = TOOLS_HOME + "/samtools"
 SEQTK_HOME = TOOLS_HOME + "/seqtk"
 SPECI_HOME = TOOLS_HOME + "/specI"
 TETRA_ESOM_HOME = TOOLS_HOME + "/tetra-ESOM"
@@ -122,7 +124,9 @@ STRING_DB_HOME = DB_HOME + "Markers/STRING"
 
 # Folder contains all prokaryotic genomes available in NCBI
 NCBI_BACTERIAL_GENEOMES_DB = DB_HOME + "/BacterialDB/all_fna"
-
+#/home/siukinng/db/BacteriaDB+BioProject_Prokaryotes/combined
+NCBI_BIOPROJECT_DB_HOME = DB_HOME + "/BioProject_Prokaryotes/combined"
+NCBI_BIOPROJECT_DB = DB_HOME + "/BioProject_Prokaryotes/all_prokaryotes+BacterialDB.fasta"
 
 LOG = True
 LOG_FN= "pipeline.log"
@@ -1609,7 +1613,117 @@ def filter_blast_results(blast_fn, identity=80.0, length=100, subject_id_desc_fn
     
     return fns
     
-   
+
+
+
+"""
+
+"""
+def run_bwa(prefix, read_1_fq, read_2_fq, ref_fa_fn, output_bam=True, keep_sam_fn=False, replace_file_if_exists=False, num_thread=16, BWA_HOME=BWA_HOME, SAMTOOLS_HOME=SAMTOOLS_HOME):
+    print_status("Initializing bwa")
+    
+    sam_fn = prefix + ".fa"
+    bam_fn = prefix + ".bam"
+    sorted_bam_fn = prefix + ".sorted.bam"
+    
+    if not assert_proc(ref_fa_fn + ".pac"):
+        print_status(ref_fa_fn + " is not indexed, doing indexing now.")
+    
+        cmd = BWA_HOME + "/bwa index " + ref_fa_fn
+        print_status(cmd)
+        if not VERBOSE_ONLY:
+            os.system(cmd)  
+    
+    
+    if not assert_proc(ref_fa_fn + ".pac"):
+        print_status("Problems on indexing " + ref_fa_fn)
+        return None
+
+
+    print_status("Running bwa... be patient.")
+    
+    if not assert_proc(bam_fn) or replace_file_if_exists:
+        cmd = BWA_HOME + "/bwa mem -t " + str(num_thread) + " " + ref_fa_fn + " " + read_1_fq + " " + read_2_fq + " > " + sam_fn
+        print_status(cmd)
+        if not VERBOSE_ONLY:
+            os.system(cmd)  
+        
+        if not assert_proc(sam_fn):
+            print_status("Problems on indexing " + ref_fa_fn)
+            return None    
+            
+        if not output_bam and not sort_bam:
+            return sam_fn
+        
+            
+        print_status("Converting sam file into bam format...")
+        cmd = SAMTOOLS_HOME + "/samtools view -Sb " + sam_fn + " > " + bam_fn
+        print_status(cmd)
+        if not VERBOSE_ONLY:
+            os.system(cmd)
+            
+        # Remove the large sam file
+        if not keep_sam_fn:
+            os.remove(sam_fn)
+                
+        if not assert_proc(bam_fn):
+            return None
+    else:
+        print_status(bam_fn + " exists and will not be replaced. (Set replace_file_if_exists to 'True' if you want to replace existing files)")
+        
+    
+    # Sort the bam file for further analysis
+    if assert_proc(sorted_bam_fn) and not replace_file_if_exists:
+        return sorted_bam_fn
+    else:
+        print_status("Sorting bam format...")
+        cmd = SAMTOOLS_HOME + "/samtools sort " + bam_fn + " " + sorted_bam_fn.replace(".bam", "")
+        print_status(cmd)
+        if not VERBOSE_ONLY:
+            os.system(cmd)
+            
+        if assert_proc(sorted_bam_fn):
+            return sorted_bam_fn
+        else:
+            return None
+    
+            
+
+def generate_fq_from_bam(sorted_bam_fn, ref_fa_fn, fq_ofn=None, SAMTOOLS_HOME=SAMTOOLS_HOME):
+    print_status("Generating fq file from the sorted bam file, " + sorted_bam_fn + " using " + ref_fa_fn + " as references")
+    
+    if fq_ofn is None:
+        fq_ofn = sorted_bam_fn + ".fq"
+    
+    cmd = SAMTOOLS_HOME + "/samtools mpileup -uf " + ref_fa_fn + " " + sorted_bam_fn + " | " + SAMTOOLS_HOME + "/bcftools/bcftools view -cg - | " + SAMTOOLS_HOME + "/bcftools/vcfutils.pl vcf2fq > " + fq_ofn 
+    print_status(cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+    
+    if not assert_proc(fq_ofn):
+        return None
+    else:
+        return fq_ofn
+    
+    
+
+def generate_coverage_from_bam(sorted_bam_fn, coverage_ofn=None, SAMTOOLS_HOME=SAMTOOLS_HOME):
+    print_status("Extracting coverage information from the sorted bam file, " + sorted_bam_fn)
+    
+    if coverage_ofn is None:
+        coverage_ofn = sorted_bam_fn + ".coverage"
+    
+    cmd = SAMTOOLS_HOME + "/samtools depth " + sorted_bam_fn + " > " + coverage_ofn
+    print_status(cmd)
+    if not VERBOSE_ONLY:
+        os.system(cmd)
+    
+    if not assert_proc(coverage_ofn):
+        return None
+    else:
+        return coverage_ofn
+          
+    
 
 """
  If EMIRGE is installed, please check emirge.py can run properly. In case it complains missing _emirge module, 
