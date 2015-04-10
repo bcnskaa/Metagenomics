@@ -121,10 +121,13 @@ def merge(fasta_ifn, header):
     
 
 
+def export_fastas(seqs, fa_ofn=None, OUT=None, fasta_char_per_line = 70):
+    for seq_id in seqs.keys():
+        export_fasta(seq_id, seqs[seq_id], fa_ofn=fa_ofn, OUT=OUT, fasta_char_per_line = fasta_char_per_line)
+
+
 def export_fasta(header, seq, fa_ofn=None, OUT=None, fasta_char_per_line = 70):
     #print("Exporting " + header + " (" + str(len(seq)) + " bp)" )
-    
-    seq_lines = [seq[i:i+fasta_char_per_line] for i in range(0, len(seq), fasta_char_per_line)]
     
     close_on_exit = False
     if OUT is None:
@@ -133,6 +136,10 @@ def export_fasta(header, seq, fa_ofn=None, OUT=None, fasta_char_per_line = 70):
         else:
             fa_ofn = header + ".fa"
             OUT = open(fa_ofn, "w")
+        close_on_exit = True
+
+    seq_lines = [seq[i:i+fasta_char_per_line] for i in range(0, len(seq), fasta_char_per_line)]
+        
     #    print("Exporting " + header + " to " + fa_ofn)
     #else:
     #    print("Appending " + header + " to OUT handler")

@@ -12,7 +12,7 @@ from Bio import SeqIO
 # Main 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"hi:o:d:")
+        opts, args = getopt.getopt(argv,"hki:o:d:")
     except getopt.GetoptError:
         print_usage()
         sys.exit(2)
@@ -20,6 +20,7 @@ def main(argv):
     lstfn = None
     outfn = None
     fasta_fn = None
+    search_key = False
 
     for opt, arg in opts:
         if opt == '-h':
@@ -31,6 +32,8 @@ def main(argv):
             outfn = arg
         elif opt == "-d":
             fasta_fn = arg
+        elif opt == "-k":
+            search_key = True 
         else:
             print("Unrecognized option", opt)
             print_usage()
@@ -58,7 +61,11 @@ def main(argv):
 #             if id in fasta_seqs_idx.keys():
 #                 exported_n += 1
 #                 SeqIO.write(fasta_seqs_idx[id], OUT, "fasta")
-    exported_n = pick_seq(list, fasta_fn, outfn)
+    
+    if search_key:
+        exported_n = pick_seq_contain_key(list, fasta_fn, outfn)
+    else:
+        exported_n = pick_seq(list, fasta_fn, outfn)
     
     print "Number of sequence exported: " + str(exported_n)
    
@@ -84,6 +91,32 @@ def pick_seq(id_list, fasta_fn, outfn, is_append=False):
     OUT.close()
     return exported_n
 
+
+
+
+def pick_seq_contain_key(key_list, fasta_fn, outfn, is_append=False, search_descript=True):
+    exported_n = 0
+    
+    if not os.path.isfile(fasta_fn):
+        print(fasta_fn + " is not found.")
+        return exported_n
+    
+    fasta_seqs_idx = SeqIO.index(fasta_fn, "fasta")
+    if is_append:
+        OUT = open(outfn, "a")
+    else:
+        OUT = open(outfn, "w")
+
+    for seq_id in fasta_seqs_idx.keys():
+        desc = fasta_seqs_idx[seq_id].description
+        for k in key_list:
+            if k in desc:
+                exported_n += 1
+                fasta_seqs_idx[id].id = fasta_seqs_idx[seq_id].description
+                SeqIO.write(fasta_seqs_idx[id], OUT, "fasta")
+                break
+    OUT.close()
+    return exported_n
 
 
 '''
@@ -118,6 +151,7 @@ def print_usage():
     print("      -i STRING  A list contains contig names to be picked")
     print("      -d STRING  File, from which FASTA sequences enlisted in the list file will be picked")
     print("      -o STRING  Picked FASTA sequence will be output to")
+    print("      -k         Use the rows in the list file as keyword, and any sequence header containing any keyword will be picked")  
     print(" ")
     print(" ")
     print("Ver 0.00002")

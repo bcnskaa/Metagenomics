@@ -16,8 +16,14 @@ import pick_seq
 
 """
 
+
 import process_proteomics
 process_proteomics.process_proteomics("identified_ids.lst", "../../db/all_Y1+2/SWH-Cell_Y1+Y2.faa")
+
+process_proteomics.process_proteomics("identified_ids.OMSSA.lst", "../../db/all_Y1+2/SWH-Cell_Y1+Y2.faa")
+
+process_proteomics.process_proteomics("identified_ids.COMET.lst", "../../db/all_Y1+2/SWH-Cell_Y1+Y2.faa")
+process_proteomics.process_proteomics("identified_ids.COMET.lst", "../../db/all_Y1+2/GZ-Cell_Y1+Y2.faa")
 
 
 """
@@ -34,7 +40,7 @@ def process_proteomics(lst_fn, fa_fn, lst_ofn=None, map_to_nr=False):
         
     
 
-def tidy_sids(lst_fn, lst_ofn=None):
+def tidy_sids(lst_fn, lst_ofn=None, selected_prefix=None):
     with open(lst_fn) as IN:
         lst = IN.read().splitlines()
     
@@ -43,7 +49,10 @@ def tidy_sids(lst_fn, lst_ofn=None):
         l = l.split(",")
         ids.extend(l)
     
-    nr_ids = list(set(ids))
+    nr_ids = [l for l in list(set(ids)) if len(l) > 0]
+    
+    if selected_prefix is not None:
+        nr_ids = [l for l in nr_ids if l.startswith(selected_prefix)]
     
     if lst_ofn is None:
         lst_ofn = lst_fn + ".nr"
