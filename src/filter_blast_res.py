@@ -289,7 +289,13 @@ def import_blast_res(infilename, thres_aln_len = None, thres_bitscore = None, th
 
 
 
+"""
+Get non-redundant ids (subject or query) from imported blast results
+"""
 def get_nr_ids(blast_res, is_query_id_selected=True): 
+    if blast_res is None or len(blast_res) == 0:
+        return None
+    
     ids = []
     #for b in blast_res:
     for qid in blast_res.keys():
@@ -307,6 +313,11 @@ def get_nr_ids(blast_res, is_query_id_selected=True):
     return ids
     
     
+"""
+Get non-redundant ids (subject or query) from blast fn
+"""
+def get_nr_ids_from_fn(blast_fn, is_query_id_selected=True): 
+    return get_nr_ids(import_blast_res(blast_fn), is_query_id_selected=is_query_id_selected)
     
 
 
