@@ -314,6 +314,37 @@ def rename_seq_id_to_bin_id(bin_fa_fns, header_prefix="scaffold", sample_ids_abb
     
 
 
+def import_result_map(map_fn, discard_not_evidence_row = True, min_percent_coverage=29.0):
+    with open(map_fn) as IN:
+        map_lst = IN.read().splitlines()
+    del map_lst[0]
+    map_lst = [m.split("\t") for m in map_lst if len(m) > 15]
+    
+    if discard_not_evidence_row:
+        map_lst = [m for m in map_lst if m[13] == 'Y']
+        
+    map_lst = [m for m in map_lst if m[13] == 'Y']
+    
+    map_lst = [m for m in map_lst if float(m[4]) >= min_percent_coverage]
+    
+    if len(map_lst) == 0:
+        return {}
+    
+    nr_map_lst = {}
+    entry_lis = []
+    for m in map_lst:
+        entry_id = m[0]
+        if entry_id not in entry_list:
+            entry_list.append(entry_id)
+            pep_ids = m[2].split(",")
+            
+            nr_map_lst.update({pid:m for pid in pep_ids})
+
+    return nr_map_lst
+
+
+
+
 """
 
 If the fasta headers of the input fasta file (fa_fn) follow with the format used by NCBI, 

@@ -255,7 +255,7 @@ def process_all_dirs(dir, cutoff_len=200, mask_lower_case=False, print_log=True,
 
 
 
-def process_all_fq(fq_dir, cutoff_len, mask_lower_case=False, print_log=True, fq_fn_ext="fq"):
+def process_all_fq(fq_dir, cutoff_len, mask_lower_case=False, print_log=True, fq_fn_ext="fq", delimiter="+", washed_ids=False):
     import glob
     import os
     global LOG
@@ -266,20 +266,67 @@ def process_all_fq(fq_dir, cutoff_len, mask_lower_case=False, print_log=True, fq
         LOG = None
     
     fq_fns = glob.glob(fq_dir + "/*." + fq_fn_ext)
-    fq_perc = {}
-    for fq_fn in fq_fns:
-        print("Processing " + fq_fn)
-        percs = get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=mask_lower_case)
-        #fq_perc[fq_fn.replace("."+fq_fn_ext, "")] = percs
-        fq_perc[fq_fn.replace("."+fq_fn_ext, "")] = sum([percs[k] for k in percs.keys()])
-        
-        
-    if print_log:
-        LOG.close()
+    fq_perc = process_selected_fq(fq_fns, cutoff_len, mask_lower_case=mask_lower_case, print_log=print_log, fq_fn_ext=fq_fn_ext, delimiter=delimiter, washed_ids=washed_ids)
+#     fq_perc = {}
+#     for fq_fn in fq_fns:
+#         print("Processing " + fq_fn)
+#         percs = get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=mask_lower_case)
+#         #fq_perc[fq_fn.replace("."+fq_fn_ext, "")] = percs
+#         fq_perc[fq_fn.replace("."+fq_fn_ext, "")] = sum([percs[k] for k in percs.keys()])
+#         
+#         
+#     if print_log:
+#         LOG.close()
         
     return fq_perc
 
 
+"""
+Provide a list of fq files, 
+"""
+def process_selected_fq(fq_fns, cutoff_len, combined_seqs_from_same_fn=False, mask_lower_case=False, print_log=True, fq_fn_ext="fq", delimiter="+", washed_ids=True):
+    import glob
+    import os
+    global LOG
+    
+    if delimiter is None or len(delimiter) == 0:
+        delimiter = "#####"
+    
+    if print_log:
+        LOG = open("all_perc.log", "w")
+    else:
+        LOG = None
+
+    if len(fq_fns) == 0:
+        return {}
+
+    fq_perc = {}
+    for fq_fn in fq_fns:
+        #sample_id = ((os.path.basename(fq_fn)[::-1].split(".", 1))[1])[::-1]
+        sample_id = os.path.basename(fq_fn).split(delimiter)[0]
+        
+        print("Processing " + sample_id + " (" + fq_fn+ ")")
+        
+        percs = get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=mask_lower_case, washed_ids=washed_ids)
+        
+        
+        print("Percs_size="+str(len(percs)))
+        
+        #fq_perc[fq_fn.replace("."+fq_fn_ext, "")] = percs
+        #fq_perc[fq_fn.replace("."+fq_fn_ext, "")] = sum([percs[k] for k in percs.keys()])
+        if combined_seqs_from_same_fn:
+            fq_perc[sample_id] = sum([percs[k] for k in percs.keys()])
+        else:
+            #fq_perc[sample_id] = percs
+            for species_id in percs.keys():
+                if species_id not in fq_perc.keys():
+                    fq_perc[species_id] = {}
+                fq_perc[species_id][sample_id] = percs[species_id]
+        
+    if print_log:
+        LOG.close()
+        
+    return fq_perc 
 
 
 """
@@ -322,22 +369,42 @@ def generate_ref_genomes(nr_sids, out_fn, db_dir=mg_pipeline.NCBI_BIOPROJECT_DB_
 """
 
 import map_reads_to_reference
-map_reads_to_reference.export_perc()
+import glob
+
+fq_fns = glob.glob("*.fq")
+fq_fns = fq_fns[4:6]
+
+percs = map_reads_to_reference.process_selected_fq(fq_fns, 3000)
+map_reads_to_reference.export_perc2(percs, export_tax_info=True)
 
 
 """
-def export_perc2(all_perc, out_fn="all_perc.stat", sample_ids=None):
+def export_perc2(all_perc, out_fn="all_perc.stat", sample_ids=None, export_tax_info=False):
+    print("perc_len=" + str(len(all_perc)))
+    
     species_ids = list(all_perc.keys())
     if sample_ids is None:
-        sample_ids = []
-        for species_id in species_ids:
-            sample_ids = sample_ids + list(all_perc[species_id].keys())
-        sample_ids = list(set(sample_ids))
+         sample_ids = []
+         for species_id in species_ids:
+             sample_ids = sample_ids + list(all_perc[species_id].keys())
+         sample_ids = list(set(sample_ids))
     
     with open(out_fn, "w") as OUT:
-        OUT.write("Species\t" + "\t".join(sample_ids) + "\n")
-        for species_id in all_perc.keys():
+        if export_tax_info:
+            OUT.write("Code\Phylum\Class\tSpecies\t" + "\t".join(sample_ids) + "\n")
+        else:
+            OUT.write("Species\t" + "\t".join(sample_ids) + "\n")
+        
+        for species_id in species_ids:
             line = [species_id]
+            
+            # Assign tax info
+            if export_tax_info:
+                tax = get_tax(species_id)
+                if tax is None:
+                    tax = "\t"
+                line.extend(tax) 
+                          
             perc = all_perc[species_id]
             for sample_id in sample_ids:
                 if sample_id in perc.keys():
@@ -429,18 +496,21 @@ all_perc = map_reads_to_reference.process_all("Clostridium_thermocellum", 150)
 #         fq_perc[id] = sum([percs[k] for k in percs.keys()])
 #     return fq_perc
 
-
-def process_all(dir, cutoff_len, mask_lower_case=False, delimiter="+"):
+"""
+Dir represents a tax 
+"""
+def process_all(dir, cutoff_len, mask_lower_case=False, fq_fn_ext="fq", delimiter="+"):
     import glob
     import os
     
-    excluding_ext = delimiter + os.path.basename(dir) + ".fq"
+    excluding_ext = delimiter + os.path.basename(dir) + "." + fq_fn_ext
     
     fq_perc = {}
-    fq_fns = glob.glob(dir + "/*.fq")
+    fq_fns = glob.glob(dir + "/*." + fq_fn_ext)
     for fq_fn in fq_fns:
-        id = os.path.basename(fq_fn)
-        id = id.replace(excluding_ext, "")
+        id = (os.path.basename(fq_fn)).split(delimiter)[0]
+        #id = (os.path.basename(fq_fn)).replace(excluding_ext, "")
+        #id = id.replace(excluding_ext, "")
         if (os.stat(fq_fn)).st_size < 100:
             fq_perc[id] = 0.0
             continue
@@ -457,16 +527,18 @@ def process_all(dir, cutoff_len, mask_lower_case=False, delimiter="+"):
 #def process_fq(fq, cutoff_len, mask_lower_case=False, delimiter="+"):
 
 
-
-def get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=False, combined_all_seq=True):
+def get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=False, washed_ids=False):
+#def get_perc_cutoff(fq_fn, cutoff_len, mask_lower_case=False, combined_all_seq=True, delimiter="+", washed_ids=False):
     from Bio import SeqIO
     import re
     
-    
     seqs = SeqIO.index(fq_fn, "fastq")
     
-    seqs = {sid: str(seqs[sid].seq) for sid in seqs.keys()}
-    
+    if washed_ids:
+        seqs = {get_ref_id(sid): str(seqs[sid].seq) for sid in seqs.keys()}
+    else:
+        seqs = {sid: str(seqs[sid].seq) for sid in seqs.keys()}
+        
     percs = {}
     for seq_id in seqs.keys():
         seq_len = len(str(seqs[seq_id]))
@@ -754,3 +826,31 @@ def compute_sid_match_len(bla_fn):
     return sid_match_lens
         
 
+
+"""
+If sequence id is in format "XXXX.X", this function extracts the text before "."
+"""
+def wash_ids(ids):
+    washed_ids = [id.split(".")[0] for id in ids]
+    return washed_ids
+
+
+def wash_id(id):
+    return id.split(".")[0]
+
+
+
+
+"""
+If the id is NCBI compliant format, we can extract the NC_ number
+"""
+def get_ref_id(sid):
+    #washed_sids = []
+    #for sid in sids:
+    if "|" in sid:
+        return sid.split("|")[3]
+    #    washed_sids.append(sid.split("|")[3])
+    else:
+        return sid
+    #    washed_sids.append(sid)
+    #return washed_sids

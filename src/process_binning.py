@@ -24,16 +24,19 @@ import filter_blast_res
 
 
 
-
+def calculate_mean_coverage(coverage_fn):
+    with open(coverage_fn) as IN:
+        covs = IN.read().splitlines()
     
+    cov_lst = {}
+    for cov in covs:
+        [sid, pos, c] = cov.split("\t")
+        
+        if sid not in cov_list.keys():
+            
 
 
-"""
-If sequence id is in format "XXXX.X", this function extracts the text before "."
-"""
-def wash_id(ids):
-    washed_ids = [id.split(".")[0] for id in ids]
-    return washed_ids
+
     
     
     
