@@ -284,7 +284,7 @@ def process_all_fq(fq_dir, cutoff_len, mask_lower_case=False, print_log=True, fq
 """
 Provide a list of fq files, 
 """
-def process_selected_fq(fq_fns, cutoff_len, combined_seqs_from_same_fn=False, mask_lower_case=False, print_log=True, fq_fn_ext="fq", delimiter="+", washed_ids=True):
+def process_selected_fq(fq_fns, cutoff_len, combined_seqs_from_same_fn=False, mask_lower_case=False, print_log=True, delimiter="+", washed_ids=True):
     import glob
     import os
     global LOG
@@ -374,8 +374,9 @@ import glob
 fq_fns = glob.glob("*.fq")
 fq_fns = fq_fns[4:6]
 
-percs = map_reads_to_reference.process_selected_fq(fq_fns, 3000)
-map_reads_to_reference.export_perc2(percs, export_tax_info=True)
+cutoff_len = 800
+percs = map_reads_to_reference.process_selected_fq(fq_fns, cutoff_len)
+map_reads_to_reference.export_perc2(percs, "all_perc."+str(cutoff_len)+".stat", export_tax_info=True)
 
 
 """
@@ -391,7 +392,7 @@ def export_perc2(all_perc, out_fn="all_perc.stat", sample_ids=None, export_tax_i
     
     with open(out_fn, "w") as OUT:
         if export_tax_info:
-            OUT.write("Code\Phylum\Class\tSpecies\t" + "\t".join(sample_ids) + "\n")
+            OUT.write("Code\tPhylum\tClass\tSpecies\t" + "\t".join(sample_ids) + "\n")
         else:
             OUT.write("Species\t" + "\t".join(sample_ids) + "\n")
         
@@ -790,8 +791,8 @@ def get_tax(sid, tax_fn="/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.tx
         return tax_db[sid]
     else:
         print("No tax info available for " + sid)
-        return None
-
+        #return None
+        return ["","",""]
 
 
 def extract_species_from_tax(sid_tbl):

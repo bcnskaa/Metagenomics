@@ -312,6 +312,43 @@ def get_nr_ids(blast_res, is_query_id_selected=True):
     
     return ids
     
+
+
+"""
+"""
+def get_ids_pairs(blast_res, query_as_key=True):
+    if blast_res is None or len(blast_res) == 0:
+        return {}
+
+    id_pairs = {}
+    for qid in blast_res.keys():
+        if qid not in id_pairs.keys():
+            id_pairs[qid] = {}
+        bla_res = blast_res[qid]
+        
+        for b in bla_reas:
+            items = b.split("\t")
+            sid = items[1]
+            if sid not in id_pairs[qid].keys():
+                id_pairs[qid][sid] = []
+            id_pairs[qid][sid].append((range(items[]]))))
+            
+            
+        
+        
+        bs = blast_res[qid]
+        for b in bs:
+            #items = b.split("\t")
+            #if len(items) < 2:
+            #    continue
+            if is_query_id_selected:
+                ids.append(b[0])
+            else:
+                ids.append(b[1])
+    ids = list(set(ids))
+    
+    return ids        
+    
     
 """
 Get non-redundant ids (subject or query) from blast fn

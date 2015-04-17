@@ -17,6 +17,40 @@ import merge_fa
 
 """
 
+# Installation of TPP with Python
+
+# Download the most updated version of Python from
+# https://mail.python.org/pipermail/tutor/2002-March/012903.html
+./configure --enable-shared
+make -j16 altinstall prefix=/home/siukinng/tools/Python-2.7.9 exec-prefix=/home/siukinng/tools/Python-2.7.9
+
+# If there is another version of Python installed in system, we can make an alias 
+ln -s /home/siukinng/tools/Python-2.7.9 /home/siukinng/tools/Python
+ln -s /home/siukinng/tools/Python/bin/python2.7 /home/siukinng/tools/Python/bin/python
+
+# Add the following lines to .bash_profile 
+# alias python=$HOME/tools/Python/bin/python2.7
+# export PYTHONPATH=$HOME/tools/Python/lib:$HOME/Python/lib/python2.7/site-packages
+# export LD_LIBRARY_PATH=$HOME/tools/Python/lib
+
+# Download the libxml2 library
+CFLAGS=-L/home/siukinng/tools/Python/lib ./configure --with-python=/home/siukinng/tools/Python/bin/python --prefix=/home/siukinng/tools/lib
+make -j16
+
+# export LD_LIBRARY_PATH=$HOME/tools/Python/lib:$HOME/tools/lib/lib
+
+# 
+
+
+
+# Download the precompiled binnary at https://groups.google.com/forum/#!topic/spctools-discuss/qOR0pabxsWo
+# https://depot.galaxyproject.org/package/linux/x86_64/tpp/tpp-4.8.0-Linux-x86_64.tar.gz
+
+"""
+
+
+"""
+
 
 import process_proteomics
 process_proteomics.process_proteomics("identified_ids.lst", "../../db/all_Y1+2/SWH-Cell_Y1+Y2.faa")
