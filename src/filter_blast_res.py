@@ -316,7 +316,7 @@ def get_nr_ids(blast_res, is_query_id_selected=True):
 
 """
 """
-def get_ids_pairs(blast_res, query_as_key=True):
+def get_ids_pairs(blast_res, query_as_key=True, alignment_len=0):
     if blast_res is None or len(blast_res) == 0:
         return {}
 
@@ -330,26 +330,45 @@ def get_ids_pairs(blast_res, query_as_key=True):
             items = b.split("\t")
             sid = items[1]
             if sid not in id_pairs[qid].keys():
-                id_pairs[qid][sid] = []
-            id_pairs[qid][sid].append((range(items[]]))))
+                id_pairs[qid][sid] = [(range())]
+            
+            # Calculate the average identity: 
+            id_pairs[qid][sid].append((items[2], range(items[6], items[7]), range(items[8], items[9])))
+
+
+    id_pairs_consolidated = {}
+    # Consolidate the id_pairs by merging the range
+    for qid in id_pairs.keys():
+        sids = id_pairs[qid].keys()
+        id_pairs_consolidated.update({ (qid, sid): range(0,0) for sid in id_pairs[qid].keys()})
+        
+        overlapped_range = set(range(0,0))
+        
+        # Consolidate pairs from a same sid
+        for sid in id_pairs[qid].keys():
             
             
-        
-        
-        bs = blast_res[qid]
-        for b in bs:
-            #items = b.split("\t")
-            #if len(items) < 2:
-            #    continue
-            if is_query_id_selected:
-                ids.append(b[0])
-            else:
-                ids.append(b[1])
-    ids = list(set(ids))
+            
+            
+#             
+#             
+# 
+#         
+#         bs = blast_res[qid]
+#         for b in bs:
+#             #items = b.split("\t")
+#             #if len(items) < 2:
+#             #    continue
+#             if is_query_id_selected:
+#                 ids.append(b[0])
+#             else:
+#                 ids.append(b[1])
+#     ids = list(set(ids))
+#     
+#     return ids        
     
-    return ids        
-    
-    
+   
+ 
 """
 Get non-redundant ids (subject or query) from blast fn
 """
