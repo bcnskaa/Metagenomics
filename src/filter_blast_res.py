@@ -340,15 +340,14 @@ def get_ids_pairs(blast_res, query_as_key=True, alignment_len=0):
     # Consolidate the id_pairs by merging the range
     for qid in id_pairs.keys():
         sids = id_pairs[qid].keys()
-        id_pairs_consolidated.update({ (qid, sid): range(0,0) for sid in id_pairs[qid].keys()})
-        
-        overlapped_range = set(range(0,0))
-        
+        id_pairs_consolidated.update({ (qid, sid):(range(0,0), range(0,0)) for sid in list(set(id_pairs[qid].keys()))})
+
         # Consolidate pairs from a same sid
         for sid in id_pairs[qid].keys():
+            ranges = id_pairs[qid][sid]
+             
             
-            
-            
+
             
 #             
 #             

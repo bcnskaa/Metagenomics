@@ -22,12 +22,12 @@ LOG = None
 
 
 """
+
 Given a directory which contains file with file extension as specified by fa_fn_ext, this function will map 
 the fasta sequences of all files with fa_fn_ext extension to the NCBI BioProject DB. The identified reference
 genomes will then serve as a template for mapping reads from fq files with a same file name (XXX_1 and XXX_2) from
 the directory as given in fq_dir.
-
-If 
+ 
 """
 def map_all_fa(wd_dir=".", fa_fn_ext="fa", fq_dir=".", fq_fn_ext="fq", ref_fa_fn=None, generate_ref_for_all_fa_fn=False):
     # Extract all fasta sequences from the working directory (wk_dir)
@@ -118,8 +118,18 @@ def map_reads_to_reference(sample_id, read_1_fq, read_2_fq, contig_fa_fn, ref_fa
 
 
 
+"""
+Return a list of reads that do not map to reference sequences
+Ref: https://www.biostars.org/p/45654/
 
 """
+def extract_unmapped_read_ids(bam_fn):
+    cmd = "SWH-Cell55_Y2.sorted"
+
+
+
+"""
+Return a non-redundant list of subject ids mapped by query sequences
 """
 def get_all_ref_sids_from_bla_fns(bla_fns):
     sids = []
@@ -279,6 +289,7 @@ def process_all_fq(fq_dir, cutoff_len, mask_lower_case=False, print_log=True, fq
 #         LOG.close()
         
     return fq_perc
+
 
 
 """
