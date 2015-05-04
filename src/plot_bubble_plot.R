@@ -11,6 +11,9 @@ if(FALSE) {
 ###
 plot_bubble <- function(df, x_label, y_label, value_label, excluding_zero=TRUE, xlabels=character(0), ylabels=character(0), xtitle=character(0), ytitle=character(0), pdf_fn=character(0))
 {
+	require(reshape2)
+	require(ggplot2)
+	
 	plot_df <- melt(df, ids=c(y_label), value.name=value_label)
 
 	#plot_df <- plot_df[which(plot_df$variable == value_label), c(x_label, y_label, value_label)]
@@ -52,4 +55,49 @@ plot_bubble <- function(df, x_label, y_label, value_label, excluding_zero=TRUE, 
 }
 
 
+### 
+calculate_bray_curtis <- function(vegan_biom, normalization=T) {
+	require(vegan)
+	
+	if(normalization)
+	{
+		normal_vegan_biom <- decostand(vegan_biom, "total")
+	} else {
+		normal_vegan_biom <- vegan_biom
+	}
+	
+	bc_dist <- vegdist(normal_vegan_biom, "bray")
+	
+	return(bc_dist)
+}
 
+
+
+###
+filter_phyloseq_by_read_count <- function(phyloseq_biom)
+{
+	
+}
+
+
+
+# Obtained from http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
+# This function converts Phyloseq object into Vegan compatible data.
+#
+#
+veganotu = function(phyloseq_biom) {
+	require("vegan")
+	OTU = otu_table(phyloseq_biom)
+	if (taxa_are_rows(OTU)) {
+		OTU = t(OTU)
+	}
+	return(as(OTU, "matrix"))
+}
+
+
+
+initial <- function()
+{
+	require(phyloseq)
+	
+}

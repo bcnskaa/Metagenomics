@@ -114,6 +114,9 @@ def convert_vegan_biom_to_otu_table(biom_fn, otu_table_ofn=None, discard_eukaryo
                 tax = biom['rows'][i]['metadata']['Taxonomy'][2:]
                 tax = tax + ["" for i in range(len(tax_ranks) - len(tax))]
                 
+                if "viruses" in tax[0]:
+                    continue
+                    
                 if discard_eukaryota:
                     if tax[0] == "Eukaryota":
                         continue
@@ -130,7 +133,7 @@ def convert_vegan_biom_to_otu_table(biom_fn, otu_table_ofn=None, discard_eukaryo
     # Print column headers
     #OUT.write("\t".join(["Tax"]+col_ids) + "\n")
     OUT.write("# QIIME v1.2.1-dev OTU table\n")
-    OUT.write("\t".join(["#OTU ID"]+col_ids) + "\n")
+    OUT.write("\t".join(["#OTU ID"]+col_ids) + "\tConsensus Lineage\n")
     for i in range(nrow):
         row_id = row_ids[i] 
         vals = "\t".join(map(str, mtx[i]))
