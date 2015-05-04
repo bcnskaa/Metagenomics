@@ -119,14 +119,22 @@ def map_reads_to_reference(sample_id, read_1_fq, read_2_fq, contig_fa_fn, ref_fa
 
 
 """
-Return a list of reads that do not map to reference sequences
+Return a list of reads that do not map to any reference sequence
 Ref: https://www.biostars.org/p/45654/
 
+
+samtools view -f4 whole.bam | cut -f10 | sort | uniq -c | sort -nr > unmapped_unique.count
 """
-def extract_unmapped_read_ids(bam_fn):
-    cmd = "SWH-Cell55_Y2.sorted"
+def extract_unmapped_read_ids(bam_fn, out_fn=None, samtool_path=mg_pipeline.SAMTOOLS_HOME):
+    
+    cmd = samtool_path + "/samtools view -f " + bam_fn + " | cut -f10 | sort | uniq > " + out_fn 
+    
+    
 
 
+def extract_multi_mapped_read_ids(bam_fn, samtool_path=mg_pipeline.SAMTOOLS_HOME):
+    cmd = samtool_path + "/samtools" 
+    
 
 """
 Return a non-redundant list of subject ids mapped by query sequences

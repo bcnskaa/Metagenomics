@@ -26,6 +26,7 @@ sample_home_dir = "/disk/rdisk08/siukinng/samples/marine_projects/whales"
 
 process_EMIRGE.process_EMIRGE(sample_ids_abbrev=sample_ids_abbrev, sample_home_dir=sample_home_dir)
 
+process_EMIRGE.process_EMIRGE(sample_ids_abbrev=sample_ids_abbrev)
 
 
 """
@@ -42,8 +43,8 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
     for sample_id in sample_ids:
 
         mg_pipeline.print_status("Processing " + sample_id)
-        #emirge_fa_fn = post_process_EMIRGE(dir= "./" + sample_id)
-        emirge_fa_fn = post_process_EMIRGE(dir= "./" + sample_id + "/Markers/EMIRGE")
+        emirge_fa_fn = post_process_EMIRGE(dir= "./" + sample_id)
+        #emirge_fa_fn = post_process_EMIRGE(dir= "./" + sample_id + "/Markers/EMIRGE")
         
         if emirge_fa_fn is None:
             mg_pipeline.print_status(sample_id + " skipped")
@@ -65,7 +66,10 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
         binning_dir = sample_home_dir
         if not binning_dir.endswith("/"): 
             binning_dir = binning_dir + "/"
-        binning_dir = binning_dir + sample_id + "/Binning/MaxBin/"
+        
+        #binning_dir = binning_dir + sample_id + "/Binning/MaxBin/"
+        binning_dir = binning_dir + sample_id + "/"
+        
         #consolidated_bin_fa_fn = binning_dir + sample_id + ".fasta"
         #if binning_sub_dir is not None:
         consolidated_bin_fa_fn = binning_dir + sample_id + ".fasta"
@@ -91,7 +95,7 @@ def process_EMIRGE(sample_ids_abbrev={"GZ-Xyl_Y2":"GX2", "GZ-Xyl_Y1":"GX1", "GZ-
         #for sid in sids:
         #    print(sid)
         
-        bin_map_res = mg_pipeline.map_scaffold_ids2_bin_id(sids, binning_dir)
+        bin_map_res = mg_pipeline.map_scaffold_ids2_bin_id(sids, binning_dir, bin_fa_fn_ext=".fa")
         
         # Rename the bin_group into a bin_group_abbrev
         bin_map_res = {k.replace(sample_id, sample_ids_abbrev[sample_id]):bin_map_res[k] for k in bin_map_res.keys()}

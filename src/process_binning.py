@@ -50,8 +50,7 @@ def calculate_mean_coverage(coverage_fn):
         covs = IN.read().splitlines()
     
     cov_lst = {}    
-    for cov in covs:
-        
+    for cov in covs:     
         try:
             [sid, pos, c] = cov.split("\t")
             c = int(c)
@@ -66,14 +65,85 @@ def calculate_mean_coverage(coverage_fn):
             # max_coverage 
             if c > cov_lst[sid][2]:
                 cov_lst[sid][2] = c
-        except ValueError: 
-            print(c)  
- 
+        except ValueError:
+            print(c)
+            
     return cov_lst
         
-        
+    
+"""
+
+""" 
+def convert_vegan_biom_to_otu_table(biom_fn, otu_table_ofn=None, discard_eukaryota=True):
+#def convert_vegan_biom_to_otu_table(biom_fn, otu_table_ofn=None, tax_map_ofn=None, discard_eukaryota=True):
+    import json
+    from itertools import cycle
+    
+    # k__Bacteria;p__Firmicutes;c__Clostridia;o__Clostridiales;f__Ruminococcaceae;g__;s__
+    tax_ranks = ["k__", "p__", "c__", "o__","f__", "g__", "s__"]
+    
+    if otu_table_ofn is None:
+        otu_table_ofn = biom_fn + ".otu"
+    
+    #if tax_map_ofn is None:
+    #   tax_map_ofn = biom_fn + ".map"
+    
+    IN = open(biom_fn)
+    biom = json.load(IN)
+    
+    # Determine the shape of OTU table
+    nrow = biom['shape'][0]
+    ncol = biom['shape'][1] 
+    
+    print("BIOM dimension: " + str(nrow) + ", " + str(ncol))
+    
+    row_ids = [r['id'] for r in biom['rows']]
+    col_ids = [c['id'] for c in biom['columns']]
+    OTU_tbl = [[0 for j in range(len(col_ids))] for i in range(len(row_ids))]
+    
+    #OUT = open(tax_map_ofn, "w")
+    
+    id2tax = {}
+    
+    # Process the tax map
+    for i in range(nrow):
+        id = biom['rows'][i]['id']
+        tax = "None"
+        if biom['rows'][i]['metadata'] is not None:
+            if len(biom['rows'][i]['metadata']['Taxonomy']) > 2:
+                tax = biom['rows'][i]['metadata']['Taxonomy'][2:]
+                tax = tax + ["" for i in range(len(tax_ranks) - len(tax))]
+                
+                if discard_eukaryota:
+                    if tax[0] == "Eukaryota":
+                        continue
+                     
+                tax = ";".join(z[0] + z[1] for z in zip(tax_ranks, tax))
+                #tax = ";".join(biom['rows'][i]['metadata']['Taxonomy']).replace(" ", "_")
+                id2tax[id] = clear_tax_label(tax)
+                #OUT.write(id + "\t" + tax + "\n")
+    #OUT.close()
+    
+    # Process OTU table
+    OUT = open(otu_table_ofn, "w")
+    mtx = biom['data']
+    # Print column headers
+    #OUT.write("\t".join(["Tax"]+col_ids) + "\n")
+    OUT.write("# QIIME v1.2.1-dev OTU table\n")
+    OUT.write("\t".join(["#OTU ID"]+col_ids) + "\n")
+    for i in range(nrow):
+        row_id = row_ids[i] 
+        vals = "\t".join(map(str, mtx[i]))
+        if row_id in id2tax.keys():
+            OUT.write(row_id + "\t" + vals + "\t" + id2tax[row_id] + "\n")
+    OUT.close()
+    
+    return otu_table_ofn
 
 
+
+def clear_tax_label(tax_label):
+    return tax_label.replace(" <phylum>", "").replace(" ", "_")
 """
 Helper function for converting the following data:
 OTU    Read
