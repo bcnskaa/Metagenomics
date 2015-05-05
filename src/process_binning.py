@@ -45,9 +45,18 @@ def estimate_bla_map(blast_res, cutoff_len=40000):
 """
 Calculate the coverage of all sequences in the coverage file
 """
-def calculate_mean_coverage(coverage_fn):
+def calculate_mean_coverage(coverage_fn, ref_fa_fn=None):
+    from Bio import SeqIO
+    
     with open(coverage_fn) as IN:
         covs = IN.read().splitlines()
+    
+    ref_seqs_len = {}
+    # Import reference sequences, and determine the percent of the ref genomes covered by reads
+    if ref_fa_fn is not None:
+        seqs = SeqIO.index(ref_fa_fn, "fasta")
+        ref_seqs_len = {sid: len(seqs[sid].seq) for sid in seqs.keys()}
+    
     
     cov_lst = {}    
     for cov in covs:     
@@ -55,9 +64,9 @@ def calculate_mean_coverage(coverage_fn):
             [sid, pos, c] = cov.split("\t")
             c = int(c)
             if sid not in cov_lst.keys():
-                # len_with_coverage, total_coverage, max_coverage
-                cov_lst[sid] = [0, 0, 0]
-                
+                # len_with_coverage, total_coverage, max_coverage, mean_coverage, percent_genome_coverage
+                cov_lst[sid] = [0, 0, 0, 0, 0]
+
             # len_with_coverage
             cov_lst[sid][0] += 1
             # total_coverage 
@@ -65,8 +74,15 @@ def calculate_mean_coverage(coverage_fn):
             # max_coverage 
             if c > cov_lst[sid][2]:
                 cov_lst[sid][2] = c
+            
+        
         except ValueError:
             print(c)
+        
+    for sid in cov_lst.keys():
+        if sid in ref_seqs_len.keys():
+            cov_lst[sid][4] = cov_lst[sid][0] / ref_seqs_len[sid]
+        cov_lst[sid][3] = cov_lst[sid][1] / cov_lst[sid][0]
             
     return cov_lst
         
