@@ -105,7 +105,7 @@ def map_reads_to_reference(sample_id, read_1_fq, read_2_fq, contig_fa_fn, ref_fa
     fq_fn = prefix + ".fq"
     if not mg_pipeline.assert_proc(fq_fn):
         if mg_pipeline.generate_fq_from_bam(sorted_bam_fn, ref_fa_fn, fq_fn) is None:
-            mg_pipeline.print_status("Problem on preparing fq file.")
+            mg_pipeline.print_status("Problem on preparing fq file.") 
     else:
         mg_pipeline.print_status(fq_fn + " exists.")
         
@@ -117,6 +117,17 @@ def map_reads_to_reference(sample_id, read_1_fq, read_2_fq, contig_fa_fn, ref_fa
 
 
 
+def map_read_to_NR(query_fa_fn, db_fn="nr_idx", diamond_program="blastx", max_target_seqs=1, num_threads=40, tmp_dir=".", diamond_path=None):
+    
+    # ~/tools/megan/diamond blastx --max-target-seqs 1 -p 40 -d nr_idx -q ./$id.fa -a $id+nr -t /scratch/bcnskaa/tmp
+    print("")
+
+
+
+def assign_taxa_to_reads(m8_fn, prot2gi_fn, gi2tax_fn):
+    print("")
+
+
 
 """
 Return a list of reads that do not map to any reference sequence
@@ -126,7 +137,7 @@ Ref: https://www.biostars.org/p/45654/
 samtools view -f4 whole.bam | cut -f10 | sort | uniq -c | sort -nr > unmapped_unique.count
 """
 def extract_unmapped_read_ids(bam_fn, out_fn=None, samtool_path=mg_pipeline.SAMTOOLS_HOME):
-    
+        
     cmd = samtool_path + "/samtools view -f " + bam_fn + " | cut -f10 | sort | uniq > " + out_fn 
     
     
@@ -152,8 +163,9 @@ def get_all_ref_sids_from_bla_fns(bla_fns):
     
 
 """
+
 Mapping contig sequences to reference genomes available in NCBI BioProject DB, and return a list of
- 
+
 """
 def map_all_fa_fns_to_references(*contig_fa_fns):
     sids = []

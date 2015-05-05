@@ -73,7 +73,9 @@ calculate_bray_curtis <- function(vegan_biom, normalization=T) {
 
 
 
-###
+#
+# 
+#
 filter_phyloseq_by_read_count <- function(phyloseq_biom)
 {
 	
