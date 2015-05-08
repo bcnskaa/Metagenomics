@@ -2,12 +2,34 @@ library(lattice); # If you do not have lattice library installed, simply run ins
 library(ggplot2);   # If you do not have ggplot2 library installed, simply run install.packages("ggplot2")
 library(reshape2);
 
+
+###
+# To install phyloseq package, the following dependent packages need to be installed before head.
+# https://github.com/joey711/phyloseq/issues/329
+# 
+# And may require an update-to-date BioGeneric (version >=0.14) 
+# wget http://www.bioconductor.org/packages/release/bioc/src/contrib/BiocGenerics_0.14.0.tar.gz
+# install.packages("BiocGenerics_0.14.0.tar.gz", repos = NULL)
+#
+# library("devtools")
+# install_github("phyloseq", "joey711")
+# 
+# If the following error occurs: 
+# >Error in system(full, intern = quiet, ignore.stderr = quiet, ...) : 
+# >  error in running command
+#
+# Setting options(unzip="internal") can solve the error
+###
+
+
+
 ###
 if(FALSE) {
  df <- read.table("test.dat", sep="\t", header=T)
  #x_label="Sample";y_label="Code";value_label="Coverage";excluding_zero=TRUE; xlabels=character(0); ylabels=character(0); xtitle=character(0); ytitle=character(0);pdf_fn=character(0)
  plot_bubble(df, "Sample", "Code", "Coverage")
 }
+
 ###
 plot_bubble <- function(df, x_label, y_label, value_label, excluding_zero=TRUE, xlabels=character(0), ylabels=character(0), xtitle=character(0), ytitle=character(0), pdf_fn=character(0))
 {
@@ -56,21 +78,45 @@ plot_bubble <- function(df, x_label, y_label, value_label, excluding_zero=TRUE, 
 
 
 ### 
-calculate_bray_curtis <- function(vegan_biom, normalization=T) {
+calculate_bray_curtis <- function(vegan_biom, normalization=T, dist_method="bray") {
 	require(vegan)
+	require(phyloseq)
 	
 	if(normalization)
 	{
-		normal_vegan_biom <- decostand(vegan_biom, "total")
+		normalized_vegan_biom <- decostand(vegan_biom, "total")
 	} else {
-		normal_vegan_biom <- vegan_biom
+		normalized_vegan_biom <- vegan_biom
 	}
 	
-	bc_dist <- vegdist(normal_vegan_biom, "bray")
+	vegan_biom.dist <- vegdist(normalized_vegan_biom, method=dist_method)
 	
-	return(bc_dist)
+	return(vegan_biom.dist)
 }
 
+
+
+calculate_pcoa <- function(vegan_biom, dist_method="bray") {
+	require(vegan)
+	require(phyloseq)
+	require(ggplot2)
+	
+	biom.dist <- calculate_bray_curtis(vegan_biom, dist_method=dist_method)
+	biom.pcoa <- capscale(biom.dist ~ 1, distance=dist_method)
+	
+	# Variance explained: MDS1, MDS2
+	mds1_ve_1 <- summary(biom.pcoa)$cont$importance[2,1] * 100
+	mds1_ve_2 <- summary(biom.pcoa)$cont$importance[2,2] * 100
+	
+	# Coordinates of the samples in PCoA
+	sample_coords <- as.data.frame(scores(biom.pcoa)$sites)
+	
+	# Plot the PCoA
+	ggplot(sample_coords, aes_string(x=MDS1, y=MDS2)) + geom_point() + theme_bw() + xlab(paste("PCoA_1 (variance explained=",mds1_ve_1,"%",")",sep="" )) + ylab(paste("PCoA_2 (variance explained=",mds1_ve_2,"%",")",sep="" )) + geom_text(aes(label=rownames(sample_coords)),hjust=-0.1, vjust=0.5, cex=3) + geom_vline(xintercept = 0, lty = "dotted") + geom_hline(yintercept = 0, lty = "dotted") 
+	
+	
+	return (biom.pcoa)
+}
 
 
 #
@@ -81,6 +127,10 @@ filter_phyloseq_by_read_count <- function(phyloseq_biom)
 	
 }
 
+
+#
+#
+#
 
 
 # Obtained from http://joey711.github.io/phyloseq-demo/phyloseq-demo.html

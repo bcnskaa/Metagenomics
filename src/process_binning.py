@@ -74,7 +74,6 @@ def calculate_mean_coverage(coverage_fn, ref_fa_fn=None):
             # max_coverage 
             if c > cov_lst[sid][2]:
                 cov_lst[sid][2] = c
-            
         
         except ValueError:
             print(c)
@@ -85,8 +84,9 @@ def calculate_mean_coverage(coverage_fn, ref_fa_fn=None):
         cov_lst[sid][3] = cov_lst[sid][1] / cov_lst[sid][0]
             
     return cov_lst
-        
-    
+
+
+ 
 """
 
 """ 
