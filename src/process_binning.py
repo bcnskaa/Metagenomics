@@ -39,14 +39,22 @@ def estimate_bla_map(blast_res, cutoff_len=40000):
     print("")
     
     
+
+def export_coverage(cov, cov_summary_ofn):
+    with open(cov_summary_ofn, "w") as OUT:
+        OUT.write("id\tlength\tcoverage\n")
+        for sid in cov.keys():
+            OUT.write(sid+"\t"+str(cov[sid][0])+"\t"+str(cov[sid][3])+"\n")
     
     
 
 """
 Calculate the coverage of all sequences in the coverage file
 """
-def calculate_mean_coverage(coverage_fn, ref_fa_fn=None):
+def calculate_mean_coverage(coverage_fn, cov_summary_ofn=None, ref_fa_fn=None):
     from Bio import SeqIO
+    
+    print("Calculate coverage for " + coverage_fn)
     
     with open(coverage_fn) as IN:
         covs = IN.read().splitlines()
@@ -58,14 +66,18 @@ def calculate_mean_coverage(coverage_fn, ref_fa_fn=None):
         ref_seqs_len = {sid: len(seqs[sid].seq) for sid in seqs.keys()}
     
     
-    cov_lst = {}    
+    nr_sids = list(set([cov.split("\t")[0] for cov in covs]))
+    
+    # len_with_coverage, total_coverage, max_coverage, mean_coverage, percent_genome_coverage
+    cov_lst = {sid:[0, 0, 0, 0, 0] for sid in nr_sids}
+        
     for cov in covs:     
         try:
             [sid, pos, c] = cov.split("\t")
             c = int(c)
-            if sid not in cov_lst.keys():
-                # len_with_coverage, total_coverage, max_coverage, mean_coverage, percent_genome_coverage
-                cov_lst[sid] = [0, 0, 0, 0, 0]
+            #if sid not in cov_lst.keys():
+            #    # len_with_coverage, total_coverage, max_coverage, mean_coverage, percent_genome_coverage
+            #    cov_lst[sid] = [0, 0, 0, 0, 0]
 
             # len_with_coverage
             cov_lst[sid][0] += 1
@@ -77,12 +89,24 @@ def calculate_mean_coverage(coverage_fn, ref_fa_fn=None):
         
         except ValueError:
             print(c)
-        
+    
+    # Percent_genome_coverage
+    if ref_fa_fn is not None:
+        for sid in cov_lst.keys():
+            if sid in ref_seqs_len.keys():
+                cov_lst[sid][4] = cov_lst[sid][0] / ref_seqs_len[sid]
+    
     for sid in cov_lst.keys():
-        if sid in ref_seqs_len.keys():
-            cov_lst[sid][4] = cov_lst[sid][0] / ref_seqs_len[sid]
+        # Mean average
         cov_lst[sid][3] = cov_lst[sid][1] / cov_lst[sid][0]
-            
+    
+    print("Number of sequences processed: " + str(len(cov_lst))) 
+      
+    if cov_summary_ofn is None:
+        cov_summary_ofn = coverage_fn + ".summary"
+    
+    export_coverage(cov_lst, cov_summary_ofn)      
+    
     return cov_lst
 
 

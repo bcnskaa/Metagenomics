@@ -112,7 +112,8 @@ calculate_pcoa <- function(vegan_biom, dist_method="bray") {
 	sample_coords <- as.data.frame(scores(biom.pcoa)$sites)
 	
 	# Plot the PCoA
-	ggplot(sample_coords, aes_string(x=MDS1, y=MDS2)) + geom_point() + theme_bw() + xlab(paste("PCoA_1 (variance explained=",mds1_ve_1,"%",")",sep="" )) + ylab(paste("PCoA_2 (variance explained=",mds1_ve_2,"%",")",sep="" )) + geom_text(aes(label=rownames(sample_coords)),hjust=-0.1, vjust=0.5, cex=3) + geom_vline(xintercept = 0, lty = "dotted") + geom_hline(yintercept = 0, lty = "dotted") 
+	ggplot(sample_coords, aes_string(x="MDS1", y="MDS2")) + geom_point() + theme_bw() + xlab(paste("PCoA_1 (variance explained=",mds1_ve_1,"%",")",sep="" )) + ylab(paste("PCoA_2 (variance explained=",mds1_ve_2,"%",")",sep="" )) + geom_text(aes(label=rownames(sample_coords)),hjust=-0.1, vjust=0.5, cex=3) + geom_vline(xintercept = 0, lty = "dotted") + geom_hline(yintercept = 0, lty = "dotted") 
+	ggplot(sample_coords, aes_string(x="MDS1", y="MDS2")) + geom_point() + theme_bw() + xlab(paste("PCoA_1 (variance explained=",mds1_ve_1,"%",")",sep="" )) + ylab(paste("PCoA_2 (variance explained=",mds1_ve_2,"%",")",sep="" )) + geom_vline(xintercept = 0, lty = "dotted") + geom_hline(yintercept = 0, lty = "dotted") 
 	
 	
 	return (biom.pcoa)
@@ -143,7 +144,7 @@ veganotu = function(phyloseq_biom) {
 	if (taxa_are_rows(OTU)) {
 		OTU = t(OTU)
 	}
-	return(as(OTU, "matrix"))
+	return(as(OTU, "matrix"))p
 }
 
 
@@ -151,5 +152,77 @@ veganotu = function(phyloseq_biom) {
 initial <- function()
 {
 	require(phyloseq)
+	require(rgl)
+	
+	#sample_id <- "S1-1B"
+	sample_id <- "SWH-Seed_Y0"
+	min_len <- 5000
+	
+	#cov_fn <- paste(sample_id, ".coverage.summary", sep="")
+	cov_fn <- paste(sample_id, ".sorted.bam.coverage.summary", sep="")
+	cov <- read.table(cov_fn, sep="\t", header=T, row.names=1, stringsAsFactors=F)
+	#colnames(cov) <- c("coverage")
+	
+	#tetra_fn <- paste(sample_id, ".scaffold.fa.tetra_freq", sep="")
+	tetra_fn <- paste(sample_id, ".fa.tetra_freq", sep="")
+	tetra <- read.table(tetra_fn, sep="\t", header=T, row.names=1, stringsAsFactors=F)
+	if(length(which(colnames(tetra) == "X")) == 1)
+	{
+		tetra <- tetra[, -which(colnames(tetra) == "X")]
+	}
+	
+	lineage_fn <- paste(sample_id, "+nr.m8.lineage", sep="")
+	lineages <- read.table(lineage_fn, sep="\t", header=T, row.names=1, stringsAsFactors=F)
+	
+	tetra.pcoa <- calculate_pcoa(tetra, dist_method="bray")
+	tetra.coord <- as.data.frame(scores(tetra.pcoa)$sites)
+	tetra.cov <- merge(tetra.coord, cov, by="row.names", all=TRUE)
+	row.names(tetra.cov) <- tetra.cov[,1]
+	tetra.cov <- tetra.cov[,-which(colnames(tetra.cov) == "Row.names")]
+	
+	tetra.cov_lineage <- merge(tetra.cov, lineages, by="row.names", all=TRUE)
+	tetra.cov_lineage <- tetra.cov_lineage[which(tetra.cov_lineage$length > min_len),]
+	tetra.cov_lineage$log_length <- log(tetra.cov_lineage$length)
+	
+	
+	labels <- unique(tetra.cov_lineage$lineage)
+	labels <- labels[-which(labels == "")]
+	cols = rainbow(length(labels))
+	
+	tetra.cov_lineage$col <- rep("#00000000")
+	for(i in 1 : length(labels))
+	{
+		label = labels[i]
+		col <- cols[i]
+		tetra.cov_lineage$col[which(tetra.cov_lineage$lineage == label)] <- col
+	}
+	
+	col_alpha <- 1
+	# Plot
+	with(tetra.cov_lineage, plot3d(MDS1, MDS2, log(coverage), size=0, col=col, alpha=col_alpha, colkey=F))
+
+	# 
+	#http://stackoverflow.com/questions/10341963/3d-scatterplot-in-r-using-rgl-plot3d-different-size-for-each-data-point
+	for(i in 1:nrow(tetra.cov_lineage)) {
+		points3d(tetra.cov_lineage$MDS1[i], tetra.cov_lineage$MDS2[i], log(tetra.cov_lineage$coverage[i]), size=(tetra.cov_lineage$length[i])/10000, col=tetra.cov_lineage$col[i], alpha=col_alpha)
+	}
+
+	text_threshold = 200
+	tetra.cov_lineage.text = tetra.cov_lineage[tetra.cov_lineage$coverage >= text_threshold,]
+	text3d(tetra.cov_lineage.text$MDS1, tetra.cov_lineage.text$MDS2, log(tetra.cov_lineage.text$coverage), tetra.cov_lineage.text$Row.names, cex=0.6, adj=c(1.1,1.0))
+	
+	
+	# add legend
+	legend("topright", legend = labels, pch = 16, col = cols, cex=1, inset=c(0.02))
+	
+	
+#	# Plot
+#	with(tetra.cov, plot3d(MDS1, MDS2, log(coverage), size=0))
+#	
+#	#http://stackoverflow.com/questions/10341963/3d-scatterplot-in-r-using-rgl-plot3d-different-size-for-each-data-point
+#	for(i in seq_along(tetra.cov)) {
+#		points3d(tetra.cov$MDS1[i], tetra.cov$MDS2[i], log(tetra.cov$coverage[i]), size=log(tetra.cov$length[i]))
+#	}
+#	
 	
 }

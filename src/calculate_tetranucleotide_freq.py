@@ -1,4 +1,4 @@
-# 2014 SKWoolf bcnskaa AT gmail DOT com
+# 2014 SKWoolf
 from __future__ import division
 import itertools
 import sys
@@ -12,15 +12,22 @@ from Bio import SeqIO
 
 # Input: A file containing one or more fasta sequences
 # Output: A file "tetra_freq.table" which is in tabular format
-def calculate_freq_from_fasta(fasta_fn, outtbl_fn="tetra_freq.table"):
+#def calculate_freq_from_fasta(fasta_fn, outtbl_fn="tetra_freq.table", min_len=5000):
+def calculate_freq_from_fasta(fasta_fn, outtbl_fn=None, min_len=5000):
     print("[ calculate_freq_from_fasta ] Reading sequences from " + fasta_fn)
+    
+    if outtbl_fn is None:
+        outtbl_fn = fasta_fn + ".tetra_freq"
 
     seqDB = list(SeqIO.parse(fasta_fn, "fasta"))
+    #seqs = SeqIO.parse(fasta_fn, "fasta")
     
     print(str(len(seqDB)) + " sequences found")
 
     freq_tables = {}
     for seq in seqDB:
+        if len(seq.seq) < min_len:
+            continue
         print("parsing " + seq.id + " (" + str(len(seq.seq))  + "bp)")
         freq_tables[seq.id] = normalize(calculate_freq_table(str(seq.seq)))
     
@@ -29,6 +36,7 @@ def calculate_freq_from_fasta(fasta_fn, outtbl_fn="tetra_freq.table"):
     #freq_tables = {seq.id: calculate_freq_table(str(seq.seq)) for seq in SeqIO.parse(fasta_fn, "fasta")} 
     export_freq_table(outtbl_fn, freq_tables)
     
+
 
 # Normalize freq_table by its total sum
 def normalize(freq_table):
@@ -53,13 +61,14 @@ def export_freq_table(outfn, freq_table_dict):
             #[tt[key] for key in sorted(tt.keys())]
 
 
+
 # Given a string (symbol: A, C, G, T) and length of kmer, we calculate occurences of each kmer in
 # the string and return a dictionary object enlisting all kmer and their count. One character sliding window is used.
 def calculate_freq_table(sequence, pattern_list=['A', 'C', 'G', 'T'], kmer_len=4):
     sequence = sequence.upper()
     
     # Generate a list of k-mer
-    seq_tuple = [sequence[i:i + kmer_len] for i in range(1, len(sequence) - (kmer_len - 1))]
+    seq_tuple = [sequence[i:i + kmer_len] for i in range(0, len(sequence) - (kmer_len - 1))]
     
     # Generate a frequency table through an iterable and list comprehension
     #freq_table = {p : seq_tuple.count(p) for p in ["".join(l) for l in list(itertools.product(pattern_list, repeat=kmer_len))]}
@@ -71,9 +80,11 @@ def calculate_freq_table(sequence, pattern_list=['A', 'C', 'G', 'T'], kmer_len=4
     return freq_table
 
 
+
 # Construct a list of ALL possible kmers of length (default=4)
 def get_patterns(pattern_list=['A', 'C', 'G', 'T'], kmer_len=4):  
     return ["".join(l) for l in list(itertools.product(pattern_list, repeat=kmer_len))] 
+
 
 
 # Generate a random sequence of length (default=1000bp) for test-bench code
@@ -84,15 +95,19 @@ def generate_random_seq(length=10000, base = ["A", "T", "C", "G"]):
     return seq
 
 
+
 # Test-bench codes
 def testbench():
     seqs = {"".join([str(randint(0,9)) for i in range(1,10)]):generate_random_seq() for i in range(1, 10)}
     tbl = {k:calculate_freq_table(seq) for k, seq in seqs.items()}
 
 
+
 # Main 
 def main(argv):
     calculate_freq_from_fasta(argv[0])
+
+
 
 # Invoke the main function
 if __name__ == "__main__":
