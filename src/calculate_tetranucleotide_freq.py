@@ -5,6 +5,15 @@ import sys
 from itertools import islice
 from random import randint
 
+
+##
+# To-do:
+# Adding split large contigs into chunks of specific size w with stepping of size m
+# 
+##
+
+
+
 # Require biopython
 # To run this script, path to biopython has to be included in PYTHONPATH
 from Bio import SeqIO

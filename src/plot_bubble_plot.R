@@ -155,7 +155,7 @@ initial <- function()
 	require(rgl)
 	
 	#sample_id <- "S1-1B"
-	sample_id <- "SWH-Seed_Y0"
+	sample_id <- "SWH-Cell_Y2"
 	min_len <- 5000
 	
 	#cov_fn <- paste(sample_id, ".coverage.summary", sep="")
@@ -180,8 +180,10 @@ initial <- function()
 	row.names(tetra.cov) <- tetra.cov[,1]
 	tetra.cov <- tetra.cov[,-which(colnames(tetra.cov) == "Row.names")]
 	
-	tetra.cov_lineage <- merge(tetra.cov, lineages, by="row.names", all=TRUE)
-	tetra.cov_lineage <- tetra.cov_lineage[which(tetra.cov_lineage$length > min_len),]
+	tetra.cov_lineage_pre <- merge(tetra.cov, lineages, by="row.names", all=TRUE)
+	
+	# Update for min_len
+	tetra.cov_lineage <- tetra.cov_lineage_pre[which(tetra.cov_lineage_pre$length > min_len),]
 	tetra.cov_lineage$log_length <- log(tetra.cov_lineage$length)
 	
 	
@@ -199,7 +201,7 @@ initial <- function()
 	
 	col_alpha <- 1
 	# Plot
-	with(tetra.cov_lineage, plot3d(MDS1, MDS2, log(coverage), size=0, col=col, alpha=col_alpha, colkey=F))
+	with(tetra.cov_lineage, plot3d(MDS1, MDS2, log(coverage), size=0, col=col, alpha=col_alpha, colkey=F, main=sample_id))
 
 	# 
 	#http://stackoverflow.com/questions/10341963/3d-scatterplot-in-r-using-rgl-plot3d-different-size-for-each-data-point
@@ -207,9 +209,11 @@ initial <- function()
 		points3d(tetra.cov_lineage$MDS1[i], tetra.cov_lineage$MDS2[i], log(tetra.cov_lineage$coverage[i]), size=(tetra.cov_lineage$length[i])/10000, col=tetra.cov_lineage$col[i], alpha=col_alpha)
 	}
 
-	text_threshold = 200
-	tetra.cov_lineage.text = tetra.cov_lineage[tetra.cov_lineage$coverage >= text_threshold,]
-	text3d(tetra.cov_lineage.text$MDS1, tetra.cov_lineage.text$MDS2, log(tetra.cov_lineage.text$coverage), tetra.cov_lineage.text$Row.names, cex=0.6, adj=c(1.1,1.0))
+	text_threshold = 10
+	#tetra.cov_lineage.text = tetra.cov_lineage[tetra.cov_lineage$coverage >= text_threshold,]
+	
+	tetra.cov_lineage.text = tetra.cov_lineage[nchar(tetra.cov_lineage$lineage) > 0,]
+	text3d(tetra.cov_lineage.text$MDS1, tetra.cov_lineage.text$MDS2, log(tetra.cov_lineage.text$coverage), paste(tetra.cov_lineage.text$Row.names,";", tetra.cov_lineage.text$lineage, sep=""), cex=0.6, adj=c(1.3,1.0))
 	
 	
 	# add legend

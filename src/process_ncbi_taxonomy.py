@@ -94,7 +94,7 @@ prot_gi2taxid_map = {}
 
 """
 """
-def assign_tax_family_to_m8_results(m8_fn, lineage_ofn=None, prot_gi2taxid_map=None):
+def assign_tax_family_to_m8_results(m8_fn, lineage_ofn=None, protein_lineage_ofn=None, prot_gi2taxid_map=None):
     #global prot_gi2taxid_map
     
     with open(m8_fn) as IN:
@@ -139,7 +139,7 @@ def assign_tax_family_to_m8_results(m8_fn, lineage_ofn=None, prot_gi2taxid_map=N
 
     m8_tax_lineage = m8
     
-    [finalized_scafolds, scaffolds] = infer_scaffold_tax_lineage(m8_tax_lineage)
+    [finalized_scafolds, scaffolds, scaffolds_proteins] = infer_scaffold_tax_lineage(m8_tax_lineage)
     
     if lineage_ofn is None:
         lineage_ofn = m8_fn + ".lineage"
@@ -150,7 +150,22 @@ def assign_tax_family_to_m8_results(m8_fn, lineage_ofn=None, prot_gi2taxid_map=N
         for scaffold_id in finalized_scafolds.keys():
             OUT.write(scaffold_id + "\t" + finalized_scafolds[scaffold_id] + "\n")
     print(str(len(finalized_scafolds)) + " lines wrote.") 
-    return [finalized_scafolds, scaffolds, m8_tax_lineage]
+
+    # Export lineage proteins
+    if protein_lineage_ofn is None:
+        protein_lineage_ofn = m8_fn + ".protein_lineage"
+    line_n = 0
+    print("Exporting lineage of protein sequences to " + protein_lineage_ofn)
+    with open(protein_lineage_ofn, "w") as OUT:
+        OUT.write("scaffold_id\tprotein_id\tlineage\n")
+        for scaffold_id in scaffolds_proteins.keys():
+            for item in scaffolds_proteins[scaffold_id]:
+                OUT.write(scaffold_id + "\t" + item.replace(":", "\t") + "\n")
+                line_n += 1
+    print(str(line_n) + " lines wrote.") 
+    
+    
+    return [finalized_scafolds, scaffolds, scaffolds_proteins, m8_tax_lineage]
 
 
 
@@ -162,12 +177,14 @@ key format: scaffold_XX_X
 def infer_scaffold_tax_lineage(m8_tax_lineage, max_consistent_lineage=5, cutoff_perc=0.8):
     import operator
     
+    scaffolds_proteins = {}
     scaffolds = {}
     for id in m8_tax_lineage.keys():
         scaffold_id = id[::-1].split("_", 1)[1][::-1]
         if scaffold_id not in scaffolds.keys():
             #print("Adding " + scaffold_id)
             scaffolds[scaffold_id] = []
+            scaffolds_proteins[scaffold_id] = []
         lineage = m8_tax_lineage[id][3]
         lineage_family = ""
         lineage_order = ""
@@ -176,6 +193,7 @@ def infer_scaffold_tax_lineage(m8_tax_lineage, max_consistent_lineage=5, cutoff_
             lineage_family = lineage.split(";")[4].replace("f__", "")
         #scaffolds[scaffold_id].append(lineage_family)
         scaffolds[scaffold_id].append(lineage_order)
+        scaffolds_proteins[scaffold_id].append(id + ":" + lineage)
     
     finalized_scafolds = {}
     for id in scaffolds.keys():
@@ -201,7 +219,7 @@ def infer_scaffold_tax_lineage(m8_tax_lineage, max_consistent_lineage=5, cutoff_
         
         finalized_scafolds[id] = highest_lineage
     
-    return [finalized_scafolds, scaffolds]
+    return [finalized_scafolds, scaffolds, scaffolds_proteins]
             
 
 
