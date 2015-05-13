@@ -49,6 +49,8 @@ make -j16
 """
 
 
+
+  
 """
 
 
@@ -61,24 +63,81 @@ process_proteomics.process_proteomics("identified_ids.COMET.lst", "../../db/all_
 process_proteomics.process_proteomics("identified_ids.COMET.lst", "../../db/all_Y1+2/GZ-Cell_Y1+Y2.faa")
 
 
+# with map file available
+process_proteomics.process_proteomics("interact-GZ-Xyl.ipro.prot.xls", "GZ-Xyl+DECOY.faa", "/home/siukinng/MG/m8/proteins/renamed/all_samples+nr.renamed.m8")
+
 """
-def process_proteomics(lst_fn, fa_fn, lst_ofn=None, map_to_nr=False, summary_follows_lst_format=False):
-    [lst_ofn, nr_ids, export_id_n] = tidy_sids(lst_fn, lst_ofn)
-    print("Extracting " + str(len(nr_ids)) + " sequences")
+def process_proteomics(lst_fn, fa_fn=None, map_fn=None, lst_ofn=None, map_to_nr=False, summary_follows_lst_format=False):
+
+    if map_fn is not None:
+        print("Reading the ID to GI map file from " + map_fn)
+        with open(map_fn) as IN:
+            qid2gi_map = IN.read().splitlines()
+        
+        # m8 file containing PIDs to GIs
+        qid2gi_map = [m.split("\t") for m in qid2gi_map]
+            
+#         # Check if the sid in gi|...|ref|... format
+#         chk_l = qid2gi_map[0]
+#         if chk_l[1].startswith("gi|"):
+#             print("Extracting GIs...")
+#             for s in qid2gi_map:
+#                 s[1] = s[1].split("|")[1]
+#             print("Number of GI cleaned: " + str(len(qid2gi_map)))
+#         
+#         # Extract ID to GI pairs
+#         print("Extracting PID-GI pairs...")
+#         pid_n = 0
+#         pid2gi_pair_n = 0
+#         
+#         # Protein IDs to GIs 
+#         pid2gi_map = {}
+#         for m in qid2gi_map:
+#             pid = m[0]
+#             gi = m[1]
+#             try:
+#                 pid2gi_map[pid].append(gi)
+#             except:
+#                 pid2gi_map[pid] = []
+#                 pid_n += 1
+#                 pid2gi_map[pid].append(gi)
+#             
+#             pid2gi_pair_n += 1
+#             
+#         print("Number of PIDs = " + str(pid_n) + ", number of pid-gi pairs = " + str(pid2gi_pair_n))
+#         
+        
+        #print("Importing the GI to Description map")
+        #gi2ctx_map = import_gi2ctx_map()
+
+        # def map_sid_to_gi_ctx(sid2gi_map, gi2ctx_map=None):
+        #print("Mapping sids to GI description")
+        #map_dat = map_id_to_gi_ctx(pid2gi_map, qid2gi_map)
+        export_summary(qid2gi_map, lst_fn)
+        
+
+    else:    
+        [lst_ofn, nr_ids, export_id_n] = tidy_sids(lst_fn, lst_ofn)
+        print("Extracting " + str(len(nr_ids)) + " sequences")
+        # Extract the sequences specified in the list file (lst_fn) from the sequence db (fa_fn)
+        [fa_ofn, export_fa_n] = extract_seq(nr_ids, fa_fn, lst_fn + ".fa")
     
-    # Extract the sequences specified in the list file (lst_fn) from the sequence db (fa_fn)
-    [fa_ofn, export_fa_n] = extract_seq(nr_ids, fa_fn, lst_fn + ".fa")
+        if map_to_nr:
+            # Blast to the NCBI NR database 
+            bla_ofn = blast_to_nr(fa_ofn)
+        else:
+            # Blast to the NCBI BioProject
+            print("Blasting...")
+            bla_ofn = blast_to_bacterial(fa_ofn)
+
+        
+            summary_fn = bla_ofn+".summary"
+            # Mapping sid to gi
+            print("Mapping sid to gi")
+            map_dat = map_sid_to_gi(bla_ofn, summary_ofn=summary_fn)
     
-    if map_to_nr:
-        # Blast to the NCBI NR database 
-        bla_ofn = blast_to_nr(fa_ofn)
-    else:
-        # Blast to the NCBI BioProject
-        bla_ofn = blast_to_bacterial(fa_ofn)
-        summary_fn = bla_ofn+".summary"
-        map_dat = map_sid_to_gi(bla_ofn, summary_ofn=summary_fn)
         if summary_follows_lst_format:
-            format_bla_to_lst_fn(map_dat, lst_fn, summary_ofn + ".reformated")
+            format_bla_to_lst_fn(map_dat, lst_fn, lst_fn + ".summary.reformated")
             
             
             
@@ -118,6 +177,7 @@ def tidy_sids(lst_fn, lst_ofn=None, selected_prefix=None):
 """
 def extract_seq(id_list, fa_fn, fa_ofn, is_append=False):
     export_n = pick_seq.pick_seq(id_list, fa_fn, fa_ofn, is_append)
+    #export_n = 17063
     print(str(export_n) + " exported.")
     return [fa_ofn, export_n]
 
@@ -156,9 +216,9 @@ def blast_to_nr(fa_fn, out_fn=None, nr_db_fn="/home/siukinng/db/Markers/ncbi_nr/
     if out_fn is None:
         out_fn = fa_fn + ".bla"
     
-    
     #mg_pipeline.blastp(fa_fn, nr_db_fn, outdir=".", outfn=out_fn, perc_identity=89, max_target_seqs=1, evalue=1e-30)
-    mg_pipeline.blastp(fa_fn, nr_db_fn, outdir=".", outfn=out_fn, max_target_seqs=1, evalue=1e-30)
+    
+    mg_pipeline.blastp(fa_fn, nr_db_fn, outdir=".", outfn=out_fn, max_target_seqs=1, evalue=1e-30, perc_identity=49)
     
     return out_fn
     
@@ -171,13 +231,12 @@ def blast_to_bacterial(fa_fn, out_fn=None, nr_db_fn="/home/siukinng/db/BacteriaD
     if out_fn is None:
         out_fn = fa_fn + ".bla"
         
-    #mg_pipeline.blastp(fa_fn, nr_db_fn, outdir=".", outfn=out_fn, perc_identity=89, max_target_seqs=1, evalue=1e-30)
-    mg_pipeline.blastp(fa_fn, nr_db_fn, outdir=".", outfn=out_fn, max_target_seqs=1, evalue=1e-30)
+    #mg_pipeline.blastp(fa_fn, nr_db_fn, outdir=".", outfn=out_fn, perc_identity=49, max_target_seqs=1, evalue=1e-30)
+    
+    ####
+    #mg_pipeline.blastp(fa_fn, nr_db_fn, outdir=".", outfn=out_fn, max_target_seqs=1, evalue=1e-30)
     
     return out_fn
-
-
-
 
 
 
@@ -192,30 +251,65 @@ def map_sid_to_nr(bla_fn, out_fn=None, gi_fn="/home/siukinng/db/BacteriaDB/all_f
 
 
 """
-Reformat the map file to the list file
+Reformat the list file
 """
-def format_bla_to_lst_fn(map_dat, lst_fn, reformated_summary_ofn, delim=";", list_delim=","):
+def format_bla_to_lst_fn(map_dat, lst_fn, reformated_summary_ofn, delim=";", protein_id_delim=",", list_delim="\t"):
 #     with open(summary_fn) as IN:
 #         map_dat = IN.read().splitlines()
 #     map_dat = {s.split("\t")[0]:s.split("\t")[1] for s in map_dat}
 #     
+
+    # Read in the list file
     with open(lst_fn) as IN:
         lst_dat = IN.read().splitlines()
         
+    # Prepare the outfile
     OUT = open(reformated_summary_ofn, "w")
-    for l in lst_dat:
+  
+    processed_n = 0
+    skipped_n = 0  
+    # Go through every line of the list file 
+    for i, l in enumerate(lst_dat):
+        # Skip the first line
+        if i == 0:
+            OUT.write(l + "\n")
+            continue
+        
+        # Skip the line if it contains nothing
         if len(l) == 0:
             OUT.write("\n")
             continue
         
-        vals = l.split(list_delim)
-        #print(l + "\t" + str(len(vals)))
-        map_vals = ["Unknown_function" for v in vals]
+        # delimite the line
+        lst_vals = l.split(list_delim)
         
-        for i, val in enumerate(vals):
-            if val in map_dat.keys():
-                map_vals[i] = map_dat[val]
-        OUT.write(l +"\t" + delim.join(map_vals) + "\n")
+        protein_ids = lst_vals[2].split(protein_id_delim)
+        #print(l + ":=" + str(len(lst_vals)))
+        map_annotations = ["Unknown_function" for pid in protein_ids]
+        
+        
+        
+        # Map the annotation to pid
+        # pid == qid
+        for i, pid in enumerate(protein_ids):
+            processed_n += 1
+            try:
+                map_annotations[i] = map_dat[pid][0]
+            #if pid in map_dat.keys():
+            #    # Only select the first description
+            #    map_annotations[i] = map_dat[pid][0]
+            #else:
+            except:
+                skipped_n += 1
+                
+        # Replace the descriptions (column 9) in list file with updated GI description
+        lst_vals[9] = ",".join(map_annotations)
+        
+        OUT.write(list_delim.join(lst_vals) + "\n")
+        
+        #OUT.write(l +"\t" + delim.join(map_vals) + "\n")
+    
+    print("Number of processed: " + str(processed_n) + ", number of skipped: " + str(skipped_n))
     
     OUT.close()
 
@@ -225,44 +319,131 @@ def format_bla_to_lst_fn(map_dat, lst_fn, reformated_summary_ofn, delim=";", lis
 
 """
 """
-def format_summary_fn_to_lst_fn(summary_fn, lst_fn, reformated_summary_ofn=None, delim=";", list_delim=","):
-    print("Formating " + summary_fn + " to follow " + lst_fn)
-    
-    with open(summary_fn) as IN:
-        map_dat = IN.read().splitlines()
-    map_dat = {s.split("\t")[0]:s.split("\t")[1] for s in map_dat}
-    
-    #print(list(map_dat.keys())[0] + "=" + map_dat[list(map_dat.keys())[0]])
-    
+def export_summary(map_dat, lst_fn, summary_ofn=None, reformated_summary_ofn=None, delim=";", list_delim=","):
+    if summary_ofn is None:
+        summary_ofn = lst_fn + ".summary"
     if reformated_summary_ofn is None:
-        reformated_summary_ofn = summary_fn + ".reformated"  
+        reformated_summary_ofn = summary_ofn + ".reformated"  
     
-    return format_bla_to_lst_fn(map_dat, lst_fn, reformated_summary_ofn, delim, list_delim)
+    print("Formating " + summary_ofn + " to follow " + lst_fn)
+
+    map_dat_lst = {}
+    for m in map_dat:
+        try:
+            map_dat_lst[m[0]].append(m[1])
+        except:
+            map_dat_lst[m[0]] = [m[1]]
+  
+  
+    print("Exporting results to " + summary_ofn)
+    skipped_n = 0
+    processed_n = 0
+    p_value_threshold = get_p_value(lst_fn.replace(".prot.xls", ".pep.summary.txt"))
+    ids = pick_protein(lst_fn, p_val_threshold=p_value_threshold)
+
+    with open(summary_ofn, "w") as OUT:
+        OUT.write("## Summary generated from " + lst_fn + "; P-value threshold=" + str(p_value_threshold) + "\n")
+        for id in ids:
+            try:
+                OUT.write(id + "\t" + map_dat_lst[id][0] + "\n")   
+                processed_n += 1    
+            except:
+                skipped_n += 1
+    print("Number of items exported to " + summary_ofn + ": " + str(processed_n - skipped_n) + " (" + str(skipped_n) + " skipped)")
     
     
+#     with open(summary_fn) as IN:
+#         map_dat = IN.read().splitlines()
+#    map_dat = {s.split("\t")[0]:s.split("\t")[1] for s in map_dat}
+
+            
+ 
+    print("Number of map data: " + str(len(map_dat)))
+#    print(list(map_dat.keys())[0] + "=" + map_dat[list(map_dat.keys())[0]])
+    
+    
+    return format_bla_to_lst_fn(map_dat_lst, lst_fn, reformated_summary_ofn, delim, list_delim)
     
 
-"""
-Import the blast file and extract sids that then map to the gi list file
-"""
-def map_sid_to_gi(bla_fn, id_fn=None, summary_ofn=None, gi_fn="/home/siukinng/db/BacteriaDB/all_faa.gi.lst"): 
-    print("Reading from " + gi_fn)
+
+def import_gi2ctx_map(gi_fn="/home/siukinng/db/Markers/ncbi_nr/gi2ctx.map"):
+#def import_gi2ctx_map(gi_fn="/home/siukinng/db/BacteriaDB/all_faa.gi.lst"):
     with open(gi_fn) as IN:
         gi = IN.read().splitlines()
-    gi_db = {g.split("\t")[0]: g.split("\t")[3] + ":" + g.split("\t")[2] for g in gi if len(g.split("\t")) == 4}
+    #gi2ctx_map = {int(g.split("\t")[0]): g.split("\t")[3] + ":" + g.split("\t")[2] for g in gi if len(g.split("\t")) == 4}
+    gi2ctx_map = [g.split("\t") for g in gi]
+    #gi2ctx_map = {int(g[0]): g[1] for g in gi2ctx_map}
     
+    print("Number of GI: " + str(len(gi2ctx_map)))
     
-    print("Reading from " + bla_fn)
+    return gi2ctx_map
+
+
+
+"""
+sid2gi_map is a dictionary with sid as key and a list of associated as value
+"""
+def map_id_to_gi_ctx(id2gi_map, gi2ctx_map=None):
+    print("Processing " + str(len(id2gi_map)) + " sids")
+    
+    if gi2ctx_map is None:
+        print("Importing the GI to Description map")
+        gi2ctx_map = import_gi2ctx_map()
+        
+    # Sid mapped to GI descriptions
+    #sid_to_gi_ctx = {sid for sid in sid2gi_map.keys()}
+    id_to_gi_ctx = {id:[int(gi) for gi in id2gi_map[id]] for id in id2gi_map.keys()}
+    
+    processed_n = 0
+    skipped_n = 0
+    print("Mapping ID to GI description...")
+    for id, gi_ctx in id_to_gi_ctx.items():  
+        #gi_ctx = ["Unknown_function" for gi in sid2gi_map[sid]]
+
+        # Iterate all mapped gi
+        for i, gi in enumerate(gi_ctx):
+            gi_ctx[i] = "Unknown_function"
+            try:
+                gi_ctx[i] = gi2ctx_map[gi]
+            except:
+                print("GI not found: " + str(gi))
+                skipped_n += 1
+            processed_n += 1  
+            
+    print("Number of records processed: " + str(processed_n) + " (" + str(skipped_n) + " skipped)")    
+    
+    return id_to_gi_ctx
+
+
+
+"""
+Import the blast file and extract sids that are then mapped to the gi list file
+"""
+def map_sid_to_gi(bla_fn, id_fn=None, summary_ofn=None, gi_map=None): 
+    print("Reading GIs of protein sequences from " + gi_fn)
+    if gi_map is None:
+        gi_map = import_gi_map()
+        
+    
+    print("Reading BLAST results from " + bla_fn)
     map_lst = {}
     with open(bla_fn) as IN:
         bla = IN.read().splitlines()
         
+    # Blast results
+    bla_lst = {}
+    
+    # Sid mapped to GI descriptions
+    qid_to_gi_ctx = {}
+    
     for b in bla:
         qid = b.split("\t")[0]
         sid = b.split("\t")[1]
+        # Maybe more than more sids hit by qid
         if qid not in bla_lst.keys():
             map_lst[qid] = []
             map_lst[qid].append(sid)
+            qid_to_gi_ctx[qid] = []
     
     if summary_ofn is None:
         summary_ofn = bla_fn + ".summary"
@@ -273,13 +454,17 @@ def map_sid_to_gi(bla_fn, id_fn=None, summary_ofn=None, gi_fn="/home/siukinng/db
     for qid in map_lst.keys():
         print("Processing " + qid)
         gi_ctx = []
+        # Iterate all mapped sids
         for sid in map_lst[qid]:
-            gi_ctx.append(gi_db[sid])
+            gi_ctx.append(gi_map[sid])
+            qid_to_gi_ctx[qid].append(gi_map[sid])
+            
         OUT.write(qid + "\t" + "\t".join(gi_ctx) + "\n")
     
     OUT.close()
     
-    return map_lst
+    return qid_to_gi_ctx
+    #return map_lst
 
 
 
@@ -468,4 +653,84 @@ def extract_species_info_from_fasta(fa_fn, out_fn=None):
 # done
 #  
 #      
-#     
+#   
+
+
+def get_p_value(iprot_summary_fn):
+    p_val_threshold = 0.0
+    with open(iprot_summary_fn) as IN:
+        summary = IN.read().splitlines()
+        p_val_thread = [s for s in summary if s.startswith("P threshold for protein group FDR ")]
+    
+    if len(p_val_thread) == 0:
+        print("Unable to extract recommended P-value threshold from " + iprot_summary_fn)
+        print("default threshold=0.95 will be used.")
+        p_val_threshold = 0.95
+    else:
+        p_val_threshold = float(p_val_thread[0].split("=")[1])
+        print("Recommended P-value threshold=" + str(p_val_threshold))  
+    return p_val_threshold
+
+
+
+"""
+Usage: 
+
+import process_proteomics
+
+process_proteomics.pick_protein()
+
+"""
+def pick_protein(lst_fn, iprot_summary_fn=None, p_val_threshold=0.95):
+    if iprot_summary_fn is not None:
+        p_val_threshold=get_p_value(iprot_summary_fn)
+    
+    with open(lst_fn) as IN:
+        lst = IN.read().splitlines()
+    lst = [l.split("\t") for l in lst if len(l) > 1 and not l.startswith("entry no.")]
+    
+    lst = [l for l in lst if float(l[4]) >= p_val_threshold]
+    
+    # Nr_IDs
+    ids = []
+    for l in lst:
+        ids.extend(l[2].split(","))
+    
+    nr_ids = list(set(ids))
+    
+    return nr_ids
+
+
+
+def select_m8(ids, selected_m8_ofn, m8_fn="/home/siukinng/MG/m8/proteins/renamed/all_samples+nr.renamed.m8"):
+    with open(m8_fn) as IN:
+        m8 = IN.read().splitlines()
+    m8 = {m.split("\t")[0]: m for m in m8}
+    
+    skipped_n = 0
+    selected_m8 = []
+    for id in ids:
+        try:
+            selected_m8.append(m8[id])
+        except:
+            skipped_n += 1
+    print("Number of selected m8: "+ str(len(selected_m8)) + " (" + str(skipped_n) + " skipped)")
+    
+    with open(selected_m8_ofn, "w") as OUT:
+        for m in selected_m8:
+            OUT.write(m + "\n")
+            
+
+
+# Main 
+def main(argv):
+    process_proteomics(argv[0], argv[1], summary_follows_lst_format=True)
+
+
+
+# Invoke the main function
+if __name__ == "__main__":
+    main(sys.argv[1:])
+
+
+  

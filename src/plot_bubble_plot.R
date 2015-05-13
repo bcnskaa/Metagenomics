@@ -232,3 +232,20 @@ initial <- function()
 #	
 	
 }
+
+
+"""
+ #R script for doing CBS based the change points of coverage identified in contigs
+
+ cov_fn = "SWH-Cell55_Y2.scaffold_0.coverage"
+ cov =  read.table(cov_fn, sep="\t", header=F, stringsAsFactors=F, col.names=c("contig", "position", "coverage"))
+
+ library(lattice)
+ library(ggplot2)
+
+ #xlims = c(min(cov$position), max(cov$position))
+xlims = c(30000, max(cov$position)) 
+xyplot(cov$coverage ~ cov$position, pch=19, cex=0.05, xlim=xlims)
+
+
+"""
