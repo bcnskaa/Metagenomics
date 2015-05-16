@@ -721,6 +721,57 @@ def select_m8(ids, selected_m8_ofn, m8_fn="/home/siukinng/MG/m8/proteins/renamed
             OUT.write(m + "\n")
             
 
+"""
+
+"""
+def extract_faa(m8_fn, seq_map, out_fn=None):
+    print("Reading from " + m8_fn)
+    with open(m8_fn) as IN:
+        m8 = IN.read().splitlines()
+    m8 = [m.split("\t") for m in m8]
+    print("Number of records read: " + str(len(m8)))
+    
+    m8_sids = [m[1] for m in m8]
+    
+    chk_l = m8_sids[0]
+    
+    if chk_l[1].startswith("gi|"):
+        print("Extracting GIs...")
+        for s in m8_sids:
+            s[1] = s[1].split("|")[1]
+        print("Number of GI cleaned: " + str(len(m8_sids)))
+
+    m8_sids = [int(gi) for gi in m8_sids]
+    
+    
+    nr_sids = list(set(m8_sids))
+    print("Number of non-redundant ids: " + str(len(nr_sids)))
+    
+    print("Searching sequences...")
+    skipped_n = 0
+    processed_n = 0
+    selected_seqs = {}
+    for sid in nr_sids:
+        try:
+            selected_seqs[sid] = seq_map[sid]
+        except:
+            skipped_n += 1
+    print("Number of processed: " + str(processed_n) + " (" + str(skipped_n) + " skipped)")
+
+    if out_fn is None:
+        out_fn = m8_fn + ".faa"
+    
+    exported_n = 0
+    with open(out_fn, "w") as OUT:
+        for sid in selected_seqs.keys():
+            OUT.write(">" + sid + "\n" + selected_seqs[sid] + "\n")
+            exported_n += 1
+    
+    print(str(exported_n) + " exported")
+    
+    return out_fn
+            
+
 
 # Main 
 def main(argv):
@@ -733,4 +784,27 @@ if __name__ == "__main__":
     main(sys.argv[1:])
 
 
-  
+def bench_marking():
+    import time
+    from random import randint
+
+    len = 40000000
+    test_n = 2000000
+    a = {"a" + str(i):"a"+str(i) for i in xrange(len)}
+    b = {i:"a"+str(i) for i in xrange(len)}
+
+    t = [randint(0,len) for i in xrange(test_n)]
+
+    start_time = time.time()
+    for i in t:
+        b[i]
+    print("--- %s seconds ---" % (time.time() - start_time))
+
+
+    t2 = ["a" + str(i) for i in t]
+    start_time = time.time()
+    for i in t2:
+        a[i]
+    
+    print("--- %s seconds ---" % (time.time() - start_time))
+

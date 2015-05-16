@@ -255,3 +255,27 @@ def short(ifn, ofn=None):
 def print_msg(msg):
     mg_pipeline.print_status(msg)
 
+
+
+
+
+"""
+# R script for doing CBS
+library(lattice)
+library(mixtools)
+library(PSCBS)
+
+cov_fn = "SWH-Seed_Y0.scaffold_208.coverage"
+cov <- read.table(cov_fn, sep="\t", header=F, col.names=c("chromosome", "x", "y"), stringsAsFactors=F)
+
+hist(cov$y, breaks=100,prob=T); lines(density(cov$y, adjust=2), lwd=1, col="red")
+
+xyplot(cov$y ~ cov$x, pch=19, cex=0.2, xlim=c(min(cov$x),max(cov$x)))
+
+# http://www.r-bloggers.com/fitting-mixture-distributions-with-the-r-package-mixtools/
+mixmdl <- normalmixEM(cov$y)
+
+plot(mixmdl,which=2)
+
+
+"""

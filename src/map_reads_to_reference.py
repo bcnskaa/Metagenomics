@@ -23,8 +23,8 @@ LOG = None
 
 """
 
-Given a directory which contains file with file extension as specified by fa_fn_ext, this function will map 
-the fasta sequences of all files with fa_fn_ext extension to the NCBI BioProject DB. The identified reference
+Given a directory which contains files with file extension as specified by fa_fn_ext, this function will map 
+the fasta sequences of the files with fa_fn_ext extension to the NCBI BioProject DB. The identified reference
 genomes will then serve as a template for mapping reads from fq files with a same file name (XXX_1 and XXX_2) from
 the directory as given in fq_dir.
  
