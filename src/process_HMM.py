@@ -388,7 +388,13 @@ def map_hmm2maxbin(hmm_orf_dict, maxbin_dir):
         
         return bin_groups
 
-  
+
+
+def generate_attendence_table(dom_tbl_fns, group_by_fn=True):
+    print("")
+    
+    
+
 
 """
  Export the bin groups into a tabular file

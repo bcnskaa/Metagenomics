@@ -45,7 +45,14 @@ plot_bubble <- function(df, x_label, y_label, value_label, excluding_zero=TRUE, 
 	
 	print(paste(ncol(plot_df), ": ", nrow(plot_df), sep=""))
 	
-
+	
+	# Sort the ylabels
+	if(length(ylabels) > 0)
+	{
+		plot_df[,y_label] <- factor(plot_df[,y_label], levels=ylabels)
+	}
+	
+	
 	if(excluding_zero)
 	{
 		plot_df <- plot_df[which(plot_df[,value_label] > 0), ]
@@ -74,6 +81,9 @@ plot_bubble <- function(df, x_label, y_label, value_label, excluding_zero=TRUE, 
 
 	gg <- gg + theme_bw() + theme(axis.text.x = element_text(angle = -45, hjust = 0)) 
 	print(gg)
+	
+	
+	return(plot_df)
 }
 
 
@@ -144,7 +154,7 @@ veganotu = function(phyloseq_biom) {
 	if (taxa_are_rows(OTU)) {
 		OTU = t(OTU)
 	}
-	return(as(OTU, "matrix"))p
+	return(as(OTU, "matrix"))
 }
 
 
@@ -234,10 +244,12 @@ initial <- function()
 }
 
 
-"""
+if(FALSE)
+{
  #R script for doing CBS based the change points of coverage identified in contigs
 
- cov_fn = "SWH-Cell55_Y2.scaffold_0.coverage"
+ cov_fn = "SWH-Seed_Y0.scaffold_208.coverage"
+ #cov_fn = "SWH-Cell55_Y2.scaffold_0.coverage"
  cov =  read.table(cov_fn, sep="\t", header=F, stringsAsFactors=F, col.names=c("contig", "position", "coverage"))
 
  library(lattice)
@@ -248,4 +260,5 @@ xlims = c(30000, max(cov$position))
 xyplot(cov$coverage ~ cov$position, pch=19, cex=0.05, xlim=xlims)
 
 
-"""
+}
+

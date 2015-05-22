@@ -264,18 +264,63 @@ def print_msg(msg):
 library(lattice)
 library(mixtools)
 library(PSCBS)
+library(DNAcopy)
 
-cov_fn = "SWH-Seed_Y0.scaffold_208.coverage"
+
+
+#cov_fn = "SWH-Seed_Y0.scaffold_208.coverage"
+cov_fn = "SWH-Cell55_Y2.sorted.bam.coverage"
 cov <- read.table(cov_fn, sep="\t", header=F, col.names=c("chromosome", "x", "y"), stringsAsFactors=F)
 
-hist(cov$y, breaks=100,prob=T); lines(density(cov$y, adjust=2), lwd=1, col="red")
 
-xyplot(cov$y ~ cov$x, pch=19, cex=0.2, xlim=c(min(cov$x),max(cov$x)))
+scaffold_lens <- table(cov$chromosome)
+
+len_cutoff <- 3000
+filtered_scaffold_lens <- scaffold_lens[which(scaffold_lens > len_cutoff)]
+
+i <- 2
+selected_cov <- cov[which(cov$chromosome == names(filtered_scaffold_lens)[i]), ]
+
+
+
+
+hist(selected_cov$y, breaks=100,prob=T); lines(density(selected_cov$y, adjust=2), lwd=1, col="red")
+
+xyplot(selected_cov$y ~ selected_cov$x, pch=19, cex=0.2, xlim=c(min(selected_cov$x),max(selected_cov$x)) ,col='steelblue')
+
+
 
 # http://www.r-bloggers.com/fitting-mixture-distributions-with-the-r-package-mixtools/
-mixmdl <- normalmixEM(cov$y)
+mixmdl <- normalmixEM(selected_cov$y)
 
 plot(mixmdl,which=2)
+
+cutoff = 0.95
+if(length(mixmdl$lambda) > 1) {
+    if(max(mixmdl$lambda) < cutoff) {
+        mu <- mixmdl$mu[which.max(mixmdl$lambda)] 
+        sigma <- mixmdl$sigma[which.max(mixmdl$lambda)] 
+        normalized_cov <- cov
+        normalized_cov$y <- (normalized_cov$y - mu) / (8 * sigma)
+
+    } else {
+        normalized_cov <- cov - mean(cov$y)
+    }
+} else {
+    normalized_cov <- cov - mean(cov$y)
+}
+
+        
+hist(normalized_cov$y, breaks=100,prob=T);
+lines(density(normalized_cov$y, adjust=2), lwd=1, col="red")
+
+
+segments <- segment(CNA(normalized_cov$y, normalized_cov$chromosome, normalized_cov$x))
+
+segments <- segment(CNA(normalized_cov$y, normalized_cov$chromosome, normalized_cov$x), alpha=0.00001, undo.split="prune")
+
+nrow(segments$segRows)
+
 
 
 """

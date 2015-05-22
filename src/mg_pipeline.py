@@ -1949,11 +1949,12 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
         print_status("  Trusted cutoff values will be imported from " + hmm_tc_fn)
         with open(hmm_tc_fn) as IN:
             hmm_tcs = IN.read().splitlines()
-        hmm_tcs = {h.split("\t")[0]:float(h.split("\t")[1]) for  h in hmm_tcs}
+        hmm_tcs = {h.split("\t")[0]:float(h.split("\t")[1]) for h in hmm_tcs}
         print_status("  " + str(len(hmm_tcs.keys())) + " cutoff values imported." )
     
     
     # ORF with HMM hits
+    tc_score_skipped = 0
     hmm_orf_dict = {}
     hmm_scores = []
     skipped_dom_n = 0
@@ -1976,9 +1977,14 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
                 
                 tc_score = 0.0
                 if hmm_tcs is not None:
-                   if hmm_id in hmm_tcs.keys():
-                       tc_score = hmm_tcs[hmm_id]
-                
+                   #if hmm_id in hmm_tcs.keys():
+                   #    tc_score = hmm_tcs[hmm_id]
+                    try:
+                        tc_score = hmm_tcs[hmm_id]
+                    except:
+                        tc_score_skipped += 1
+                        
+  
                 #print_status(hmm_id + " and its TC=" + str(tc_score))
                 
                 if hmm_score >= hmm_score_threshold and hmm_dom_score >= tc_score:
@@ -1986,26 +1992,26 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
                     aln_spos = int(dom[17])
                     aln_epos = int(dom[18])
                     
+                    hmm_accession = dom[4]
                     hmm_len = int(dom[5])
                     hmm_spos = int(dom[15])
                     hmm_epos = int(dom[16])
-                         
-                    
                                   
                     # 
                     if tid not in hmm_orf_dict.keys():
                         #hmm_orf_dict[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
-                        hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score]]
+                        #hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score]]
+                        hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score, hmm_accession]]
                                                 
                         #hmm_orf_dict[dom[0]] = [hmm_id]
                     else:
                         #hmm_orf_dict[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
-                        hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score])
+                        #hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score])
+                        hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score, hmm_accession])
 
                 else:
                     #print dom[0], hmm_id, "=", dom[7], "skipped"
                     skipped_dom_n += 1
-    
     
     # Check if there are overlapping HMM domains, keep the one with highest score    
     for k,v_arr in hmm_orf_dict.items():
@@ -2032,23 +2038,26 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
             
             hmm_orf_dict[k] = sorted_a
     
+    if hmm_tcs is not None:
+        print_status("HMM domains escaped from TC checking = " + str(tc_score_skipped))
     print_status("Processed HMM domains = " + str(processed_dom_n))
-    print_status( "Skipped HMM domains = "+str(skipped_dom_n))
-    print_status( "Discarded HMM domains = "+str(discard_dom_n))
+    print_status("Skipped HMM domains = "+str(skipped_dom_n))
+    print_status("Discarded HMM domains = "+str(discard_dom_n))
     
     return hmm_orf_dict  
-
 
 
 
 """
  
 """
-def generate_dom_tbl(hmm_orf_dict):
+def generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=False):
     hmm_dom_tbl = {}
     for id in hmm_orf_dict.keys():
         for elm in hmm_orf_dict[id]:
             hmm_id = elm[5]
+            if hmm_accession_as_key:
+                hmm_id = elm[10].split(".")[0]
             if hmm_id not in hmm_dom_tbl.keys():
                 hmm_dom_tbl[hmm_id] = []
             hmm_dom_tbl[hmm_id].append(elm)
@@ -2057,6 +2066,75 @@ def generate_dom_tbl(hmm_orf_dict):
 
 
 
+"""
+Given a list of dom_tables (dom_tbl_fns) and Pfam IDs, the number of specified Pfam IDs will
+be seached and extracted from the dom_tables.  
+
+Usage: 
+
+import mg_pipeline
+
+dom_tbl_fns = glob.glob("*_2000/Markers/Pfam/*+Pfam.dom.tbl")
+pfam_ids = ['PF00232', 'PF00933', 'PF01915', 'PF00150', 'PF01270', 'PF01670', 'PF12891', 'PF02015', 'PF01341', 'PF00759']
+hmm_tc_fn = "/home/siukinng/db/Markers/Pfam/Pfam.tc"
+
+pfam_dom_attendance_tbl = mg_pipeline.generate_attendance_tbl(dom_tbl_fns, pfam_ids, hmm_tc_fn=hmm_tc_fn)
+
+
+
+"""
+def generate_attendance_tbl(dom_tbl_fns, pfam_ids, pfam_dom_attendance_ofn=None, pfam_id_cutoff_scores=None, hmm_tc_fn=None, grouped_by_fn=True):
+    print_status("Generating domain attendance table from " + str(len(dom_tbl_fns)) + " domain tables.")
+    
+    """
+    Data structure of pfam_dom_map:
+    [
+     dom_tbl_fn_1: [
+                        pfam_id_1: [],
+                        pfam_id_2: [],
+                        ...
+                   ],
+     dom_tbl_fn_2: [
+                        pfam_id_1: [],
+                        pfam_id_2: [],
+                        ...
+                   ], 
+        ...
+    ]
+    """
+    #pfam_dom_attendance_tbl = {os.path.basename(dom_tbl_fn):[ [] for pfam_id in pfam_ids] for dom_tbl_fn in dom_tbl_fns}
+    pfam_dom_attendance_tbl = {}
+    #pfam_dom_attendance_tbl["HEADER"] = [pfam_ids]
+    for dom_tbl_fn in dom_tbl_fns:
+        dom_tbl_id = os.path.basename(dom_tbl_fn)
+        dom_tbl_id = os.path.splitext(dom_tbl_id)[0]
+        
+        # Initialize a new list of pfam collections
+        pfam_dom_attendance_tbl[dom_tbl_id] = [ [] for pfam_id in pfam_ids ]
+        
+        # Extract dom_tbl
+        hmm_orf_dict = postprocess_HMMER_search_by_fn(dom_tbl_fn, hmm_tc_fn=hmm_tc_fn)
+        hmm_dom_tbl = generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=True)
+        
+        # Check if specified pfam id exists in hmm_dom_tbl
+        for i, pfam_id in enumerate(pfam_ids):
+            if pfam_id in hmm_dom_tbl.keys():
+                pfam_dom_attendance_tbl[dom_tbl_id][i] = hmm_dom_tbl[pfam_id]
+    
+    # Export the attendance table
+    if pfam_dom_attendance_ofn is not None:
+        sample_ids = list(pfam_dom_attendance_tbl.keys())
+        with open(pfam_dom_attendance_ofn, "w") as OUT:
+            OUT.write("\t".join(["Pfam_Acc"] + sample_ids) + "\n")
+            for i, pfam_id in enumerate(pfam_ids):
+                pfam_data = [pfam_id]
+                for sample_id in sample_ids:
+                    pfam_data.append(len(pfam_dom_attendance_tbl[sample_id][i]))
+                OUT.write("\t".join(map(str, pfam_data)) + "\n")
+    
+    return pfam_dom_attendance_tbl
+    
+    
 
 """
 """

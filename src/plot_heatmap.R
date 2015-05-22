@@ -2,10 +2,12 @@ library(lattice); # If you do not have lattice library installed, simply run ins
 library(ggplot2);   # If you do not have ggplot2 library installed, simply run install.packages("ggplot2")
 library(reshape2);
 
+script_home = "/home/bcnskaa/projects/Metagenomics/trunk/src/"
+
 # Process combined
 if(FALSE)
 {
-	source("plot_heatmap.R")
+	source(paste(script_home, "plot_heatmap.R", sep=""))
 	cols <- c(rep('character', 5), 'numeric')
 	mtx_fn = "bla.combined.mtx"
 
@@ -137,7 +139,7 @@ plot_heatmap_mtx(smtx, out_fn=paste(selected_row_id, ".", selected_col_id, ".mtx
 
 
 # To use it,
-plot_heatmap_mtx <- function(mtx, x_axis_labels=character(0), y_axis_labels=character(0), out_fn="output", export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, title=character(0), xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Courier", delim="\t", pdf_output=F, range_limit=character(0), plot_label=F, label_size=1, value_decimal_len=2)
+plot_heatmap_mtx <- function(mtx, x_axis_labels=character(0), y_axis_labels=character(0), out_fn="output", export_to_file=T, height=2.8, width=3.5, colorbar_scheme=c("red", "yellow", "green"), midpoint=0, colorbar_witdh = 8.3, title=character(0), xtitle=character(0),  ytitle=character(0), legend_title=character(0), font="Times", delim="\t", pdf_output=F, range_limit=character(0), plot_label=F, label_size=1, value_decimal_len=2)
 {
 	library(ggplot2)
 	library(reshape2)
@@ -158,12 +160,12 @@ plot_heatmap_mtx <- function(mtx, x_axis_labels=character(0), y_axis_labels=char
 
 	if(length(x_axis_labels) > 0)
 	{
-		plot_mtx$x_label <- factor(plot_mtx$x_label, levels=x_axis_labels, labels=x_axis_labels)
+		plot_mtx$x_label <- factor(plot_mtx$x_label, levels=x_axis_labels)
 	}
 	
 	if(length(y_axis_labels) > 0)
 	{
-		plot_mtx$y_label <- factor(plot_mtx$y_label, labels=y_axis_labels)
+		plot_mtx$y_label <- factor(plot_mtx$y_label, levels=y_axis_labels)
 	}
 	
 #	if(length(range_limit) == 0)
@@ -175,7 +177,8 @@ plot_heatmap_mtx <- function(mtx, x_axis_labels=character(0), y_axis_labels=char
 	#g <- ggplot(plot_mtx, aes(x=Var1, y=Var2, fill=value)) + geom_tile(aes(height=0.97, width=0.97)) +
 	g <- ggplot(plot_mtx, aes(x=y_label, y=x_label, fill=value)) + geom_tile(aes(height=0.97, width=0.97)) +
 			theme(panel.background=element_blank(), axis.ticks=element_blank()) +
-			theme(legend.position="bottom", axis.text=element_text(family="Courier")) +
+			theme(legend.position="bottom", axis.text=element_text(family="Times")) +
+			#theme(legend.position="bottom") +
 			theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
 			#scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], limits=range_limit) +
 			scale_fill_gradient2(name="", low=colorbar_scheme[1], mid=colorbar_scheme[2], high=colorbar_scheme[3], midpoint=midpoint) +

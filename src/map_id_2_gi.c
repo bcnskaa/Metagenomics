@@ -7,6 +7,10 @@
 
 char** map_gi2ctx;
 
+
+/**
+ *
+ */
 int count_line(fn)
  char *fn;
 {
@@ -33,7 +37,9 @@ int count_line(fn)
 
 
 
-
+/**
+ *
+ */
 int main(argc, argv)
   int argc;
   char **argv;
