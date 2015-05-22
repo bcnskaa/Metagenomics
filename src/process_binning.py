@@ -258,19 +258,50 @@ def print_msg(msg):
 
 
 
+def merge_loc_map(loc_fn="all_samples.renamed.loc", map_fn="all_samples+nr.renamed.m8.map"):
+    with open(loc_fn) as IN:
+        loc = IN.read().splitlines()
+    del loc[0]
+    loc = [l.split("\t") for l in loc]
+    loc = {l[0]:l for l in loc}
+    
+    with open(map_fn) as IN:
+        map = IN.read().splitlines()
+    del map[0]
+    map = {m.split("\t")[0]:m.split("\t") for m in map}
+    
+    
+    with open(map_fn + ".map+loc", "w") as OUT:
+        OUT.write("#read_id\tgi\ttax_id\tseed_id\tcontig_id\tspos\tepos\n")
+        for k in map.keys():
+            OUT.write("\t".join(map[k] + loc[k][1:]) + "\n")    
+
+
+
 
 """
+# Testing for a CBS approach dealing with chimera contigs
+ 
 # R script for doing CBS
 library(lattice)
 library(mixtools)
 library(PSCBS)
 library(DNAcopy)
+library(latticeExtra)
 
 
+cov_fn = "SWH-Seed_Y0.scaffold_208.coverage"
+#cov_fn = "SWH-Cell55_Y2.sorted.bam.coverage"
 
-#cov_fn = "SWH-Seed_Y0.scaffold_208.coverage"
-cov_fn = "SWH-Cell55_Y2.sorted.bam.coverage"
+taxid2tax_lineage_map_fn = "taxid2tax_lineage.map"
+taxid2tax_lineage_map <- read.table(taxid2tax_lineage_map_fn, sep="\t", header=T, comment.char="|", row.names=1, quot="", stringsAsFactors=F)
+
+
 cov <- read.table(cov_fn, sep="\t", header=F, col.names=c("chromosome", "x", "y"), stringsAsFactors=F)
+map_loc_fn <- "/home/bcnskaa/projects/Metagenomics_WD/Chimera/all_samples+nr.renamed.m8.map+loc"
+
+
+map_loc <- read.table(map_loc_fn, sep="\t", stringsAsFactors=F, header=T, comment.char="@")
 
 
 scaffold_lens <- table(cov$chromosome)
@@ -278,20 +309,88 @@ scaffold_lens <- table(cov$chromosome)
 len_cutoff <- 3000
 filtered_scaffold_lens <- scaffold_lens[which(scaffold_lens > len_cutoff)]
 
-i <- 2
-selected_cov <- cov[which(cov$chromosome == names(filtered_scaffold_lens)[i]), ]
+
+i <- 1
+chromosome_id <- names(filtered_scaffold_lens)[i]
+selected_cov <- cov[which(cov$chromosome == chromosome_id), ]
+
+
+# Smooth selected_cov
+cna <- CNA(selected_cov$y, selected_cov$chromosome, selected_cov$x)
+cna.smooth <- smooth.CNA(cna)
+
+
+selected_map_loc <- map_loc[which(map_loc$contig_id == chromosome_id), ]
+dim(selected_map_loc)
+
+table(selected_map_loc$tax_id)
+
+nr_tax_id <- as.character(unique(selected_map_loc$tax_id))
+
+
+selected_map_taxid_lineages <- taxid2tax_lineage_map$lineage[which(rownames(taxid2tax_lineage_map) %in% nr_tax_id)]
+
+#nr_tax_id_lineages <- taxid2tax_lineage_map$lineage[which(rownames(taxid2tax_lineage_map) %in% nr_tax_id)]
+nr_tax_id_lineage_genera <- rep("Unknown", length(nr_tax_id))
+
+# Get genus
+for(i in 1 : length(nr_tax_id))
+{
+    taxid <- nr_tax_id[i]
+    lineage <- taxid2tax_lineage_map$lineage[which(rownames(taxid2tax_lineage_map) == taxid)]
+    print(lineage)
+    #lineage <- nr_tax_id[i]
+    #taxid <- rownames(nr_tax_id_lineages)[i]
+    #print(lineage)
+    items <- unlist(strsplit(lineage, ";"))
+    genus <- gsub("g__", "", items[6])
+    print(genus)
+    nr_tax_id_lineage_genera[i] <- genus
+    names(nr_tax_id_lineage_genera)[i] <- taxid
+}
+
+
+selected_map_loc_col = sample(colours(), length(nr_tax_id_lineage_genera))
+names(selected_map_loc_col) <- nr_tax_id_lineage_genera
 
 
 
+#hist(selected_cov$y, breaks=100,prob=T); lines(density(selected_cov$y, adjust=2), lwd=1, col="red")
+#xyplot(selected_cov$y ~ selected_cov$x, pch=19, cex=0.2, xlim=c(min(selected_cov$x),max(selected_cov$x)) ,col='steelblue')
+hist(cna.smooth$Sample.1, breaks=100,prob=T); lines(density(cna.smooth$Sample.1, adjust=2), lwd=1, col="red")
+#xyplot(cna.smooth$Sample.1 ~ cna.smooth$maploc, type="l", pch=19, cex=0.2, xlim=c(min(cna.smooth$maploc),max(cna.smooth$maploc)) ,col='steelblue')
 
-hist(selected_cov$y, breaks=100,prob=T); lines(density(selected_cov$y, adjust=2), lwd=1, col="red")
+#xyplot(cna.smooth$Sample.1 ~ cna.smooth$maploc, type="l", pch=19, cex=0.2, xlim=c(min(cna.smooth$maploc),max(cna.smooth$maploc)) ,col='steelblue', panel = function(x, ...) { panel.xblocks(x, x > 30000 & x < 40000, col = "red"); panel.xblocks(x, x > 2000 & x < 4000, col = "lightgrey"); panel.xyplot(x, ...) })
 
-xyplot(selected_cov$y ~ selected_cov$x, pch=19, cex=0.2, xlim=c(min(selected_cov$x),max(selected_cov$x)) ,col='steelblue')
+
+xyplot(cna.smooth$Sample.1 ~ cna.smooth$maploc, type="l", pch=19, cex=0.2, xlim=c(min(cna.smooth$maploc),max(cna.smooth$maploc)) ,col='steelblue', panel = function(x, ...)
+    {
+        for(i in 1 : nrow(selected_map_loc))
+        {
+            spos = selected_map_loc[i, 6]
+            epos = selected_map_loc[i, 7]
+            tax_id = selected_map_loc[i, 3]
+            colcode =  as.character(selected_map_loc_col[which(names(selected_map_loc_col) == tax_id)])
+            panel.xblocks(x, x > spos & x < epos, col = colcode);
+        }
+        panel.xyplot(x, ...)
+    },
+    
+    key=list(text=list( paste(nr_tax_id_lineage_genera, rep("(", length(nr_tax_id)), nr_tax_id, rep(")", length(nr_tax_id)), sep=" ") ,cex=1), 
+                points=list(pch=19,col=as.character(selected_map_loc_col),cex=1),
+                space="top",
+                columns=(length(nr_tax_id) / 2),
+                border=TRUE,
+                lwd=1
+    )
+)
+
 
 
 
 # http://www.r-bloggers.com/fitting-mixture-distributions-with-the-r-package-mixtools/
-mixmdl <- normalmixEM(selected_cov$y)
+#mixmdl <- normalmixEM(selected_cov$y)
+mixmdl <- normalmixEM(cna.smooth$Sample.1)
 
 plot(mixmdl,which=2)
 
@@ -324,3 +423,5 @@ nrow(segments$segRows)
 
 
 """
+
+

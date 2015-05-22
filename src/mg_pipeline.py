@@ -2134,7 +2134,8 @@ def generate_attendance_tbl(dom_tbl_fns, pfam_ids, pfam_dom_attendance_ofn=None,
     
     return pfam_dom_attendance_tbl
     
-    
+
+
 
 """
 """
