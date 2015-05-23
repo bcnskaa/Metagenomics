@@ -6,8 +6,9 @@ source(paste(script_home, "plot_heatmap.R", sep=""))
 source(paste(script_home, "plot_bubble_plot.R", sep=""))
 
 
-tx_fn <- "all_samples.tax.species.txt"
-fd_fn <- "all_samples.seed.functions.txt"
+tx_fn <- "samples-clustered-tax_id+go.samples"
+#tx_fn <- "all_samples.tax.species.txt"
+#fd_fn <- "all_samples.seed.functions.txt"
 
 log_scale <- TRUE
 selected_level <- 80
@@ -17,9 +18,29 @@ wk_fn <- tx_fn
 # Read counts assigned to SEED subsystems
 fd <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
 
-fd_totals <- colSums(fd)
 
+if(tx_fn == "samples-clustered-tax_id+go.samples") {
+	###################
+	# Min-count
+	min_count <- 10
+	species_counts <- colSums(fd)
+	
+	excluded_species <- names(which(species_counts < min_count))
+	
+	fd <- fd[, which(! (colnames(fd) %in% excluded_species))]
+	
+	excluded_samples = c("all_samples+nr.renamed.m8")
+	fd <- fd[which(! (rownames(fd) %in% excluded_samples)), ]
+
+}
+
+# Normalize the data
+fd_totals <- colSums(fd)
 fd_normalized <- (as.data.frame(t(t(fd) / fd_totals))) * 100
+
+
+
+
 
 # http://www.statsblogs.com/2014/07/14/a-log-transformation-of-positive-and-negative-values/
 if(log_scale)
@@ -83,12 +104,6 @@ tx <- read.table("all_samples.tax.genus.txt", sep="\t", header=T, stringsAsFacto
 
 
 library(FD)
-
-
-
-
-
-
 
 
 process_functional_diversity <- function(tx_fn="FD.traits.txt", fd_fn="FD.example.sample.txt", normalized=FALSE)

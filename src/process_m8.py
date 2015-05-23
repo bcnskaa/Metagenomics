@@ -206,15 +206,21 @@ import glob
 import os
 
 gi2go_fns = glob.glob("*.gi2go+map")
-sample_ids = [(os.path.basename(f)).split(".")[0] for f in gi2go_fns]
-[sample_list, trait_list, sample_ids, tax_ids, trait_ids] = process_m8.convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id="tax_id", trait_col_id="go", sample_ids=sample_ids)
+taxid2lineage_map = process_m8.import_taxid2lineage()
+#sample_ids = [(os.path.basename(f)).split(".")[0] for f in gi2go_fns]
+[sample_list, sample_trait_list, sample_ids, tax_ids, trait_ids, cluster_stats] = process_m8.convert_gi2go_to_FDcompatible(gi2go_fns, taxid2lineage_map=taxid2lineage_map, tax_col_id="tax_id", trait_col_id="go")
+
+#[sample_list, sample_trait_list, sample_ids, tax_ids, trait_ids, cluster_stats] = process_m8.convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id="tax_id", trait_col_id="go", sample_ids=sample_ids)
 
 """
-def convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id, trait_col_id, taxids_clusters=None, excluding_zero=False, tax_val_delim=None, sample_ids=None, ofn_prefix=None, sample_ofn=None, trait_ofn=None, sample_trait_ofn=None, trait_val_delim="; ", missing_value="NA"):
+def convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id, trait_col_id, taxids_clusters=None, taxid2lineage_map=None, excluding_zero=False, tax_val_delim=None, sample_ids=None, ofn_prefix=None, sample_ofn=None, trait_ofn=None, sample_trait_ofn=None, trait_val_delim="; ", missing_value="NA", disable_output=False):
     import os
     
     if sample_ids is None:
         sample_ids = {os.path.splitext((os.path.basename(fn)))[0]:fn for fn in gi2go_fns}
+    
+    if taxid2lineage_map is not None:
+        print(">> TaxIDs will be mapped to provided lineage table (" + str(len(taxid2lineage_map)) +" lineages) <<")
     
     print(str(len(sample_ids)) + " ids found:")
     print("-----------------------------------\n" + "\n".join(sample_ids) + "\n")
@@ -372,7 +378,8 @@ def convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id, trait_col_id, taxids_cl
     print("Total number of traits: " + str(len(trait_ids)))
     print("Total number of taxa: " + str(len(tax_ids)))
     
-    
+    if disable_output:
+        return [sample_list, sample_trait_list, sample_ids, tax_ids, trait_ids, cluster_stats]
     
     # Filter cluster by their counts
     # Obtain totals of each cluster
@@ -383,8 +390,22 @@ def convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id, trait_col_id, taxids_cl
     ###########################
     print("Exporting sample table to " + sample_ofn)
     except_n = 0
+    skipped_mapped_id = 0
     with open(sample_ofn, "w") as OUT:
-        OUT.write("\t".join(["#sample_id:"+tax_col_id] + tax_ids) + "\n")
+        # Map the taxid
+        if taxid2lineage_map is not None:
+            mapped_tax_ids = []
+            for tax_id in tax_ids:
+                mapped_tax_id = str(tax_id)
+                try:
+                    mapped_tax_id = mapped_tax_id + ":" + taxid2lineage_map[tax_id]
+                except:
+                    skipped_mapped_id += 1
+                mapped_tax_ids.append(mapped_tax_id)
+            OUT.write("\t".join(["#sample_id:"+tax_col_id] + mapped_tax_ids) + "\n")                
+        else:
+            OUT.write("\t".join(["#sample_id:"+tax_col_id] + map(str,tax_ids)) + "\n")
+        
         for sample_id in sample_ids:
             tax_vals = [0 for i in tax_ids]
             for i, tax_id in enumerate(tax_ids):
@@ -440,8 +461,19 @@ def convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id, trait_col_id, taxids_cl
                     trait_ns[i] = trait_list[tax_id][trait_id]
                 except:
                     except_n += 1
-                 
-            OUT.write("\t".join([tax_id] + map(str, trait_ns)) + "\n")
+            
+            # Map the taxid
+            if taxid2lineage_map is not None:
+                mapped_tax_id = str(tax_id)
+                try:
+                    mapped_tax_id = mapped_tax_id + ":" + taxid2lineage_map[tax_id]
+                except:
+                    skipped_mapped_id += 1
+                OUT.write("\t".join([mapped_tax_id] + map(str, trait_ns)) + "\n")    
+            else:
+                OUT.write("\t".join(map(str, [tax_id] + trait_ns)) + "\n")
+            
+            #OUT.write("\t".join([tax_id] + map(str, trait_ns)) + "\n")
                  
     print("Processed: " + str(processed_n) + ", skipped: " + str(except_n))    
     
@@ -531,7 +563,9 @@ import os
 
 gi2go_fns = glob.glob("*.gi2go+map")
 
-[sample_list, trait_list, sample_ids, tax_ids, trait_ids] = process_m8.convert_gi2go_to_FDcompatible(gi2go_fns, "tax_id", "go")
+taxid2lineage_map = import_taxid2lineage()
+[sample_list, sample_trait_list, sample_ids, tax_ids, trait_ids, cluster_stats] = process_m8.convert_gi2go_to_FDcompatible(gi2go_fns, "tax_id", "go")
+#[sample_list, sample_trait_list, sample_ids, tax_ids, trait_ids, cluster_stats] = process_m8.convert_gi2go_to_FDcompatible(gi2go_fns, "tax_id", "go", disable_output=True)
 [cluster_ids, cluster2taxid, taxid2cluster] = process_m8.cluster_taxids_by_tax_lineage(tax_ids)
 [sample_list, trait_list, sample_ids, tax_ids, trait_ids, cluster_stats] = process_m8.convert_gi2go_to_FDcompatible(gi2go_fns, "tax_id", "go", taxids_clusters=taxid2cluster)
 

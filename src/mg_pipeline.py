@@ -2049,7 +2049,8 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
 
 
 """
- 
+ Given hmm_orf_dict, this function will construct a dom table using pfam name (hmm_accession_as_key=False) 
+ or pfam accession (hmm_accession_as_key=True) as keys.
 """
 def generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=False):
     hmm_dom_tbl = {}
@@ -2063,6 +2064,9 @@ def generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=False):
             hmm_dom_tbl[hmm_id].append(elm)
         
     return hmm_dom_tbl
+
+
+
 
 
 
@@ -2347,7 +2351,70 @@ def map_hmm2maxbin(hmm_orf_dict, maxbin_dir):
         
         return bin_groups
 
-  
+
+
+"""
+Export the hmm_dom_tbl to an out file.
+
+"""
+def export_dom_tbl(hmm_dom_tbl, outfn, hmm_info_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm.info"):
+    # Just for rewiring
+    dom_tbl = hmm_dom_tbl
+    
+    sample_ids = dom_tbl.keys()
+    
+    print("Number of sample ids from the dom_tbl: " + str(len(sample_ids)))
+    print("Sample IDs:\n")
+    print(", ".join(sample_ids) + "\n")
+    print("Constructing a dom_ids catalog")
+    
+    dom_ids = []
+    for k in dom_tbl.keys():
+        dom_ids.extend(dom_tbl[k].keys())
+    
+    # Unique dom_ids   
+    dom_ids = list(set(dom_ids))
+    
+    # Prepare an empty count table
+    dom_list = {}
+    dom_list["header"] = ["" for i in xrange(len(sample_ids))]
+    for dom_id in dom_ids:
+        dom_list[dom_id] = [0 for i in xrange(len(sample_ids))]
+    
+    # Process the data
+    for idx, id in enumerate(sample_ids):
+        dom_list["header"][idx] = id
+        print("Processing " + id)
+        for dom_id in dom_ids:
+            if dom_id in dom_tbl[id].keys():
+                #print("Dom=" + dom_id)
+                seq_ids = [d[0] for d in dom_tbl[id][dom_id]]
+                seq_ids = list(set(seq_ids))
+                #dom_list[dom_id][idx] = len(dom_tbl[id][dom_id])
+                dom_list[dom_id][idx] = len(seq_ids)
+    
+    
+    print("Obtaining hmm info from " + hmm_info_fn)
+    with open(hmm_info_fn) as IN:
+        hmm_info = IN.read().splitlines()
+    hmm_info = {v.split("\t")[0]:v.split("\t")[1] for v in hmm_info}
+    print("Number of hmm info: " +str(len(hmm_info)))
+    
+    
+    print("Exporting dom tbl to " + outfn)
+    export_n = 0
+    with open(outfn, "w") as OUT:
+        OUT.write("#HEADER\tDESC\t" + "\t".join(dom_list["header"]) + "\n")
+        for dom_id in dom_ids:
+            if dom_id in hmm_info.keys():
+                info = hmm_info[dom_id]
+            else:
+                info = dom_id
+            OUT.write(dom_id + "\t" + info + "\t" + "\t".join(str(v) for v in dom_list[dom_id]) + "\n")
+            export_n += 1
+    print(str(export_n) + " doms exported.")
+
+
 
 """
  Export the bin groups into a tabular file

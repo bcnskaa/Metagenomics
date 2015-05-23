@@ -198,7 +198,103 @@ def postprocess_HMMER_search(file, mean_posterior_prob=0.8, hmm_score_threshold=
     print_status( "Discarded HMM domains = "+str(discard_dom_n))
     
     return hmm_orf_dict  
+
+
     
+"""
+import mg_pipeline
+
+fn = "/disk/rdisk08/siukinng/samples/lab/m8/proteins/renamed/Pfam/all_samples.renamed+Pfam.dom.tbl"
+# Split dom_tbl based on the ids
+#hmm_orf_dict = mg_pipeline.postprocess_HMMER_search_by_fn(fn, hmm_score_threshold=10, hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc")
+#hmm_dom_tbl = mg_pipeline.generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=False)
+
+dom_tbl = split_dom_tbl(hmm_dom_tbl)
+
+dom_ids = []
+for k in dom_tbls.keys():
+    dom_ids.extend(dom_tbls[k].keys())
+    
+dom_ids = list(set(dom_ids))
+
+
+
+def split_dom_tbl(hmm_dom_tbl):
+    # split dom_tbl according to the protein id
+    dom_tbl = {}
+    for pfam_id in hmm_dom_tbl.keys():
+        for dom in hmm_dom_tbl[pfam_id]:
+            protein_id = dom[0] 
+            sample_id = protein_id.split("_")[0]
+            try:
+                dom_tbl[sample_id][pfam_id].append(dom) 
+            except:
+                # 
+                try:
+                    dom_tbl[sample_id][pfam_id] = []
+                except:
+                    dom_tbl[sample_id] = {}
+                    dom_tbl[sample_id][pfam_id] = []
+                dom_tbl[sample_id][pfam_id].append(dom) 
+    return dom_tbl
+
+
+"""
+
+def export_dom_tbl(dom_tbl, outfn, hmm_info_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm.info"):
+    mg_pipeline.export_dom_tbl(dom_tbl, outfn, hmm_info_fn)
+#     sample_ids = dom_tbl.keys()
+#     
+#     print("Number of sample ids from the dom_tbl: " + str(len(sample_ids)))
+#     print("Sample IDs:\n")
+#     print(", ".join(sample_ids) + "\n")
+#     print("Constructing a dom_ids catalog")
+#     
+#     dom_ids = []
+#     for k in dom_tbls.keys():
+#         dom_ids.extend(dom_tbls[k].keys())
+#     
+#     # Unique dom_ids   
+#     dom_ids = list(set(dom_ids))
+#     
+#     # Prepare an empty count table
+#     dom_list = {}
+#     dom_list["header"] = ["" for i in xrange(len(fns))]
+#     for dom_id in dom_ids:
+#         dom_list[dom_id] = [0 for i in xrange(len(fns))]
+#     
+#     # Process the data
+#     for idx, id in enumerate(sample_ids):
+#         dom_list["header"][idx] = id
+#         print("Processing " + id)
+#         for dom_id in dom_ids:
+#             if dom_id in dom_tbls[id].keys():
+#                 #print("Dom=" + dom_id)
+#                 seq_ids = [d[0] for d in dom_tbls[id][dom_id]]
+#                 seq_ids = list(set(seq_ids))
+#                 #dom_list[dom_id][idx] = len(dom_tbls[id][dom_id])
+#                 dom_list[dom_id][idx] = len(seq_ids)
+#     
+#     
+#     print("Obtaining hmm info from " + hmm_info_fn)
+#     with open(hmm_info_fn) as IN:
+#         hmm_info = IN.read().splitlines()
+#     hmm_info = {v.split("\t")[0]:v.split("\t")[1] for v in hmm_info}
+#     print("Number of hmm info: " +str(len(hmm_info)))
+#     
+#     
+#     print("Exporting dom tbl to " + outfn)
+#     export_n = 0
+#     with open(outfn, "w") as OUT:
+#         OUT.write("HEADER\tDESC\t" + "\t".join(dom_list["header"]) + "\n")
+#         for dom_id in dom_ids:
+#             if dom_id in hmm_info.keys():
+#                 info = hmm_info[dom_id]
+#             else:
+#                 info = dom_id
+#             OUT.write(dom_id + "\t" + info + "\t" + "\t".join(str(v) for v in dom_list[dom_id]) + "\n")
+#             export_n += 1
+#     print(str(export_n) + " doms exported.")
 
 
 """
@@ -263,17 +359,19 @@ with open(hmm_id + ".tbl", "w") as OUT:
         OUT.write(dom_id + "\t" + info + "\t" + "\t".join(str(v) for v in dom_list[dom_id]) + "\n") 
 
 
+
 """
 def generate_dom_tbl(hmm_orf_dict):
-    hmm_dom_tbl = {}
-    for id in hmm_orf_dict.keys():
-        for elm in hmm_orf_dict[id]:
-            hmm_id = elm[5]
-            if hmm_id not in hmm_dom_tbl.keys():
-                hmm_dom_tbl[hmm_id] = []
-            hmm_dom_tbl[hmm_id].append(elm)
-        
-    return hmm_dom_tbl
+    return mg_pipeline.generate_dom_tbl(hmm_orf_dict)
+#     hmm_dom_tbl = {}
+#     for id in hmm_orf_dict.keys():
+#         for elm in hmm_orf_dict[id]:
+#             hmm_id = elm[5]
+#             if hmm_id not in hmm_dom_tbl.keys():
+#                 hmm_dom_tbl[hmm_id] = []
+#             hmm_dom_tbl[hmm_id].append(elm)
+#         
+#     return hmm_dom_tbl
 
 
 
@@ -284,115 +382,115 @@ def generate_dom_tbl(hmm_orf_dict):
  Get Current Dir: os.path.dirname(os.path.abspath("."))
 """
 def map_hmm2maxbin(hmm_orf_dict, maxbin_dir): 
-    # Check path exists
-    if not os.path.exists(maxbin_dir):
-        print_status("Unable to read from \"" + maxbin_dir + "\"")
-        return None
-
-
-    ##################################
-    # Extracting contig abundances
-    contig_abunds = {}
-    abund_fn = glob.glob(maxbin_dir + "/*.abund") 
-    abund_fn = abund_fn[0]
-    with open(abund_fn, "r") as IN:
-        for idx, line in enumerate(IN):
-            [contig_name, contig_abund] = (line.replace("\n", "")).split("\t")
-            contig_abunds[contig_name] = float(contig_abund)
-            
-    
-    ##################################
-    #orf2contig_dict = {orf:(orf[::-1].split("_", 1))[1][::-1] for orf in hmm_orf_dict}
-    contig2orf_dict = {}
-    for orf in hmm_orf_dict:
-        contig_id = (orf[::-1].split("_", 1))[1][::-1]
-        if contig_id not in contig2orf_dict.keys():
-            contig2orf_dict[contig_id] = [orf]
-        else:
-            contig2orf_dict[contig_id].append(orf)
-    
-
-    ##################################
-    # Mapping predicted ORFs with HMM domains info to binned groups
-    # Read the summary file
-    summary_fn = glob.glob(maxbin_dir + "/*.summary")
-    
-    if len(summary_fn) != 1:
-        print_status("Unable to read *.summary from"+maxbin_dir)
-        return False
-    
-    summary_fn = summary_fn[0]
-    
-    # Contig summary
-    contig_n = 0
-    bin_groups = {}
-    bin_group_n = 0
-    mapped_dom_n = 0
-    with open(summary_fn, "r") as IN:
-        for idx, line in enumerate(IN):
-            if idx > 0:
-                items = (line.replace("\n", "")).split("\t")
-                
-                bin_group_n += 1
-                bin_id = items[0].replace("." + FASTA_DNA_EXT, "")
-               
-                bin_fn = maxbin_dir + "/" + items[0]
-                
-                print_status("Importing from" + bin_fn)
-                
-                print_status("++++++++++++++++++++++++++++++++++++++++")
-                print_status( "ID: " + bin_id)
-                print_status( "++++++++++++++++++++++++++++++++++++++++")
-                
-                bin_groups[bin_id] = []
-                
-                # Get all the header of the current bin group
-                with open(bin_fn, "r") as IN:
-                    for line in IN:
-                        if line.startswith(">"):
-                            contig_name = (line.replace(">", "")).replace("\n", "")
-                            
-                            print(contig_name)
-                            
-                            if contig_name in contig2orf_dict.keys():
-                                contig_n += 1
-                                orf_names = contig2orf_dict[contig_name]
-                                
-                                for orf in orf_names:
-                                    if orf in hmm_orf_dict.keys():
-                                        mapped_dom_n += len(hmm_orf_dict[orf])
-                                        bin_groups[bin_id].extend(hmm_orf_dict[orf])
-                                
-#                             if bin_id not in bin_groups.keys():
-#                                 bin_groups[bin_id] = [contig_name]
-#                             else:
-#                                 bin_groups[bin_id].append(contig_name)
-                                
-#                             #bin_groups[bin_id].append((line.replace(">", "")).replace("\n", ""))
+    return mg_pipeline.map_hmm2maxbin(hmm_orf_dict, maxbin_dir)
+#     # Check path exists
+#     if not os.path.exists(maxbin_dir):
+#         print_status("Unable to read from \"" + maxbin_dir + "\"")
+#         return None
+# 
+# 
+#     ##################################
+#     # Extracting contig abundances
+#     contig_abunds = {}
+#     abund_fn = glob.glob(maxbin_dir + "/*.abund") 
+#     abund_fn = abund_fn[0]
+#     with open(abund_fn, "r") as IN:
+#         for idx, line in enumerate(IN):
+#             [contig_name, contig_abund] = (line.replace("\n", "")).split("\t")
+#             contig_abunds[contig_name] = float(contig_abund)
+#             
+#     
+#     ##################################
+#     #orf2contig_dict = {orf:(orf[::-1].split("_", 1))[1][::-1] for orf in hmm_orf_dict}
+#     contig2orf_dict = {}
+#     for orf in hmm_orf_dict:
+#         contig_id = (orf[::-1].split("_", 1))[1][::-1]
+#         if contig_id not in contig2orf_dict.keys():
+#             contig2orf_dict[contig_id] = [orf]
+#         else:
+#             contig2orf_dict[contig_id].append(orf)
+#     
+# 
+#     ##################################
+#     # Mapping predicted ORFs with HMM domains info to binned groups
+#     # Read the summary file
+#     summary_fn = glob.glob(maxbin_dir + "/*.summary")
+#     
+#     if len(summary_fn) != 1:
+#         print_status("Unable to read *.summary from"+maxbin_dir)
+#         return False
+#     
+#     summary_fn = summary_fn[0]
+#     
+#     # Contig summary
+#     contig_n = 0
+#     bin_groups = {}
+#     bin_group_n = 0
+#     mapped_dom_n = 0
+#     with open(summary_fn, "r") as IN:
+#         for idx, line in enumerate(IN):
+#             if idx > 0:
+#                 items = (line.replace("\n", "")).split("\t")
+#                 
+#                 bin_group_n += 1
+#                 bin_id = items[0].replace("." + FASTA_DNA_EXT, "")
+#                
+#                 bin_fn = maxbin_dir + "/" + items[0]
+#                 
+#                 print_status("Importing from" + bin_fn)
+#                 
+#                 print_status("++++++++++++++++++++++++++++++++++++++++")
+#                 print_status( "ID: " + bin_id)
+#                 print_status( "++++++++++++++++++++++++++++++++++++++++")
+#                 
+#                 bin_groups[bin_id] = []
+#                 
+#                 # Get all the header of the current bin group
+#                 with open(bin_fn, "r") as IN:
+#                     for line in IN:
+#                         if line.startswith(">"):
 #                             contig_name = (line.replace(">", "")).replace("\n", "")
-#                             if contig_name not in bin_groups.keys():
-#                                 bin_groups[contig_name] = bin_id
-#                                 #print (line.replace(">", "")).replace("\n", "")
+#                             
+#                             print(contig_name)
+#                             
+#                             if contig_name in contig2orf_dict.keys():
 #                                 contig_n += 1
-#                             else:
-#                                 print ("Duplicate found.("+contig_name+")")
-
-    print_status("Bin Group# = " + str(bin_group_n) + "  Total Contig# = " + str(contig_n) + "  Mapped Domain# = " + str(mapped_dom_n))
-
-    if bin_group_n == 0 or contig_n == 0:
-        print_status("Something wrong with MaxBin data. Abort now.")
-        return None
-    else:
-        
-        bin_groups = {group: sorted(bin_groups[group], key=lambda v:v[4], reverse=True) for group in bin_groups.keys()}
-        
-        return bin_groups
+#                                 orf_names = contig2orf_dict[contig_name]
+#                                 
+#                                 for orf in orf_names:
+#                                     if orf in hmm_orf_dict.keys():
+#                                         mapped_dom_n += len(hmm_orf_dict[orf])
+#                                         bin_groups[bin_id].extend(hmm_orf_dict[orf])
+#                                 
+# #                             if bin_id not in bin_groups.keys():
+# #                                 bin_groups[bin_id] = [contig_name]
+# #                             else:
+# #                                 bin_groups[bin_id].append(contig_name)
+#                                 
+# #                             #bin_groups[bin_id].append((line.replace(">", "")).replace("\n", ""))
+# #                             contig_name = (line.replace(">", "")).replace("\n", "")
+# #                             if contig_name not in bin_groups.keys():
+# #                                 bin_groups[contig_name] = bin_id
+# #                                 #print (line.replace(">", "")).replace("\n", "")
+# #                                 contig_n += 1
+# #                             else:
+# #                                 print ("Duplicate found.("+contig_name+")")
+# 
+#     print_status("Bin Group# = " + str(bin_group_n) + "  Total Contig# = " + str(contig_n) + "  Mapped Domain# = " + str(mapped_dom_n))
+# 
+#     if bin_group_n == 0 or contig_n == 0:
+#         print_status("Something wrong with MaxBin data. Abort now.")
+#         return None
+#     else:
+#         
+#         bin_groups = {group: sorted(bin_groups[group], key=lambda v:v[4], reverse=True) for group in bin_groups.keys()}
+#         
+#         return bin_groups
 
 
 
 def generate_attendence_table(dom_tbl_fns, group_by_fn=True):
-    print("")
-    
+    return mg_pipeline.generate_attendence_table(dom_tbl_fns, group_by_fn=group_by_fn)
     
 
 
