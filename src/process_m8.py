@@ -573,10 +573,36 @@ taxid2lineage_map = import_taxid2lineage()
 def cluster_taxids_by_tax_lineage(taxids, taxid2lineage_map=None, tax_level="g", excluding_missing_value=False, missing_value_label="Unassigned"):
     print("Processing " + str(len(taxids)) + " taxid using tax_level: " + tax_level)
     
+    # select tax_level splitter
+    if tax_level == "s":
+        tax_level_tag = "?"
+    elif tax_level == "g":
+        tax_level_tag = ";s__"
+        tax_level_tag_end = ";s__"
+    elif tax_level == "f":
+        tax_level_tag = ";g__"
+        tax_level_tag_end = ";g__;s__"
+    elif tax_level == "o":
+        tax_level_tag = ";f__"
+        tax_level_tag_end = ";f__;g__;s__"
+    elif tax_level == "c":
+        tax_level_tag = ";o__"
+        tax_level_tag_end = ";o__;f__;g__;s__"
+    elif tax_level == "p":
+        tax_level_tag = ";c__"
+        tax_level_tag_end = ";c__;o__;f__;g__;s__"
+    elif tax_level == "k":
+        tax_level_tag = ";p__"
+        tax_level_tag_end = ";p__;c__;o__;f__;g__;s__"
+    else:
+        print("Unknown taxa level: " + tax_level)
+        return [None, None, None]
+        
+             
     # Convert taxids into integer for efficient processing
     taxids = map(int, taxids)
     
-    tax_level_tag = tax_level + "__"
+    #tax_level_tag = tax_level + "__"
     
     # If taxids sharing a same tax_level are clustered
     taxid2cluster = {}
@@ -586,9 +612,16 @@ def cluster_taxids_by_tax_lineage(taxids, taxid2lineage_map=None, tax_level="g",
         taxid2lineage_map = import_taxid2lineage()
     
     
+    # Reverse map:
+    lineage2taxid_map = {v : k for k, v in taxid2lineage_map.items()}
+    
+    
     print("Clustering")
     skipped_n = 0
     processed_n = 0
+    unassigned_n = 0
+    missing_n = 0
+    orphan_n = 0
     for taxid in taxids:
         processed_n += 1
         try:
@@ -598,13 +631,34 @@ def cluster_taxids_by_tax_lineage(taxids, taxid2lineage_map=None, tax_level="g",
             continue
         
         # Extract the value at specified tax level
-        tax_level_val = [l for l in lineage.split(";") if l.startswith(tax_level_tag)]
+        #tax_level_val = [l for l in lineage.split(";") if l.startswith(tax_level_tag)]
+        tax_level_val = lineage.split(tax_level_tag)
         
-        # tax value goes empty, so marked "Unassigned"
+        if lineage.find(tax_level_tag) == -1:
+            tax_level_val = missing_value_label
+            missing_n += 1
+        
+        # tax value not available, so marked "Unassigned"
         if len(tax_level_val) == 0:
             tax_level_val = missing_value_label
-        
+            missing_n += 1
+
+        # Extract the tax value
         tax_level_val = tax_level_val[0]
+        
+        # tax value goes empty, also marked "Unassigned"
+        if len(tax_level_val.replace(tax_level_tag, "")) == 0:
+            tax_level_val = missing_value_label
+            unassigned_n += 1
+
+        rev_tax_id = -1
+        try:
+            rev_tax_id = lineage2taxid_map[tax_level_val+tax_level_tag_end]
+        except:
+            orphan_n += 1
+
+        tax_level_val = str(rev_tax_id) + ":"+ tax_level_val
+
         taxid2cluster[taxid] = tax_level_val
         try:
             cluster2taxid[tax_level_val].append(taxid)
@@ -613,12 +667,11 @@ def cluster_taxids_by_tax_lineage(taxids, taxid2lineage_map=None, tax_level="g",
             cluster2taxid[tax_level_val].append(taxid)
             cluster_ids.append(tax_level_val)
     
-    
-    
-    print("Processed: " + str(processed_n) + ", skipped: " + str(skipped_n))
+
+    print("Processed: " + str(processed_n) + ", unassigned: " + str(unassigned_n) + ", missing: " + str(missing_n) + ", orphan: " + str(orphan_n)  + ", skipped (lineage information not available): " + str(skipped_n))
     print("Number of cluster: " + str(len(cluster2taxid)))
      
-    return [cluster_ids, cluster2taxid, taxid2cluster]    
+    return [cluster_ids, cluster2taxid, taxid2cluster]
     
     
  
@@ -638,7 +691,66 @@ def import_taxid2lineage(taxid2lineage_fn="/home/siukinng/db/Markers/ncbi_nr/map
     print(str(len(taxid2lineage_map)) + " row imported.")
     
     return taxid2lineage_map
-        
+
+
+
+"""
+import process_m8
+sample_fn = 'samples-tax_id+go.samples'
+
+process_m8.cluster_sample_fn_otu(sample_fn)
+
+"""
+def cluster_sample_fn_otu(sample_fn, tax_level="g", sample_ofn=None):
+    if sample_ofn is None:
+        sample_ofn = sample_fn + "." +  tax_level + ".clustered"
+    
+    print("Processing " + sample_fn + " and results will be exported to " + sample_ofn)
+    
+    with open(sample_fn) as IN:
+        otus = IN.read().splitlines()
+    
+    header_label = otus[0].split("\t")[0] 
+    header = otus[0].split("\t")[1:]
+    del otus[0]
+    
+    taxids = [h.split(":")[0] for h in header]
+    taxid_idx = {int(t):i+1 for i,t in enumerate(taxids)}
+  
+    # Expand the tab format
+    otus = [o.split("\t") for o in otus]
+    
+    sample_ids = [o[0] for o in otus]
+    print("Number of sample IDs: " + str(len(sample_ids)))
+    
+    [cluster_ids, cluster2taxid, taxid2cluster] = cluster_taxids_by_tax_lineage(taxids, tax_level=tax_level)
+    print("Number of clusters: " + str(len(cluster_ids)))
+    
+    # Check list for what has been exported
+    check_list = [0 for t in taxids]
+    
+    OUT = open(sample_ofn, "w")
+    
+    processed_n = 0
+    OUT.write("\t".join([header_label] + cluster_ids) + "\n")
+    for i, sample_id in enumerate(sample_ids):
+        otu_vals = [sample_id]
+        print("Extracting " + sample_id)
+        for cluster_id in cluster_ids:
+            cluster_val = 0
+            cluster_taxids = cluster2taxid[cluster_id]
+            for tid in cluster_taxids:
+                idx = taxid_idx[tid]
+                cluster_val += int(otus[i][idx])
+                processed_n += 1
+            otu_vals.append(cluster_val)
+        OUT.write("\t".join(map(str, otu_vals)) + "\n")
+    OUT.close()
+    
+    print("Number of data processed: " + str(processed_n)) 
+    
+    
+     
 """
 hmm_orf_dict = mg_pipeline.postprocess_HMMER_search_by_fn("all_samples.renamed+Pfam.dom.tbl", hmm_score_threshold=10, hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc")
 

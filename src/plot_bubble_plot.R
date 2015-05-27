@@ -165,7 +165,7 @@ initial <- function()
 	require(rgl)
 	
 	#sample_id <- "S1-1B"
-	sample_id <- "SWH-Cell_Y2"
+	sample_id <- "SWH-Cell55_Y2"
 	min_len <- 10000
 	
 	#cov_fn <- paste(sample_id, ".coverage.summary", sep="")
@@ -224,7 +224,7 @@ initial <- function()
 	#tetra.cov_lineage.text = tetra.cov_lineage[tetra.cov_lineage$coverage >= text_threshold,]
 	
 	#tetra.cov_lineage.text = tetra.cov_lineage[nchar(tetra.cov_lineage$lineage) > 0,]
-	tetra.cov_lineage.text = tetra.cov_lineage[tetra.cov_lineage$length > 50000,]
+	tetra.cov_lineage.text = tetra.cov_lineage[tetra.cov_lineage$length > 30000,]
 	text3d(tetra.cov_lineage.text$MDS1, tetra.cov_lineage.text$MDS2, log(tetra.cov_lineage.text$coverage), paste(tetra.cov_lineage.text$Row.names,";", tetra.cov_lineage.text$lineage, sep=""), cex=0.6, adj=c(1.3,1.0))
 	
 	

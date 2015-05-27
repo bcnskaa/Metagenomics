@@ -6,52 +6,157 @@ source(paste(script_home, "plot_heatmap.R", sep=""))
 source(paste(script_home, "plot_bubble_plot.R", sep=""))
 
 
-tx_fn <- "samples-clustered-tax_id+go.samples"
+
+pfam_fn <- "/home/bcnskaa/projects/Metagenomics_WD/FunctionalDiversity/all_samples/Pfam/all_samples.renamed+Pfam.dom.tbl.summary"
+trait_fn <- "samples-clustered-tax_id+go.traits"
+tx_fn_s <- "samples-tax_id+go.samples"
+tx_fn_g <- "samples-tax_id+go.samples.g.clustered"
+#tx_fn <- "samples-clustered-tax_id+go.samples"
 #tx_fn <- "all_samples.tax.species.txt"
 #fd_fn <- "all_samples.seed.functions.txt"
 
-log_scale <- TRUE
-selected_level <- 80
+log_scale <- FALSE
+selected_level <- 30
 
-wk_fn <- tx_fn
+wk_fn <- tx_fn_g
 
 # Read counts assigned to SEED subsystems
 fd <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
 
+fd_bak <- fd
 
-if(tx_fn == "samples-clustered-tax_id+go.samples") {
+
+
+
+if(wk_fn == "samples-clustered-tax_id+go.samples" ) {
 	###################
 	# Min-count
-	min_count <- 10
+	min_count <- 5000
 	species_counts <- colSums(fd)
 	
 	excluded_species <- names(which(species_counts < min_count))
+	excluded_species <- c(excluded_species, "o__")
 	
 	fd <- fd[, which(! (colnames(fd) %in% excluded_species))]
 	
 	excluded_samples = c("all_samples+nr.renamed.m8")
+	
 	fd <- fd[which(! (rownames(fd) %in% excluded_samples)), ]
-
+	
+	rownames(fd) <- gsub("+nr.renamed.m8", "", rownames(fd), fixed=T)
+	fd <- t(fd)
 }
 
-# Normalize the data
-fd_totals <- colSums(fd)
-fd_normalized <- (as.data.frame(t(t(fd) / fd_totals))) * 100
+
+
+if(grep(".clustered", wk_fn)) {
+	###################
+	# Min-count
+	min_count <- 5000
+	species_counts <- colSums(fd)
+	
+	excluded_species <- names(which(species_counts < min_count))
+	# Remove species without kingdom assignment
+	excluded_species <- rbind(excluded_species, names(fd[grep("k__.p_", rownames(fd))]))
+	excluded_species <- rbind(excluded_species, "X.1.k__.p__.c__.o__.f__.g__")
+	
+	
+	fd <- fd[, which(! (colnames(fd) %in% excluded_species))]
+	
+	
+	excluded_samples = c("all_samples+nr.renamed.m8")
+	
+	fd <- fd[which(! (rownames(fd) %in% excluded_samples)), ]
+	
+	rownames(fd) <- gsub("+nr.m8", "", rownames(fd), fixed=T)
+	fd <- t(fd)
+}
 
 
 
+# Remove NA
+if(wk_fn == "samples-clustered-tax_id+go.traits") {
+	###################
+	# Min-count
+	min_global_trait_count <- 20
+	min_species_trait_count <- 100
+	
+	trait_counts <- colSums(fd)
+	length(which(trait_counts < min_global_trait_count))
+	excluded_traits <- colnames(fd)[which(trait_counts < min_global_trait_count)]
+	
+	
+	# Exclude taxa whose triat count is too small
+	trait_counts <- rowSums(fd)
+	excluded_species <- rownames(fd)[which(trait_counts < min_species_trait_count)]
 
 
-# http://www.statsblogs.com/2014/07/14/a-log-transformation-of-positive-and-negative-values/
-if(log_scale)
+	fd <- fd[which(! (rownames(fd) %in% excluded_species)), ! (colnames(fd) %in% excluded_traits)]
+	fd <- fd[,- which(colnames(fd) == "NA.")]
+	
+	fd <- t(fd)
+}
+
+
+
+if(wk_fn == pfam_fn)
 {
-	#fd_normalized <- log10(fd_normalized)
-	fd_normalized <- log10(fd_normalized + 1)
+	min_global_trait_count <- 20
+	min_species_trait_count <- 100
 }
 
-sorted_subsystems <- sort(rowSums(fd_normalized), decreasing=T)
 
-selected_fd <- fd_normalized[names(sorted_subsystems)[1:selected_level],]
+# Processing the pfam data
+if(wk_fn == "samples-clustered-tax_id+go.traits")
+{
+	desc <- fd[, "DESC"]
+	fd <- fd[, which(!colnames(fd) %in% "DESC")]
+	
+	min_count <- 2
+	
+	fd <- t(fd[which(rowSums(fd) > min_count), ])
+}
+
+
+
+#
+#sorted_subsystems <- sort(rowSums(fd_normalized), decreasing=T)
+#
+#selected_level <- min(selected_level, nrow(fd_normalized))
+#selected_fd <- fd_normalized[names(sorted_subsystems)[1:selected_level],]
+#
+
+
+
+
+sorted_subsystems <- sort(rowSums(fd), decreasing=T)
+
+selected_level <- min(selected_level, nrow(fd))
+fd <- fd[names(sorted_subsystems)[1:selected_level],]
+
+
+
+
+if(wk_fn == "all_samples.renamed+Pfam.dom.tbl.summary")
+{
+	fd_normalized <- fd
+	
+} else {
+	# Normalize the data
+	fd_totals <- colSums(fd)
+	fd_normalized <- (as.data.frame(t(t(fd) / fd_totals))) * 100
+	
+	# http://www.statsblogs.com/2014/07/14/a-log-transformation-of-positive-and-negative-values/
+	if(log_scale)
+	{
+		#fd_normalized <- log10(fd_normalized)
+		fd_normalized <- log10(fd_normalized + 1)
+	}
+	
+} 
+
+selected_fd <- fd_normalized
+
 
 #selected_fd <- fd_normalized[which(fd_normalized[, "GZ.Cell_Y1.nr"] > 0.5),]
 #selected_fd <- fd_normalized[which(fd_normalized[, "GZ.Cell_Y1.nr"] > 0.5),]
@@ -59,14 +164,21 @@ selected_fd <- fd_normalized[names(sorted_subsystems)[1:selected_level],]
 
 # Do hierachical clustering, and extract the labels
 library(vegan)
-fd_dist <- vegdist(t(fd_normalized), "bray")
+if(wk_fn == "samples-clustered-tax_id+go.traits")
+{
+	fd_dist <- vegdist(t(selected_fd), "bray")
+} else{ 
+	fd_dist <- vegdist(t(fd_normalized), "bray")
+}
+
 hc <- hclust(fd_dist)
+
 
 pdf(paste(wk_fn,"hclust","pdf",sep="."), w=14, h=5)
 plot(hc)
 dev.off()
-sample_ids <- hc$labels[hc$order]
 
+sample_ids <- hc$labels[hc$order]
 selected_fd <- selected_fd[sample_ids]
 
 #selected_fd <- selected_fd[c("GZ.Seed_Y0.nr", "SWH.Seed_Y0.nr", "SWH.Cell55_Y2.nr", "GZ.Cell_Y1.nr", "GZ.Cell_Y2.nr","GZ.Xyl_Y1.nr", "GZ.Xyl_Y2.nr", "SWH.Cell_Y1.nr", "SWH.Cell_Y2.nr","SWH.Xyl_Y1.nr", "SWH.Xyl_Y2.nr")
@@ -97,9 +209,24 @@ tx <- read.table("all_samples.tax.genus.txt", sep="\t", header=T, stringsAsFacto
 
 
 
+# Do PCoA
+library(rgl)
+
+plot_mtx.pca <- princomp(plot_mtx)
+pdf(paste(wk_fn,"pca_biplot","pdf",sep="."), w=8, h=16)
+biplot(plot_mtx.pca, scale=T)
+dev.off()
 
 
-
+plot3d(plot_mtx.pca$scores[,1:3])
+text3d(plot_mtx.pca$scores[,1:3], texts=rownames(plot_mtx))
+text3d(plot_mtx.pca$loading[,1:3], texts=rownames(plot_mtx.pca$loadings), col="red")
+coords <- NULL
+for(i in 1 : nrow(plot_mtx.pca$loadings))
+{
+	coords <- rbind(coords, rbind(c(0,0,0), plot_mtx.pca$loadings[i, 1:3]))
+}
+lines3d(coords, col="red", lwd=4)
 
 
 
