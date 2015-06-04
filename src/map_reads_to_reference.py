@@ -641,7 +641,6 @@ def print_log(msg):
 
 
 
-
 """
 
 !!! 
@@ -669,6 +668,9 @@ def estimate_coverage(seq, mask_lower_case=False):
 
 
 
+"""
+
+"""
 def estimate_fq_coverage(fq_fn, mask_lower_case=False):
     from Bio import SeqIO
     
@@ -687,6 +689,7 @@ def estimate_fq_coverage(fq_fn, mask_lower_case=False):
                 lens_count[l] = 0
             lens_count[l] = lens_count[l] + 1
     return lens_count
+
 
 
     
@@ -716,6 +719,7 @@ def estimate_fq_coverage(fq_fn, mask_lower_case=False):
 #                 lens_count[l] = 0
 #             lens_count[l] = lens_count[l] + 1
 #     return lens_count
+
 
 
 """
@@ -793,6 +797,7 @@ def extract_tax_from_sid(bla_fn, cutoff=30000, tax_fn="/home/siukinng/db/BioProj
 
 
 """
+
 """
 def get_tax_from_bla_fns(bla_fns, cutoff=30000, tax_fn="/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.txt"):
     combined_sid_tbl = {}
@@ -803,7 +808,9 @@ def get_tax_from_bla_fns(bla_fns, cutoff=30000, tax_fn="/home/siukinng/db/BioPro
     return combined_sid_tbl
 
 
+"""
 
+"""
 tax_db = None
 def get_tax(sid, tax_fn="/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.txt"):
     global tax_db
@@ -826,6 +833,10 @@ def get_tax(sid, tax_fn="/home/siukinng/db/BioProject_Prokaryotes/prokaryotes.tx
         return ["","",""]
 
 
+
+"""
+
+"""
 def extract_species_from_tax(sid_tbl):
     species = []
     for sid in sid_tbl.keys():
@@ -834,10 +845,13 @@ def extract_species_from_tax(sid_tbl):
 
 
 
+"""
+
+"""
 def assign_contigs_to_sid(bla_fn, contig_fa_fn, contig2sid_tbl_fn=None, cutoff=40000, blast_len_cutoff=3000):
     print("")
 
-    
+
 
 """
 

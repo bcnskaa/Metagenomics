@@ -16,6 +16,24 @@ import merge_fa
 
 
 """
+####################################################
+# Workflow for processing MS data in wiff format:
+####################################################
+
+1. Install the AB SciEX MS converter on a Window platform
+2. Convert the wiff file into mgf format by using AB_SCIEX_MS_Converter.exe
+   > AB_SCIEX_MS_Converter.exe WIFF IN_FILE -centroid MGF OUT_FILE /nocompression /singleprecision /index
+3. Convert the mgf file into mzML format using ProteoWizard's msconvert
+   settings: Write Index, zlib compression, TPP compatibility, 64-bit
+4. Upload the server with TPP installed
+5. Prepare the COMET parameter (high.high)
+6. Execute COMET with the parameter file
+
+"""
+
+
+
+"""
 
 # Installation of TPP with Python
 

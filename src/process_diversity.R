@@ -11,9 +11,9 @@ pfam_fn <- "/home/bcnskaa/projects/Metagenomics_WD/FunctionalDiversity/all_sampl
 trait_fn <- "samples-clustered-tax_id+go.traits"
 tx_fn_s <- "samples-tax_id+go.samples"
 tx_fn_g <- "samples-tax_id+go.samples.g.clustered"
-#tx_fn <- "samples-clustered-tax_id+go.samples"
+tx_fn <- "samples-clustered-tax_id+go.samples"
 #tx_fn <- "all_samples.tax.species.txt"
-#fd_fn <- "all_samples.seed.functions.txt"
+fd_fn <- "all_samples.seed.functions.txt"
 
 log_scale <- FALSE
 selected_level <- 30
@@ -78,8 +78,8 @@ if(grep(".clustered", wk_fn)) {
 if(wk_fn == "samples-clustered-tax_id+go.traits") {
 	###################
 	# Min-count
-	min_global_trait_count <- 20
-	min_species_trait_count <- 100
+	min_global_trait_count <- 1000
+	min_species_trait_count <- 300
 	
 	trait_counts <- colSums(fd)
 	length(which(trait_counts < min_global_trait_count))
@@ -93,22 +93,18 @@ if(wk_fn == "samples-clustered-tax_id+go.traits") {
 
 	fd <- fd[which(! (rownames(fd) %in% excluded_species)), ! (colnames(fd) %in% excluded_traits)]
 	fd <- fd[,- which(colnames(fd) == "NA.")]
+	fd <- fd[- which(rowSums(fd) == 0),]	
 	
 	fd <- t(fd)
 }
 
 
-
+# Processing the pfam data
 if(wk_fn == pfam_fn)
 {
 	min_global_trait_count <- 20
 	min_species_trait_count <- 100
-}
-
-
-# Processing the pfam data
-if(wk_fn == "samples-clustered-tax_id+go.traits")
-{
+	
 	desc <- fd[, "DESC"]
 	fd <- fd[, which(!colnames(fd) %in% "DESC")]
 	
@@ -126,9 +122,6 @@ if(wk_fn == "samples-clustered-tax_id+go.traits")
 #selected_fd <- fd_normalized[names(sorted_subsystems)[1:selected_level],]
 #
 
-
-
-
 sorted_subsystems <- sort(rowSums(fd), decreasing=T)
 
 selected_level <- min(selected_level, nrow(fd))
@@ -144,6 +137,7 @@ if(wk_fn == "all_samples.renamed+Pfam.dom.tbl.summary")
 } else {
 	# Normalize the data
 	fd_totals <- colSums(fd)
+	
 	fd_normalized <- (as.data.frame(t(t(fd) / fd_totals))) * 100
 	
 	# http://www.statsblogs.com/2014/07/14/a-log-transformation-of-positive-and-negative-values/
@@ -156,6 +150,9 @@ if(wk_fn == "all_samples.renamed+Pfam.dom.tbl.summary")
 } 
 
 selected_fd <- fd_normalized
+
+
+
 
 
 #selected_fd <- fd_normalized[which(fd_normalized[, "GZ.Cell_Y1.nr"] > 0.5),]
@@ -174,7 +171,7 @@ if(wk_fn == "samples-clustered-tax_id+go.traits")
 hc <- hclust(fd_dist)
 
 
-pdf(paste(wk_fn,"hclust","pdf",sep="."), w=14, h=5)
+pdf(paste(wk_fn, "hclust", "pdf", sep="."), w=14, h=5)
 plot(hc)
 dev.off()
 
@@ -200,6 +197,37 @@ pdf(paste(wk_fn,"bubble","pdf",sep="."), w=8, h=16)
 df <- plot_bubble(plot_df, "sample", "system", "read_count_perc", xtitle="Sample", ytitle="SEED System", ylabels=rev(rownames(selected_fd)))
 dev.off()
 
+
+
+# Group analysis
+if(grep("sample", wk_fn) & grep("clustered", wk_fn))
+{
+	group_cell <- colnames(plot_mtx)[grep("Cell_", colnames(plot_mtx))]
+	group_xyl <- colnames(plot_mtx)[grep("Xyl", colnames(plot_mtx))]
+	group_seed <- colnames(plot_mtx)[grep("Seed", colnames(plot_mtx))]
+	
+	group_cell_avgs <- rowAvgs(plot_mtx[,group_cell])
+	group_xyl_avgs <- rowAvgs(plot_mtx[,group_xyl])
+	group_seed_avgs <- rowAvgs(plot_mtx[,group_seed])
+	
+	# Normal to zero
+	group_cell_avgs <- group_cell_avgs - group_seed_avgs
+	group_xyl_avgs <- group_xyl_avgs - group_seed_avgs
+	group_seed_avgs <- group_seed_avgs - group_seed_avgs
+			
+	group_avgs <- data.frame(rownames(plot_mtx), group_cell_avgs, group_xyl_avgs, group_seed_avgs)
+	colnames(group_avgs) <- c("name", "Cell", "Xyl", "Seed")
+	
+	melt_group_avgs <- melt(group_avgs)
+	
+	
+	#melt_group_avgs$value <- sign(melt_group_avgs$value) * log2(abs(1 + melt_group_avgs$value))
+	
+	
+	pdf(paste(wk_fn,"group_compare","pdf",sep="."), w=8, h=16)
+	xyplot(name ~ value, data=melt_group_avgs, groups=melt_group_avgs$variable, col=c("steelblue", "red", "black"), cex=1, pch=19)
+	dev.off()
+}
 
 
 
@@ -337,7 +365,135 @@ process_functional_diversity <- function(tx_fn="FD.traits.txt", fd_fn="FD.exampl
 
 
 
-
-
 ss <- process_functional_diversity()
 nss <- process_functional_diversity(normalized=T)
+
+
+
+
+do_coocurrence_analysis("samples-tax_id+go.samples.g.clustered.picked")
+
+
+do_coocurrence_analysis <- function(picked_fn)
+{
+	#picked_fn = "samples-tax_id+go.samples.g.clustered.picked"
+	
+	
+	wk_fn <- picked_fn
+	species_min_hit <- 500000
+	normalized <- T
+	
+	fd <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+	
+	
+# Function for calculating the column max
+	colMaxs <- function(fd) { return(sapply(fd, max))} 
+	
+	C55_group <- rownames(fd)[grep("Cell55_", rownames(fd))]
+	seed_group <- rownames(fd)[grep("Seed_", rownames(fd))]
+	C35_group <- rownames(fd)[grep("Cell_", rownames(fd))]
+	X35_group <- rownames(fd)[grep("Xyl_", rownames(fd))]
+	
+	
+#filtered_fd <- fd[which(!rownames(fd) %in% c(seed_group, C55_group)),]
+	filtered_fd <- fd[which(rownames(fd) %in% X35_group),]
+	
+	
+	excluding_list <- which(colMaxs(filtered_fd) < species_min_hit)
+	
+# Subset fd
+	filtered_fd <- filtered_fd[, - excluding_list]
+	
+	if(normalized)
+	{
+		sums <- rowSums(filtered_fd)
+		filtered_fd <- filtered_fd / sums
+	}
+	
+	
+# Compute the correlation
+	filtered_fd.cor <- cor(filtered_fd)
+	
+# Plot the matrix
+	library(lattice)
+	
+	rgb.palette <- colorRampPalette(c("red", "white", "steelblue"), space = "rgb")
+#levelplot(filtered_fd.cor, col.regions=rgb.palette(120), scales=list(x=list(rot=90)), at=seq(-1,1,0.05))
+	levelplot(filtered_fd.cor, col.regions=rgb.palette(120),  title=wk_fn, scales=list(x=list(rot=90)))
+	
+	
+	levelplot(filtered_fd, col.regions=rgb.palette(120), title=wk_fn, scales=list(x=list(rot=90)))
+	
+
+}
+
+
+
+###
+
+fn = "samples-tax_id+go.samples.g.clustered.transposed.filtered_norm_0.05"
+plot_diversity(fn)
+ 
+###
+plot_diversity <- function(fn)
+{
+	require(reshape2)
+	require(ggplot2)
+	require(plyr)
+	
+	wk_fn = fn
+	level = "g__"
+	
+	#df <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+	df <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@")
+		
+	colnames(df)[1] <- "tax_name"
+	tax_names <- unique(df$tax_name)
+	#levels(df$tax_name) <- tax_names
+	#df$tax_name <- reorder(df$tax_name, rowSums(df[,2:ncol(df)]))
+	
+	
+	plot_df <- melt(df)	
+	colnames(plot_df) <- c("tax_name", "sample", "relative_abundance")
+	
+	plot_df <- ddply(plot_df, .(sample), transform, pos = cumsum(relative_abundance) - (0.5 * relative_abundance))
+	
+	#plot_df <- ddply(plot_df, .(sample), transform, label= strsplit(strsplit(tax_name, level)[[1]][2], ";")[[1]][1])
+	plot_df <- ddply(plot_df, .(sample), transform, label= extract_taxid(tax_name, paste(format(round(relative_abundance * 100, 2), nsmall = 2), "%", sep=""), level))
+	
+	
+	#levels(plot_df$tax_name) <- unique(plot_df$tax_name)
+	#pdf()
+	ggplot(plot_df, aes_string(x="sample", y="relative_abundance", fill="tax_name")) + geom_bar(stat='identity') +
+			#scale_y_continuous(limits = c(0, 1)) +
+			theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+			geom_text(aes_string(label = "label", y = "pos"), size = 3)
+}
+
+
+
+#
+# extract_taxid(plot_df$tax_name, "g__")
+
+#
+extract_taxid <- function(tx, val, level) 
+{
+	taxids = rep("NA", length(tx))
+	#print(length(tx))
+	for(i in 1 : length(tx))
+	{
+		t <- tx[i]
+		v <- val[i]
+		ids <- unlist(strsplit(t, level))
+		if (length(ids) > 1)
+		{
+			#print(ids[2])
+			taxids[i] <- paste(ids[2], v, sep=": ")
+		} else {
+			taxids[i] <- paste(t, v, sep=": ")
+		}
+	}
+	
+	return(taxids)
+}
+

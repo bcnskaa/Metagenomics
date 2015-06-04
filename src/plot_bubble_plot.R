@@ -30,6 +30,9 @@ if(FALSE) {
  plot_bubble(df, "Sample", "Code", "Coverage")
 }
 
+
+###
+
 ###
 plot_bubble <- function(df, x_label, y_label, value_label, excluding_zero=TRUE, xlabels=character(0), ylabels=character(0), xtitle=character(0), ytitle=character(0), pdf_fn=character(0))
 {
@@ -125,7 +128,6 @@ calculate_pcoa <- function(vegan_biom, dist_method="bray") {
 	ggplot(sample_coords, aes_string(x="MDS1", y="MDS2")) + geom_point() + theme_bw() + xlab(paste("PCoA_1 (variance explained=",mds1_ve_1,"%",")",sep="" )) + ylab(paste("PCoA_2 (variance explained=",mds1_ve_2,"%",")",sep="" )) + geom_text(aes(label=rownames(sample_coords)),hjust=-0.1, vjust=0.5, cex=3) + geom_vline(xintercept = 0, lty = "dotted") + geom_hline(yintercept = 0, lty = "dotted") 
 	ggplot(sample_coords, aes_string(x="MDS1", y="MDS2")) + geom_point() + theme_bw() + xlab(paste("PCoA_1 (variance explained=",mds1_ve_1,"%",")",sep="" )) + ylab(paste("PCoA_2 (variance explained=",mds1_ve_2,"%",")",sep="" )) + geom_vline(xintercept = 0, lty = "dotted") + geom_hline(yintercept = 0, lty = "dotted") 
 	
-	
 	return (biom.pcoa)
 }
 
@@ -164,8 +166,8 @@ initial <- function()
 	require(phyloseq)
 	require(rgl)
 	
-	#sample_id <- "S1-1B"
-	sample_id <- "SWH-Cell55_Y2"
+	sample_id <- "S1-1B"
+	#sample_id <- "SWH-Cell55_Y2"
 	min_len <- 10000
 	
 	#cov_fn <- paste(sample_id, ".coverage.summary", sep="")
@@ -201,6 +203,7 @@ initial <- function()
 	labels <- labels[-which(labels == "")]
 	cols = rainbow(length(labels))
 	
+	
 	tetra.cov_lineage$col <- rep("#00000000")
 	for(i in 1 : length(labels))
 	{
@@ -210,6 +213,7 @@ initial <- function()
 	}
 	
 	col_alpha <- 1
+
 	# Plot
 	with(tetra.cov_lineage, plot3d(MDS1, MDS2, log(coverage), size=0, col=col, alpha=col_alpha, colkey=F, main=sample_id))
 
@@ -240,7 +244,8 @@ initial <- function()
 #		points3d(tetra.cov$MDS1[i], tetra.cov$MDS2[i], log(tetra.cov$coverage[i]), size=log(tetra.cov$length[i]))
 #	}
 #	
-	
+
+
 }
 
 
