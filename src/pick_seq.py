@@ -7,7 +7,9 @@ from collections import defaultdict
 # Require biopython
 # To run this script, path to biopython libraries has to be included in PYTHONPATH
 from Bio import SeqIO
-
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio.Alphabet import IUPAC
 
 # Main 
 def main(argv):
@@ -21,6 +23,7 @@ def main(argv):
     outfn = None
     fasta_fn = None
     search_key = False
+    fetch_subseq = False
 
     for opt, arg in opts:
         if opt == '-h':
@@ -33,7 +36,9 @@ def main(argv):
         elif opt == "-d":
             fasta_fn = arg
         elif opt == "-k":
-            search_key = True 
+            search_key = True
+        elif opt == "-s":
+            fetch_subseq = True  
         else:
             print("Unrecognized option", opt)
             print_usage()
@@ -49,8 +54,16 @@ def main(argv):
        
     if(outfn is None):
         outfn = lstfn + ".fa"
-        
-    list = import_list(lstfn)
+    
+    if fetch_subseq:
+        list = import_region_list(listfn)
+    else:
+        list = import_list(lstfn)
+    if search_key:
+        exported_n = pick_seq_contain_key(list, fasta_fn, outfn)
+    else:
+        exported_n = pick_seq(list, fasta_fn, outfn)
+    
     
     # Call the Bio.SeqIO
     # Create a dict index on the fasta sequence file
@@ -119,11 +132,51 @@ def pick_seq_contain_key(key_list, fasta_fn, outfn, is_append=False, search_desc
     return exported_n
 
 
+
+def pick_regions_from_seq(region_list, fasta_fn, outfn, is_append=False, search_descript=True):
+    print("Pikcing " + str(len(region_list))+ " sequences from " + fasta_fn)
+    
+    exported_n = 0
+    skipped_n = 0
+    processed_n = 0
+    
+    if not os.path.isfile(fasta_fn):
+        print(fasta_fn + " is not found.")
+        return exported_n
+    
+    seq_db = SeqIO.index(fasta_fn, "fasta")
+    if is_append:
+        OUT = open(outfn, "a")
+    else:
+        OUT = open(outfn, "w")
+        
+    # Search the seq db for the matched seq_id
+    for region in regions:
+        [seq_id, subject_id, spos, epos] = regions
+        spos = int(spos)
+        epos = int(epos)
+        try:
+            seq = str(seq_db[region[1]].seq[spos, epos])
+            
+            if len(seq) > 0:
+                SeqIO.write(SeqRecord(Seq(seq), id=seq_id), OUT, "fasta")
+                exported_n += 1
+            else:
+                skipped_n += 1
+        except:
+            skipped_n += 1
+        processed_n += 1
+        
+    print("Number of processed: " + str(processed_n))
+    print("Number of exported: " + str(exported_n))
+    print("Number of skipped: " + str(skipped_n))
+            
+
+
 '''
     Import a list of fasta sequence headers
 '''
 def import_list(list_fn):
-    l = []
     with open(list_fn) as IN:
         l = IN.read().splitlines()
     
@@ -132,6 +185,39 @@ def import_list(list_fn):
     return l
 
 
+
+"""
+new_seq_id    seq_id    start_pos    end_pos
+"""
+def import_region_list(list_fn):
+    with open(list_fn) as IN:
+        regions = IN.read().splitlines()
+    
+    regions = [r.split("\t") for r in regions if len(r) > 0]
+    
+    valided_regions = []
+    skipped_n = 0
+    
+    # Validate the regions
+    for region in regions:
+        if len(region) == 4:
+            valided_regions.append(region)
+        else:
+            skipped_n += 1
+    
+    return validated_regions
+
+
+def import_trna_list(trna_list_fn):
+    with open(trna_list_fn) as IN:
+        trnas = IN.read().splitlines()
+    # Remove header line
+    trnas = trnas[3:]
+    
+    
+    
+    
+    
 # 
 # def subsample():
 #     import random

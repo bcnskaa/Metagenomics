@@ -10,7 +10,10 @@ source(paste(script_home, "plot_bubble_plot.R", sep=""))
 pfam_fn <- "/home/bcnskaa/projects/Metagenomics_WD/FunctionalDiversity/all_samples/Pfam/all_samples.renamed+Pfam.dom.tbl.summary"
 trait_fn <- "samples-clustered-tax_id+go.traits"
 tx_fn_s <- "samples-tax_id+go.samples"
+
 tx_fn_g <- "samples-tax_id+go.samples.g.clustered"
+tx_fn_g_meta <- "samples-tax_id+go.samples.g.clustered.meta"
+
 tx_fn <- "samples-clustered-tax_id+go.samples"
 #tx_fn <- "all_samples.tax.species.txt"
 fd_fn <- "all_samples.seed.functions.txt"
@@ -22,7 +25,10 @@ wk_fn <- tx_fn_g
 
 # Read counts assigned to SEED subsystems
 fd <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
-
+if(wk_fn == tx_fn_g)
+{
+	fd_meta <- read.table(tx_fn_g_meta, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+}
 fd_bak <- fd
 
 
@@ -60,7 +66,7 @@ if(grep(".clustered", wk_fn)) {
 	excluded_species <- rbind(excluded_species, names(fd[grep("k__.p_", rownames(fd))]))
 	excluded_species <- rbind(excluded_species, "X.1.k__.p__.c__.o__.f__.g__")
 	
-	
+	excluded_fd <- fd[, which((colnames(fd) %in% excluded_species))]
 	fd <- fd[, which(! (colnames(fd) %in% excluded_species))]
 	
 	
@@ -193,7 +199,7 @@ selected_fd$subsystem <- rownames(selected_fd)
 plot_df <- melt(selected_fd)
 colnames(plot_df) <- c("system", "sample", "read_count_perc")
 
-pdf(paste(wk_fn,"bubble","pdf",sep="."), w=8, h=16)
+pdf(paste(wk_fn,"bubble","pdf",sep="."), w=14, h=16)
 df <- plot_bubble(plot_df, "sample", "system", "read_count_perc", xtitle="Sample", ytitle="SEED System", ylabels=rev(rownames(selected_fd)))
 dev.off()
 
@@ -224,7 +230,7 @@ if(grep("sample", wk_fn) & grep("clustered", wk_fn))
 	#melt_group_avgs$value <- sign(melt_group_avgs$value) * log2(abs(1 + melt_group_avgs$value))
 	
 	
-	pdf(paste(wk_fn,"group_compare","pdf",sep="."), w=8, h=16)
+	pdf(paste(wk_fn,"group_compare","pdf",sep="."), w=14, h=16)
 	xyplot(name ~ value, data=melt_group_avgs, groups=melt_group_avgs$variable, col=c("steelblue", "red", "black"), cex=1, pch=19)
 	dev.off()
 }
@@ -233,7 +239,8 @@ if(grep("sample", wk_fn) & grep("clustered", wk_fn))
 
 
 # Read counts assigned to taxonomy
-tx <- read.table("all_samples.tax.genus.txt", sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+#tx <- read.table("all_samples.tax.genus.txt", sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+
 
 
 
@@ -242,7 +249,9 @@ library(rgl)
 
 plot_mtx.pca <- princomp(plot_mtx)
 pdf(paste(wk_fn,"pca_biplot","pdf",sep="."), w=8, h=16)
+#biplot(plot_mtx.pca, scale=T, type = c("text", "points"))
 biplot(plot_mtx.pca, scale=T)
+
 dev.off()
 
 
@@ -259,6 +268,22 @@ lines3d(coords, col="red", lwd=4)
 
 
 library(FD)
+
+
+
+
+# http://stats.stackexchange.com/questions/79688/using-anosim-or-permanova-to-abiotics-data
+# http://www.researchgate.net/post/What_is_the_best_method_to_analyze_change_in_species_composition_over_three_years_in_different_sites
+# 1. Calculate the Bray-Curtis dissimilarity matrix using species abundance
+# 2. PERMANOVA on the matrices to test for differences and 
+calculate_adonis <- function(fd, fd_meta)
+{
+	require(vegan)
+	adonis(fd ~ inoculum * substrate * time_point * temperature, data=fd_meta, permuations=100)
+	adonis(fd ~ temperature * substrate, data=fd_meta, permuations=100)
+	adonis(fd ~ substrate, data=fd_meta, permuations=100)
+	adonis(fd ~ temperature, data=fd_meta, permuations=100)
+}
 
 
 process_functional_diversity <- function(tx_fn="FD.traits.txt", fd_fn="FD.example.sample.txt", normalized=FALSE)
@@ -432,10 +457,10 @@ do_coocurrence_analysis <- function(picked_fn)
 ###
 
 fn = "samples-tax_id+go.samples.g.clustered.transposed.filtered_norm_0.05"
-plot_diversity(fn)
+plot_diversity_mtx(fn)
  
 ###
-plot_diversity <- function(fn)
+plot_diversity_mtx <- function(fn)
 {
 	require(reshape2)
 	require(ggplot2)
@@ -463,12 +488,16 @@ plot_diversity <- function(fn)
 	
 	
 	#levels(plot_df$tax_name) <- unique(plot_df$tax_name)
-	#pdf()
-	ggplot(plot_df, aes_string(x="sample", y="relative_abundance", fill="tax_name")) + geom_bar(stat='identity') +
+	pdf(paste(fn, ".diversity_barplot.pdf" , sep=""), w=30, h=10)
+	g <- ggplot(plot_df, aes_string(x="sample", y="relative_abundance", fill="tax_name")) + geom_bar(stat='identity') +
 			#scale_y_continuous(limits = c(0, 1)) +
 			theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
 			geom_text(aes_string(label = "label", y = "pos"), size = 3)
+	print(g)
+	dev.off()
 }
+
+
 
 
 
@@ -497,3 +526,216 @@ extract_taxid <- function(tx, val, level)
 	return(taxids)
 }
 
+
+
+
+
+# do_metagenome_tax_diversity("samples-tax_id+go.samples.g.clustered", "samples-tax_id+go.samples.g.clustered.meta")
+do_metagenome_tax_diversity <- function(tx_fn_g, tx_fn_g_meta) 
+{
+	library(fBasics)
+	library(reshape2)
+	
+	script_home = "/home/bcnskaa/projects/Metagenomics/trunk/src/"
+	source(paste(script_home, "plot_heatmap.R", sep=""))
+	source(paste(script_home, "plot_bubble_plot.R", sep=""))
+	
+	#tx_fn_g <- "samples-tax_id+go.samples.g.clustered"
+	#tx_fn_g_meta <- "samples-tax_id+go.samples.g.clustered.meta"
+
+	discard_others <- FALSE
+	log_scale <- FALSE
+	selected_level <- 30
+	
+	wk_fn <- tx_fn_g
+	
+	
+# Read counts assigned to SEED subsystems
+	fd <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+	fd_meta <- read.table(tx_fn_g_meta, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+	
+	tax_level = "Genus"
+	fd_bak <- fd
+	
+	
+	# Filtering the dataset by minimal abundance
+	if(grep(".clustered", wk_fn))
+	{
+		###################
+		# Min-count
+		min_count <- 5000
+		species_counts <- colSums(fd)
+		
+		excluded_species <- names(which(species_counts < min_count))
+		# Remove species without kingdom assignment
+		excluded_species <- rbind(excluded_species, names(fd[grep("k__.p_", rownames(fd))]))
+		excluded_species <- rbind(excluded_species, "X.1.k__.p__.c__.o__.f__.g__")
+		
+		# Backup the excluded_fd
+		excluded_fd <- fd[, which((colnames(fd) %in% excluded_species))]
+		
+		
+		fd <- fd[, which(! (colnames(fd) %in% excluded_species))]
+		
+		
+		excluded_samples = c("all_samples+nr.renamed.m8")
+		
+		fd <- fd[which(! (rownames(fd) %in% excluded_samples)), ]
+		
+		rownames(fd) <- gsub("+nr.m8", "", rownames(fd), fixed=T)
+		colnames(fd) <- extract_tax_name(colnames(fd))
+		fd <- t(fd)
+	}
+	
+	
+	# Sort the 
+	sorted_subsystems <- sort(rowSums(fd), decreasing=T)
+	
+	selected_level <- min(selected_level, nrow(fd))
+	selected_subsystem_ids <- names(sorted_subsystems)[1:selected_level]
+	fd <- fd[selected_subsystem_ids,]
+	
+
+	# Normalize the data
+	fd_totals <- colSums(fd)
+		
+	fd_normalized <- (as.data.frame(t(t(fd) / fd_totals))) * 100
+
+
+
+	# http://www.statsblogs.com/2014/07/14/a-log-transformation-of-positive-and-negative-values/
+	if(log_scale)
+	{
+		#fd_normalized <- log10(fd_normalized)
+		fd_normalized <- log10(fd_normalized + 1)
+	}
+
+	selected_fd <- fd_normalized
+
+	# Do hierachical clustering, and extract the labels
+	library(vegan)
+
+	fd_dist <- vegdist(t(fd_normalized), "bray")
+	hc <- hclust(fd_dist)
+	
+	
+	cell_height <- 0.3
+	cell_width <- 0.4
+	pdf_width <- 3 + (cell_width * ncol(selected_fd))
+	pdf_height <- cell_height * nrow(selected_fd)
+	
+	pdf(paste(wk_fn, "hclust", "pdf", sep="."), w=pdf_width, h=4)
+	plot(hc)
+	dev.off()
+	
+	sample_ids <- hc$labels[hc$order]
+	selected_fd <- selected_fd[sample_ids]
+
+#selected_fd <- selected_fd[c("GZ.Seed_Y0.nr", "SWH.Seed_Y0.nr", "SWH.Cell55_Y2.nr", "GZ.Cell_Y1.nr", "GZ.Cell_Y2.nr","GZ.Xyl_Y1.nr", "GZ.Xyl_Y2.nr", "SWH.Cell_Y1.nr", "SWH.Cell_Y2.nr","SWH.Xyl_Y1.nr", "SWH.Xyl_Y2.nr")
+	
+	
+	
+	pdf(paste(wk_fn,"mtx","pdf",sep="."), w=pdf_width, h=pdf_height)
+	
+	plot_mtx <- as.matrix(selected_fd)
+	plot_heatmap_mtx(plot_mtx, plot_label=T, midpoint=(max(plot_mtx) - min(plot_mtx)) / 2, x_axis_labels=rev(rownames(selected_fd)), xtitle="Sample", ytitle=tax_level, colorbar_scheme=c("steelblue", "yellow", "darkred"), label_size=3, value_decimal_len=2)
+	dev.off()
+	
+
+	selected_fd$class <- rownames(selected_fd)
+	
+	#selected_fd$class <- factor(selected_fd$x_label, levels=x_axis_labels)
+	
+	plot_df <- melt(selected_fd)
+	colnames(plot_df) <- c("class", "sample", "read_count_perc")
+	
+	pdf(paste(wk_fn,"bubble","pdf",sep="."), w=pdf_width, h=pdf_height)
+	df <- plot_bubble(plot_df, "sample", "class", "read_count_perc", xtitle="Sample", ytitle=tax_level, ylabels=rev(rownames(selected_fd)))
+	dev.off()
+	
+	
+# Group analysis
+	
+
+	group_cell <- colnames(plot_mtx)[grep("Cell_", colnames(plot_mtx))]
+	group_xyl <- colnames(plot_mtx)[grep("Xyl", colnames(plot_mtx))]
+	group_seed <- colnames(plot_mtx)[grep("Seed", colnames(plot_mtx))]
+	group_cell55 <- colnames(plot_mtx)[grep("Cell55", colnames(plot_mtx))]
+	
+	
+	group_cell_avgs <- rowAvgs(plot_mtx[,group_cell])
+	group_xyl_avgs <- rowAvgs(plot_mtx[,group_xyl])
+	group_seed_avgs <- rowAvgs(plot_mtx[,group_seed])
+	group_cell55_avgs <- plot_mtx[,group_cell55]
+	
+	fold_change <- TRUE
+	
+	# Normal to zero
+	if(fold_change)
+	{
+		require(gtools)
+		group_cell_avgs <- log(foldchange(group_cell_avgs, group_seed_avgs))
+		group_xyl_avgs <- log(foldchange(group_xyl_avgs, group_seed_avgs))
+		group_seed_avgs <- log(foldchange(group_seed_avgs, group_seed_avgs))
+		group_cell55_avgs <- log(foldchange(group_cell55_avgs, group_seed_avgs))
+	} else {
+		group_cell_avgs <- group_cell_avgs - group_seed_avgs
+		group_xyl_avgs <- group_xyl_avgs - group_seed_avgs
+		group_seed_avgs <- group_seed_avgs - group_seed_avgs
+		group_cell55_avgs <- group_cell55_avgs - group_seed_avgs		
+	}
+	
+	
+	
+	#group_avgs <- data.frame(rownames(plot_mtx), group_cell_avgs, group_xyl_avgs, group_cell55_avgs, group_seed_avgs)
+	#colnames(group_avgs) <- c("name", "Cell", "Xyl", "Cell55", "Seed")
+	group_avgs <- data.frame(rownames(plot_mtx), group_cell_avgs, group_xyl_avgs, group_cell55_avgs)
+	colnames(group_avgs) <- c("name", "Cell", "Xyl", "Cell55")
+
+	melt_group_avgs <- melt(group_avgs)
+	melt_group_avgs$name <- factor(melt_group_avgs$name, levels=rev(selected_subsystem_ids))
+	
+	#melt_group_avgs$value <- sign(melt_group_avgs$value) * log2(abs(1 + melt_group_avgs$value))
+	
+	if(fold_change)
+	{	
+		pdf(paste(wk_fn,"group_compare_fold","pdf",sep="."), w=5, h=pdf_height)	
+	} else {
+		pdf(paste(wk_fn,"group_compare","pdf",sep="."), w=5, h=pdf_height)
+	}
+	#xyplot(name ~ value, data=melt_group_avgs, groups=melt_group_avgs$variable, col=c("red", "steelblue", "green"), cex=1, pch=19)
+	xyplot(name ~ value, data=melt_group_avgs, groups=melt_group_avgs$variable, alpha=0.6, col=c("red", "steelblue", "green"), cex=1, pch=19, panel = function(...) {
+				panel.abline(v=0.5, lty = "dotted", col = "grey")
+				panel.xyplot(...)
+			})
+	dev.off()
+
+	
+	
+	
+}
+
+
+
+extract_tax_name <- function(lineages, missing="Others") 
+{
+	lineage_names <- strsplit(lineages, ".", fixed=T)
+	tax_names <- rep("", length(lineage_names))
+	tax_level="g__"
+
+	for(i in 1 : length(tax_names))
+	{
+		lineage = lineage_names[[i]]
+		tax_names[i] = lineage[length(lineage)]
+		tax_names[i] = gsub(tax_level, "", tax_names[i], fixed=T)
+		
+		if(nchar(tax_names[i]) == 0)
+		{
+			tax_names[i] = missing
+		}
+		print(tax_names[i])
+	}
+	#tax_names <- gsub(tax_level, "", tax_names, fixed=T)
+	
+	return(tax_names)
+}

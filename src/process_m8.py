@@ -820,13 +820,14 @@ def map_lineage2gi2go_map_fn(gi2go_map_fn, gi2go_map_ofn=None, taxid2lineage_map
     except:
         raise Exception("Tax ID column is not defined: " + taxid_tag + ", abort now.")
 
-    OUT.write(header + "\tlineage\n")
+    OUT.write(header.rstrip() + "\tlineage\n")
     processed_n = 0
     skipped_n = 0
     # Go through every single line
     for l in IN:
+        l = l.rstrip()
         processed_n += 1
-        lineage = ""
+        lineage = "."
         try:
             taxid = int(l.split("\t")[taxid_col_idx])
             lineage = taxid2lineage_map[taxid]
@@ -841,7 +842,106 @@ def map_lineage2gi2go_map_fn(gi2go_map_fn, gi2go_map_ofn=None, taxid2lineage_map
     IN.close()
     OUT.close()
     
+
+"""
+import process_m8
+import glob
+
+
+[peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map] = process_m8.import_seed_data() 
+m8_fns = glob.glob("*.m8")
+for m8_fn in m8_fns:
+    process_m8.process_SEED(m8_fn,peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map)
+    
+"""
+def process_SEED(m8_fn, peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map, map_ofn=None, remove_redundant_qid=False):
+#def process_SEED(m8_fn, map_ofn=None, remove_redundant_qid=False, assigned_function_fn="/home/siukinng/db/Markers/SEED/Release70/assigned_functions.txt", SEED_families2func_fn="/home/siukinng/db/Markers/SEED/Release70/fam.func.index", fig2SEED_families_fn="/home/siukinng/db/Markers/SEED/Release70/families.2c", expert_assertion_fn="/home/siukinng/db/Markers/SEED/ach_expert_assertions", subsystem2role_fn="/home/siukinng/db/Markers/SEED/subsystems2role"):
+    print("Processing " + m8_fn) 
+    
+    #
+    #ids1 = list(fig2SEED_families_map.keys())
+    #ids2 = list(asserted_fig2SEED_families_map.keys())
+    
+    
+    if map_ofn is None:
+        map_ofn = m8_fn + ".mapped2SEED"
+    
+    IN = open(m8_fn)
+    OUT = open(map_ofn, "w")
+    
+    OUT.write("\t".join(["#SEQ_ID", "PEG", "SCORE", "FUNC_ROLE", "SUBSYSTEM", "SYSTEM", "FIGFAM_ID", ]) + "\n")
+    processed_n = 0
+    skipped_n = 0
+    id2seed_map = []
+    for row in IN:
+        row = (row.rstrip()).split("\t")
+        qid = row[0]
+        peg = row[1]
+        #score = float(row[11])
+        score = row[11]
+        row_dat = [qid, peg, score, ".", ".", ".", "."]
+        try:
+            row_dat[3] = peg2function_map[peg]          # functional role
+            row_dat[6] = fig2SEED_families_map[peg]     # Figfam_id
+            roles = subsystem2role_map[row_dat[3]]            
+            row_dat[4] = roles[2]                       # Subsystem
+            row_dat[5] = roles[1]                       # System
+            
+            #func = SEED_families2func_map[fam_id]
+            #row_dat[2:] = [fam_id, func, score]
+        except:
+            skipped_n += 1
+        processed_n += 1
+        id2seed_map.append(row_dat)
+        OUT.write("\t".join(row_dat) + "\n")
+
+    IN.close()
+    OUT.close()
+    print("Number of processed: " + str(processed_n))
+    print("Number of skipped: " + str(skipped_n))
+
+
+
+def import_seed_data(assigned_function_fn="/home/siukinng/db/Markers/SEED/Release70/assigned_functions.txt", SEED_families2func_fn="/home/siukinng/db/Markers/SEED/Release70/fam.func.index", fig2SEED_families_fn="/home/siukinng/db/Markers/SEED/Release70/families.2c", expert_assertion_fn="/home/siukinng/db/Markers/SEED/ach_expert_assertions", subsystem2role_fn="/home/siukinng/db/Markers/SEED/subsystems2role"):
+    print("Reading table of PEG's functional role from " + assigned_function_fn)
+    with open(assigned_function_fn) as IN:
+        peg2function_map = IN.read().splitlines()
+    peg2function_map = {s.split("\t")[0] : s.split("\t")[1] for s in peg2function_map}
+    print(str(len(peg2function_map)) + " imported.")
+    
+    
+    print("Reading SEED family function descriptor from " + SEED_families2func_fn)
+    with open(SEED_families2func_fn) as IN:
+        SEED_families2func_map = IN.read().splitlines()
+    SEED_families2func_map = {s.split("\t")[1] : s.split("\t")[2] for s in SEED_families2func_map}
+    print(str(len(SEED_families2func_map)) + " imported.")
+    
+    print("Reading FIG_ID to SEED family map from " + fig2SEED_families_fn)
+    with open(fig2SEED_families_fn) as IN:
+        fig2SEED_families_map = IN.read().splitlines()
+    fig2SEED_families_map = {s.split("\t")[1] : s.split("\t")[0] for s in fig2SEED_families_map}
+    print(str(len(fig2SEED_families_map)) + " imported.")
+    
+    print("Reading expert asserted data from " + expert_assertion_fn)
+    with open(expert_assertion_fn) as IN:
+        asserted_fig2SEED_families_map = IN.read().splitlines()
+    asserted_fig2SEED_families_map = {s.split("\t")[0] : s.split("\t")[1] for s in asserted_fig2SEED_families_map}
+    print(str(len(asserted_fig2SEED_families_map)) + " imported.")
+    
+    # ADD additional asserted fig annotation to fig2SEED_families_map
+    for fig in asserted_fig2SEED_families_map.keys():
+        fig2SEED_families_map[fig] = asserted_fig2SEED_families_map[fig]    
+    
+    subsystem2role_fn
+    print("Reading table of SEED subsystem roles from " + subsystem2role_fn)
+    with open(subsystem2role_fn) as IN:
+        subsystem2role_map = IN.read().splitlines()
+    subsystem2role_map = {s.split("\t")[3] : s.split("\t")[0:3] for s in subsystem2role_map}
+    print(str(len(asserted_fig2SEED_families_map)) + " imported.")
      
+    
+    return [peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map]
+
 """
 hmm_orf_dict = mg_pipeline.postprocess_HMMER_search_by_fn("all_samples.renamed+Pfam.dom.tbl", hmm_score_threshold=10, hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc")
 

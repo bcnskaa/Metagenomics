@@ -2075,14 +2075,19 @@ Given a list of dom_tables (dom_tbl_fns) and Pfam IDs, the number of specified P
 be seached and extracted from the dom_tables.  
 
 Usage: 
-
+import glob
 import mg_pipeline
 
-dom_tbl_fns = glob.glob("*_2000/Markers/Pfam/*+Pfam.dom.tbl")
-pfam_ids = ['PF00232', 'PF00933', 'PF01915', 'PF00150', 'PF01270', 'PF01670', 'PF12891', 'PF02015', 'PF01341', 'PF00759']
+#dom_tbl_fns = glob.glob("*_2000/Markers/Pfam/*+Pfam.dom.tbl")
+dom_tbl_fns = glob.glob("*_5000/Markers/combined/Pfam/*.Pfam.dom.tbl")
+
+#pfam_ids = ['PF00232', 'PF00933', 'PF01915', 'PF00150', 'PF01270', 'PF01670', 'PF12891', 'PF02015', 'PF01341', 'PF00759']
+
+
 hmm_tc_fn = "/home/siukinng/db/Markers/Pfam/Pfam.tc"
 
-pfam_dom_attendance_tbl = mg_pipeline.generate_attendance_tbl(dom_tbl_fns, pfam_ids, hmm_tc_fn=hmm_tc_fn)
+pfam_dom_attendance_ofn = "all_samples.Pfam.attendance"
+pfam_dom_attendance_tbl = mg_pipeline.generate_attendance_tbl(dom_tbl_fns, pfam_ids, pfam_dom_attendance_ofn=pfam_dom_attendance_ofn, hmm_tc_fn=hmm_tc_fn)
 
 
 

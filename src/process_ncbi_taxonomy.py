@@ -93,6 +93,7 @@ prot_gi2taxid_map = {}
 
 
 """
+
 """
 def assign_tax_family_to_m8_results(m8_fn, lineage_ofn=None, protein_lineage_ofn=None, prot_gi2taxid_map=None):
     #global prot_gi2taxid_map
