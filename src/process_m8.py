@@ -5,7 +5,8 @@
 ##
 import glob
 from itertools import izip
-
+import gc
+import os
 
 
 """
@@ -902,13 +903,125 @@ def process_SEED(m8_fn, peg2function_map, SEED_families2func_map, fig2SEED_famil
 
 
 
+"""
+import process_m8
+import glob
+
+mapped2SEED_fns = glob.glob("*.mapped2SEED")
+for mapped2SEED_fn in mapped2SEED_fns:
+    process_m8.filter_mapped2SEED_with_subsystem(mapped2SEED_fn)
+    
+"""
+def filter_mapped2SEED_with_subsystem(mapped2SEED_fn, mapped2SEED_ofn=None):
+    if mapped2SEED_ofn is None:
+        mapped2SEED_ofn = mapped2SEED_fn + ".filtered"    
+    
+    print("Processing "+ mapped2SEED_fn + " and export to " + mapped2SEED_ofn)
+    
+    discard_n = 0
+    processed_n = 0
+    IN = open(mapped2SEED_fn)
+    OUT = open(mapped2SEED_ofn, "w")
+    
+    for l in IN:
+        sl = l.split("\t")
+        if sl[4] != ".":
+            OUT.write(l)
+        else:
+            discard_n += 1
+        processed_n += 1
+    
+    IN.close()
+    OUT.close()
+    print("Number of processed: " + str(processed_n))
+    print("Number of discarded: " + str(discard_n))
+
+
+
+"""
+import process_m8
+import glob
+import gc
+
+cd ~/MG/m8/scaffolds/NR
+# inside the directory: ~/MG/m8/scaffolds/NR
+gi2go_fns = glob.glob("S*.gi2go+map+lineage")
+for gi2go_fn in gi2go_fns:
+    print("Processing " + gi2go_fn)
+    SEED_dir = "../SEED/"
+    read_1_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "_1.trimmed+SEED.m8.mapped2SEED.filtered")
+    read_2_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "_2.trimmed+SEED.m8.mapped2SEED.filtered")
+    print(read_1_fn + " and " + read_2_fn)
+    process_m8.merge_mapped2SEED_gi2go_map(SEED_dir + read_1_fn, gi2go_fn, "../" + read_1_fn + "+gi2go+map+lineage") 
+    process_m8.merge_mapped2SEED_gi2go_map(SEED_dir + read_2_fn, gi2go_fn, "../" + read_2_fn + "+gi2go+map+lineage")
+    gc.collect()
+    #%reset  
+
+"""
+def merge_mapped2SEED_gi2go_map(mapped2SEED_fn, gi2go_map_fn, merge_ofn, operation="intersect"):
+    merge_data = {}
+    
+    processed_n = 0
+    print("Processing " + gi2go_map_fn)
+    IN = open(gi2go_map_fn)
+    gi2go_header = IN.readline().rstrip()
+    for l in IN:
+        sl = l.replace("\n", "").split("\t")
+        read_id = sl[0]
+        
+        merge_data[read_id] = [sl]
+        processed_n += 1
+    IN.close()
+    print("Number of processed: " + str(processed_n))
+    
+    
+    processed_n = 0
+    print("Processing " + mapped2SEED_fn)
+    IN = open(mapped2SEED_fn)
+    mapped2SEED_header = IN.readline().rstrip()
+    for l in IN:
+        sl = l.replace("\n", "").split("\t")
+        read_id = sl[0]
+        try:
+            merge_data[read_id].append(sl[1:])
+        except:
+            merge_data[read_id] = [sl[1:]]
+        processed_n += 1
+    IN.close()
+    print("Number of processed: " + str(processed_n))
+
+    print("Exporting data found in both " + mapped2SEED_fn + " " + gi2go_map_fn + " (Intersection operation)")
+    skipped_n = 0
+    processed_n = 0
+    exported_n = 0
+    OUT = open(merge_ofn, "w")
+    # Print header
+    OUT.write(gi2go_header+"\t"+"\t".join(mapped2SEED_header.split("\t")[1:])+"\n")
+    for read_id in merge_data.keys():
+        if len(merge_data[read_id]) == 2:
+            OUT.write("\t".join(merge_data[read_id][0] + merge_data[read_id][1]) + "\n")
+            exported_n += 1
+        else:
+            skipped_n += 1
+        processed_n += 1
+    OUT.close()
+    print("Number of processed: " + str(processed_n))
+    print("Number of exported: " + str(exported_n))
+    print("Number of skipped: " + str(skipped_n))
+    
+    del merge_data
+    gc.collect()
+    
+
+"""
+
+"""
 def import_seed_data(assigned_function_fn="/home/siukinng/db/Markers/SEED/Release70/assigned_functions.txt", SEED_families2func_fn="/home/siukinng/db/Markers/SEED/Release70/fam.func.index", fig2SEED_families_fn="/home/siukinng/db/Markers/SEED/Release70/families.2c", expert_assertion_fn="/home/siukinng/db/Markers/SEED/ach_expert_assertions", subsystem2role_fn="/home/siukinng/db/Markers/SEED/subsystems2role"):
     print("Reading table of PEG's functional role from " + assigned_function_fn)
     with open(assigned_function_fn) as IN:
         peg2function_map = IN.read().splitlines()
     peg2function_map = {s.split("\t")[0] : s.split("\t")[1] for s in peg2function_map}
     print(str(len(peg2function_map)) + " imported.")
-    
     
     print("Reading SEED family function descriptor from " + SEED_families2func_fn)
     with open(SEED_families2func_fn) as IN:
@@ -942,10 +1055,302 @@ def import_seed_data(assigned_function_fn="/home/siukinng/db/Markers/SEED/Releas
     
     return [peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map]
 
+
+
+
 """
+import process_m8
+import glob
+
+cd ~/MG/m8/scaffolds
+
+fns = glob.glob("*.mapped2SEED.filtered+gi2go+map+lineage")
+
+merge_list = ["SWH-Cell55_Y2", "GZ-Seed", "SWH-Seed", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Xyl_Y2", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Cell_Y1", "SWH-Cell_Y2", ]
+
+#process_m8.summary_SEED(fns, "all_samples.mapped2SEED.filtered+gi2go+map+lineage.func_role.summary", merge_list, col_idx=9)
+
+process_m8.summary_SEED(fns, "all_samples.mapped2SEED.filtered+gi2go+map+lineage.subsystem.summary", merge_list,col_idx=10)
+
+"""
+def summary_SEED(fns, summary_ofn, merge_list=None, col_idx=10): # col_idx=10 :subsystem, col_idx=9: functional role
+    sample_n = 0
+    sample_ids = []
+    SEED_table = {}
+    
+    # estimate
+    if merge_list is not None:
+        sample_ids = merge_list
+#         for fn in fns:
+#             for id in merge_list:
+#                 if fn.startswith(id):
+#                     sample
+    else:
+        sample_ids = fns
+    
+    
+    for i, fn in enumerate(fns):
+        print("Processing " + str(i) + " " + fn)
+        #sample_ids.append(fn)
+        if merge_list is not None:
+            i = -1
+            for j, id in enumerate(sample_ids):
+                if os.path.basename(fn).startswith(id):
+                    print(fn + " will be appeneded to " + id)
+                    i = j
+                    break
+            if i == -1:
+                print(fn + " was not selected, skipped.")
+                continue
+        
+        IN = open(fn)
+        processed_n = 0
+        header = IN.readline().rstrip()
+        for l in IN:
+            l = l.replace("\n", "").split("\t")
+            subsystem = l[col_idx]
+            try:
+                SEED_table[subsystem][i] += 1
+            except:
+                SEED_table[subsystem] = [0 for o in sample_ids]
+                SEED_table[subsystem][i] = 1
+            processed_n += 1
+        IN.close()
+        print("Number of processed: " + str(processed_n))
+        
+    print("Exporting results to " + summary_ofn)
+    OUT = open(summary_ofn, "w")
+    OUT.write("Subsystem\t" + "\t".join(sample_ids) + "\n")
+    for k in SEED_table.keys():
+        OUT.write(k + "\t" + "\t".join(map(str, SEED_table[k])) + "\n")
+    OUT.close()
+    
+    del SEED_table
+    gc.collect()
+
+
+
+"""
+with open("process_m8.py") as fp:
+    for i, line in enumerate(fp):
+        if "\xe2" in line:
+            print i, repr(line)
+
+import glob
+import process_m8
+summary_fns = glob.glob("*_1.trimmed+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage")
+data = {}
+for summary_fn in summary_fns:
+    summary_1_fn = summary_fn
+    summary_2_fn = summary_fn.replace("_1.tr", "_2.tr")
+    sample_id = summary_fn.replace("_1.trimmed+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage", "")
+    data[sample_id] = process_m8.summarize_lineage_summary2(summary_1_fn, summary_2_fn)
+
+
+"""
+def summarize_lineage_summary2(summary_1_fn, summary_2_fn, missing="Unassigned"):
+    print("Reading from " + summary_1_fn + " and " + summary_2_fn)
+    df = {}
+    
+    # Read_1
+    IN = open(summary_1_fn)
+    IN2 = open(summary_2_fn)
+    l = IN.readline()
+    l = IN2.readline()
+    
+    for l, l2 in izip(IN, IN2):
+        #[lineage, functional_role, subsystem] = l.rstrip().split("\t")
+        try:
+            l = l.rstrip().split("\t")
+            
+            lineage = l[6].split("g__",1)[1].split(";",1)[0]
+            functional_role = l[9]
+            subsystem = l[10]
+        #print(lineage + "xxx, " + functional_role + "xxx, " + subsystem)
+        except:
+            continue
+
+        if len(lineage) == 0:
+            lineage = missing
+            
+        #print(lineage)
+        try:
+            df[lineage][subsystem] += 1
+        except:
+            try:
+                df[lineage][subsystem] = 1
+            except:
+                df[lineage] = {}
+                df[lineage][subsystem] = 1
+        
+        #
+        l = l2        
+        try:
+            l = l.rstrip().split("\t")
+            
+            lineage = l[6].split("g__",1)[1].split(";",1)[0]
+            functional_role = l[9]
+            subsystem = l[10]
+        #print(lineage + "xxx, " + functional_role + "xxx, " + subsystem)
+        except:
+            continue
+
+        if len(lineage) == 0:
+            lineage = missing
+            
+        #print(lineage)
+        try:
+            df[lineage][subsystem] += 1
+        except:
+            try:
+                df[lineage][subsystem] = 1
+            except:
+                df[lineage] = {}
+                df[lineage][subsystem] = 1 
+                        
+    IN2.close()
+    IN.close()
+    
+    return df
+
+
+
+def summarize_lineage_summary(summary_fn, missing="Unassigned"):
+    print("Reading from " + summary_fn)
+    df = {}
+    
+    # Read_1
+    IN = open(summary_fn)
+    l = IN.readline()
+    
+    for l in IN:
+        #[lineage, functional_role, subsystem] = l.rstrip().split("\t")
+        try:
+            l = l.rstrip().split("\t")
+            
+            #print(l[6])
+            
+            #print(len(l))
+            lineage = l[6].split("g__",1)[1].split(";",1)[0]
+            functional_role = l[9]
+            subsystem = l[10]
+        #print(lineage + "xxx, " + functional_role + "xxx, " + subsystem)
+        except:
+            continue
+
+        if len(lineage) == 0:
+            lineage = missing
+            
+        #print(lineage)
+        try:
+            df[lineage][subsystem] += 1
+        except:
+            try:
+                df[lineage][subsystem] = 1
+            except:
+                df[lineage] = {}
+                df[lineage][subsystem] = 1
+    IN.close()
+    
+    
+    return df
+
+
+"""
+
+subsystems = ["Monosaccharides"]
+for subsystem in subsystems:
+    process_m8.export_functional_summary(data, "Monosaccharides")
+
+"""
+def export_functional_summary(df, functional_label, out_fn=None):
+    if out_fn is None:
+        out_fn = functional_label + ".functional_summary"
+        
+    mtx = {} # Row = species, col = sample_id, element = read_count
+    
+    sample_ids = list(df.keys()) 
+    mtx["HEADER"] = sample_ids
+    for i, sample_id in enumerate(sample_ids):
+        sample_df = df[sample_id]
+#         try:
+#             df2 = sample_df[functional_label]
+#         except:
+#             continue
+        
+        species_ids = sample_df.keys()
+        print(species_ids[0])
+        skipped_n = 0
+        for species_id in species_ids:
+            val = 0
+            try:
+                val = sample_df[species_id][functional_label]
+            except:
+                skipped_n += 1
+                continue
+            try:
+                mtx[species_id][i] = val
+            except:
+                mtx[species_id] = [0 for j in sample_ids]
+                mtx[species_id][i] = val
+
+    print("Skipped: " + str(skipped_n))
+    
+    OUT = open(out_fn, "w")
+    OUT.write("#HEADER\t" +"\t".join(mtx["HEADER"]) + "\n")
+    del mtx["HEADER"]
+    species_ids = list(mtx.keys())
+    for sample_id in sample_ids:
+        for species_id in species_ids:
+            OUT.write(species_id + "\t" + "\t".join(map(str, mtx[species_id])) + "\n")  
+    OUT.close()
+
+"""
+# Metagenome normalization
+# http://2014-5-metagenomics-workshop.readthedocs.org/en/latest/annotation/normalization.html
+# 1. (counts of gene X / total number of reads) * 1000000
+# 2. (counts of gene X / counts of 16S rRNA gene)
+# 3. (counts of gene X / total number of mapped reads)
+
+
 hmm_orf_dict = mg_pipeline.postprocess_HMMER_search_by_fn("all_samples.renamed+Pfam.dom.tbl", hmm_score_threshold=10, hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc")
 
 hmm_dom_tbl = mg_pipeline.generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=False)
 
 
+
+
+subsystems = read.table("all_samples.mapped2SEED.filtered+gi2go+map+lineage.subsystem.summary", sep="\t", header=T, row.name=1, stringsAsFactors=F)
+subsystems <- subsystems[, -1]
+
+# Normalize
+for(i in 1 : nrow(subsystems))
+{
+subsystems[i, ] <- subsystems[i,] / colSums(subsystems)
+}
+
+grouping <- c(1,1,0,0,0,0,0,0,0,0)
+p_vals <- rep(-1, nrow(subsystems))
+changes <- rep(0, nrow(subsystems))
+for(i in 1 : nrow(subsystems))
+{
+    v <- wilcox.test(as.numeric(subsystems[i,]) ~ grouping, alternative = "less")
+    p_vals[i] <- v$p.value
+    changes[i] <- mean(as.numeric(subsystems[i,!grouping])) / mean(as.numeric(subsystems[i,grouping]))
+}
+selected_idx <- which(p_vals < 0.05)
+paste(rownames(subsystems)[selected_idx], "=", p_vals[selected_idx], ", change=", changes[selected_idx], sep="")
+
+
+
+p_vals <- rep(-1, nrow(subsystems))
+changes <- rep(0, nrow(subsystems))
+for(i in 1 : nrow(subsystems))
+{
+    v <- wilcox.test(as.numeric(subsystems[i,]) ~ grouping, alternative = "less")
+    p_vals[i] <- v$p.value
+    changes[i] <- mean(as.numeric(subsystems[i,!grouping])) / mean(as.numeric(subsystems[i,grouping]))
+}
+selected_idx <- which(p_vals < 0.05)
+paste(rownames(subsystems)[selected_idx], "=", p_vals[selected_idx], ", change=", changes[selected_idx], sep="")
 """
