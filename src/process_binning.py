@@ -27,9 +27,14 @@ import filter_blast_res
 
 
 """
-Bin scaffolds
+Bin scaffolds according to the homology to reference genomes
+
+Usage:
+
+
 """
-def assign_scaffold_to_sid(scaffold_fa_fn, bla_fn):
+def assign_scaffold2binID(scaffold_fa_fn, bla_fn, cutoff=5000):
+    
     print("")
     blast_res = filter_blast_res.import_blast_res(bla_fn)
     
@@ -39,7 +44,10 @@ def estimate_bla_map(blast_res, cutoff_len=40000):
     print("")
     
     
+"""
+Usage:
 
+"""
 def export_coverage(cov, cov_summary_ofn):
     with open(cov_summary_ofn, "w") as OUT:
         OUT.write("id\tlength\tcoverage\n")
@@ -187,6 +195,9 @@ def convert_vegan_biom_to_otu_table(biom_fn, otu_table_ofn=None, discard_eukaryo
 
 def clear_tax_label(tax_label):
     return tax_label.replace(" <phylum>", "").replace(" ", "_")
+
+
+
 """
 Helper function for converting the following data:
 OTU    Read
@@ -257,7 +268,9 @@ def print_msg(msg):
 
 
 
+"""
 
+"""
 def merge_loc_map(loc_fn="all_samples.renamed.loc", map_fn="all_samples+nr.renamed.m8.map"):
     with open(loc_fn) as IN:
         loc = IN.read().splitlines()
@@ -275,6 +288,9 @@ def merge_loc_map(loc_fn="all_samples.renamed.loc", map_fn="all_samples+nr.renam
         OUT.write("#read_id\tgi\ttax_id\tseed_id\tcontig_id\tspos\tepos\n")
         for k in map.keys():
             OUT.write("\t".join(map[k] + loc[k][1:]) + "\n")    
+
+
+
 
 
 

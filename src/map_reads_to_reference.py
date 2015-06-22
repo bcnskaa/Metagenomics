@@ -848,15 +848,21 @@ def extract_species_from_tax(sid_tbl):
 """
 
 """
-def assign_contigs_to_sid(bla_fn, contig_fa_fn, contig2sid_tbl_fn=None, cutoff=40000, blast_len_cutoff=3000):
-    print("")
+def assign_contigs_to_sid(bla_fn, contig_fa_fn, contig2sid_tbl_ofn=None, cutoff=40000, blast_len_cutoff=3000):
+    print("Reading from " + bla_fn)
+    
+    
+    
 
 
 
 """
-
+Calculate the total alignment length of subject ID
+Usage:
+bla_fn = "GZ-Cell_Y1+BioProjects.bla"
+sid_match_lens = map_reads_to_reference.compute_sid_match_len(bla_fn)
 """
-def compute_sid_match_len(bla_fn):
+def compute_sidz_match_len(bla_fn):
     with open(bla_fn) as IN:
         bla = IN.read().splitlines()
     bla = [b.split("\t") for b in bla]

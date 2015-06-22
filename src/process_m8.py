@@ -3,10 +3,90 @@
 # http://www.kegg.jp/kegg/docs/keggapi.html
 #
 ##
+from __future__ import print_function
+from __future__ import division
+
 import glob
 from itertools import izip
 import gc
 import os
+from collections import Counter
+import operator
+
+"""
+import process_m8
+import glob
+import gc
+import os
+
+
+m8_fns = glob.glob("*nr.m8")
+
+#### .map
+# Generate .map files
+process_m8.process_NR2Seed()
+
+#### .gi2go
+# Generate .gi2go
+# Import gi2go_map
+gi2go_map = process_m8.import_gi2go()
+for m8_fn in m8_fns:
+    if not os.path.isfile(m8_fn+".gi2go"):
+        mm = process_m8.map_m8_gi2go(m8_fn, m8_fn+".gi2go", gi2go_map)
+
+
+#### merge .map and .gi2go
+m8_fns = glob.glob("*nr.m8")
+for m8_fn in m8_fns:
+    process_m8.merge_gi2go_map(m8_fn+".map", m8_fn+".gi2go", m8_fn + ".gi2go+map", dump_read_id=False)
+
+
+#### .lineage from .gi2go+map
+# Generate .lineage
+taxid2lineage_map = process_m8.import_taxid2lineage()
+gi2go_map_fns = glob.glob("*.gi2go+map")
+
+for gi2go_map_fn in gi2go_map_fns:
+    process_m8.map_lineage2gi2go_map_fn(gi2go_map_fn, taxid2lineage_map=taxid2lineage_map)
+
+
+
+#### .mapped2SEED
+[peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map] = process_m8.import_seed_data() 
+m8_fns = glob.glob("*SEED.m8")
+for m8_fn in m8_fns:
+    process_m8.process_SEED(m8_fn,peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map)
+
+
+#### .mapped2SEED.filtered
+mapped2SEED_fns = glob.glob("*.mapped2SEED")
+for mapped2SEED_fn in mapped2SEED_fns:
+    process_m8.filter_mapped2SEED_with_subsystem(mapped2SEED_fn)
+    
+
+
+#### .mapped2SEED.filtered+gi2go+map+lineage
+
+# inside the directory: ~/MG/m8/scaffolds/NR
+gi2go_fns = glob.glob("*+nr.m8.gi2go+map+lineage")
+for gi2go_fn in gi2go_fns:
+    print("Processing " + gi2go_fn)
+    #SEED_dir = "../SEED/"
+    SEED_dir = "./"
+    read_1_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "+SEED.m8.mapped2SEED.filtered")
+    #read_2_fn = gi2go_fn.replace("_1+nr.m8.gi2go+map+lineage", "_2+SEED.m8.mapped2SEED.filtered")
+    #read_1_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "_1.trimmed+SEED.m8.mapped2SEED.filtered")
+    #read_2_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "_2.trimmed+SEED.m8.mapped2SEED.filtered")
+    print(read_1_fn)
+    #print(read_1_fn + " and " + read_2_fn)
+    process_m8.merge_mapped2SEED_gi2go_map(SEED_dir + read_1_fn, gi2go_fn, "./" + read_1_fn + "+gi2go+map+lineage") 
+    #process_m8.merge_mapped2SEED_gi2go_map(SEED_dir + read_2_fn, gi2go_fn, "./" + read_2_fn + "+gi2go+map+lineage")
+    gc.collect()
+    #%reset
+
+
+"""
+
 
 
 """
@@ -15,23 +95,25 @@ some reference databases such as NCBI NR database. If the m8 format is compatibl
 the tabular output format (-outfmt 6) produced by BLAST. If using NR as reference database,
 the query sequences can be functionally and taxonomically annotated based on mapping subject sequences.
 The functions in this file are prepared for processing the m8 results.
-  
-"""
 
+#Usage:
+
+import process_m8
+
+process_m8.process_NR2Seed()
 
 """
-
-"""
-def process_seed():
+def process_NR2Seed():
     
     largest_gi = 815659664 + 1
     gi2taxid = [0] * (largest_gi + 1)
     gi2seed = [0] * (largest_gi + 1) 
-    gi2taxid_map_fn = "gi_taxid_prot.dmp"
+    gi2taxid_map_fn = "/home/siukinng/db/Markers/ncbi_nr/mapping/ncbi_tax/gi_taxid_prot.dmp"
     gi2seed_map_fn="/home/siukinng/db/Markers/ncbi_nr/mapping/gi2seed.map"
     
     
     ## Import gi2seed_map
+    print("Importing gi2seed_map from " + gi2seed_map_fn)
     with open(gi2seed_map_fn) as IN:
         s_vals = IN.read().splitlines()
     
@@ -42,6 +124,7 @@ def process_seed():
     
     
     ## Import gi2taxid_map
+    print("Importing gi2taxid_map from " + gi2taxid_map_fn)
     with open(gi2taxid_map_fn) as IN:
         vals = IN.read().splitlines()
     
@@ -52,10 +135,15 @@ def process_seed():
         gi2taxid[gi] = taxid
 
     
-    m8_fns = glob.glob("/home/siukinng/MG/m8/scaffolds/*.m8")
+    #m8_fns = glob.glob("/home/siukinng/MG/m8/scaffolds/*.m8")
+    m8_fns = glob.glob("./*nr.m8")
   
     
     for m8_fn in m8_fns:
+        out_fn = m8_fn + ".map"
+        if os.path.isfile(out_fn):
+            continue
+        
         print("Processing " + m8_fn)
         with open(m8_fn) as IN:
             m8 = IN.read().splitlines()
@@ -83,7 +171,7 @@ def process_seed():
                 skipped_n += 1
             m8_map[i] = [qid, gi, tax_id, seed_id]
     
-        out_fn = m8_fn + ".map"
+        
         print("Exporting results to " + out_fn )
         with open(out_fn , "w") as OUT:
             OUT.write("#read_id\tgi\ttax_id\tseed_id\n")    
@@ -117,12 +205,16 @@ Usage:
 
 import process_m8
 import glob
+import os
 
-m8_fns = glob.glob("*.m8")
+m8_fns = glob.glob("*nr.m8")
+
 # Import gi2go_map
 gi2go_map = process_m8.import_gi2go()
 for m8_fn in m8_fns:
-    mm = process_m8.map_m8_gi2go(m8_fn, m8_fn+".gi2go", gi2go_map)
+    if not os.path.isfile(m8_fn+".gi2go"):
+        mm = process_m8.map_m8_gi2go(m8_fn, m8_fn+".gi2go", gi2go_map)
+
 
 
 """
@@ -168,9 +260,15 @@ def map_m8_gi2go(m8_fn, gi2go_ofn, gi2go_map=None):
 import glob
 import process_m8
 
-m8_fns = glob.glob("*.m8")
+m8_fns = glob.glob("*nr.m8")
 for m8_fn in m8_fns:
     process_m8.merge_gi2go_map(m8_fn+".map", m8_fn+".gi2go", m8_fn + ".gi2go+map", dump_read_id=True)
+
+
+
+m8_fns = glob.glob("*.m8")
+for m8_fn in m8_fns:
+    process_m8.merge_gi2go_map(m8_fn+".map", m8_fn+".gi2go", m8_fn + ".gi2go+map", dump_read_id=False)
 
 """
 ## Assume gi2go_fn does not have header line
@@ -181,11 +279,12 @@ def merge_gi2go_map(map_fn, gi2go_fn, out_fn, dump_read_id=False):
     OUT = open(out_fn, "w")
     if dump_read_id:
         dump_out_fn = out_fn + ".id.dump"
-        OUT_dump = open(dump_read_id, "w")
+        OUT_dump = open(dump_out_fn, "w")
     
     # Wash the comment line from map_fn
     flush = IN_map.readline()
-   
+    flush = IN_gi2go.readline()
+    
     print("Processing " + map_fn + " and " + gi2go_fn)
     
     if dump_read_id:
@@ -196,11 +295,14 @@ def merge_gi2go_map(map_fn, gi2go_fn, out_fn, dump_read_id=False):
              map_l = map_l.rstrip("\n").split("\t")
              gi_l = gi_l.rstrip("\n").split("\t")
              
+             if gi_l[2].startswith("gi|"):
+                 gi_l[2] = gi_l[2].split("|")[1]
+                 
              if map_l[1] != gi_l[2]:
                  print("Map and Gi2GO files are not synchronized, abort.")
                  break
              line_id += 1
-             OUT_dump.write(str(line_id) + "\t" + gi_l[1:2] + "\n")
+             OUT_dump.write(str(line_id) + "\t" + "\t".join(gi_l[1:2]) + "\n")
              OUT.write(str(line_id)+ "\t" + "\t".join(gi_l[2:] + map_l[2:4]) + "\n")
     else:   
         OUT.write("\t".join(["#read_id", "subject_id", "gi", "go", "tax_id", "seed_id"]) + "\n")
@@ -208,6 +310,9 @@ def merge_gi2go_map(map_fn, gi2go_fn, out_fn, dump_read_id=False):
              map_l = map_l.rstrip("\n").split("\t")
              gi_l = gi_l.rstrip("\n").split("\t")
              
+             if gi_l[2].startswith("gi|"):
+                 gi_l[2] = gi_l[2].split("|")[1]
+                 
              if map_l[1] != gi_l[2]:
                  print("Map and Gi2GO files are not synchronized, abort.")
                  break
@@ -217,8 +322,10 @@ def merge_gi2go_map(map_fn, gi2go_fn, out_fn, dump_read_id=False):
     IN_map.close()
     IN_gi2go.close()
     OUT.close()
-    OUT_dump.close()
+    if dump_read_id:
+        OUT_dump.close()
     
+
 
 
 """
@@ -543,7 +650,8 @@ def convert_gi2go_to_FDcompatible(gi2go_fns, tax_col_id, trait_col_id, taxids_cl
 #     IN_gi2go.close()
 #     OUT.close()
    
-           
+
+
 """
 This function prepares a map for mapping Pfam Accession ID to related GO terms. This function 
 returns a map linking Pfam to GO, which can be used as a function argument i
@@ -842,15 +950,20 @@ def map_lineage2gi2go_map_fn(gi2go_map_fn, gi2go_map_ofn=None, taxid2lineage_map
     
     IN.close()
     OUT.close()
-    
+
+   
 
 """
+
+cd /disk/rdisk08/siukinng/samples/lab/m8/scaffolds/SEED
+
+
 import process_m8
 import glob
 
 
 [peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map] = process_m8.import_seed_data() 
-m8_fns = glob.glob("*.m8")
+m8_fns = glob.glob("*SEED.m8")
 for m8_fn in m8_fns:
     process_m8.process_SEED(m8_fn,peg2function_map, SEED_families2func_map, fig2SEED_families_map, asserted_fig2SEED_families_map, subsystem2role_map)
     
@@ -1012,6 +1125,7 @@ def merge_mapped2SEED_gi2go_map(mapped2SEED_fn, gi2go_map_fn, merge_ofn, operati
     del merge_data
     gc.collect()
     
+
 
 """
 
@@ -1258,14 +1372,15 @@ def summarize_lineage_summary(summary_fn, missing="Unassigned"):
 
 """
 
-subsystems = ["Monosaccharides"]
+# data is created by calling summarize_lineage_summary2() 
+subsystems = ["Monosaccharides", "DNA repair", "Fermentation", "Glycoside hydrolase", "DNA replication", "Central carbohydrate metabolism", "One-carbon metabolism"]
 for subsystem in subsystems:
-    process_m8.export_functional_summary(data, "Monosaccharides")
+    process_m8.export_functional_summary(data, subsystem)
 
 """
 def export_functional_summary(df, functional_label, out_fn=None):
     if out_fn is None:
-        out_fn = functional_label + ".functional_summary"
+        out_fn = functional_label.replace(" ", "_") + ".functional_summary"
         
     mtx = {} # Row = species, col = sample_id, element = read_count
     
@@ -1304,6 +1419,130 @@ def export_functional_summary(df, functional_label, out_fn=None):
         for species_id in species_ids:
             OUT.write(species_id + "\t" + "\t".join(map(str, mtx[species_id])) + "\n")  
     OUT.close()
+
+
+
+"""
+import glob
+import process_m8
+
+gi2go_map_lineage_fns = glob.glob("*.gi2go+map+lineage")
+for gi2go_map_lineage_fn in gi2go_map_lineage_fns:
+    process_m8.assign_contig_taxonomic_lineage(gi2go_map_lineage_fn)
+    
+"""
+def assign_contig_taxonomic_lineage(gi2go_map_lineage_fn, assign_ofn=None):
+    print("Processing " + gi2go_map_lineage_fn)
+    
+    if assign_ofn is None:
+        assign_ofn = gi2go_map_lineage_fn + ".contig_tax"
+        
+    
+    with open(gi2go_map_lineage_fn) as IN:
+        rows = IN.read().splitlines()
+    rows = [r.split("\t") for r in rows]
+    
+    contigs = {}
+    protein_ids = []
+    protein_ids2lineage_map = {}
+    
+    skipped_n = 0
+    processed_n = 0
+    for r in rows:
+        processed_n += 1
+        lineage = ""
+        try:
+            protein_id = r[0]
+            contig_id = protein_id[::-1].split("_", 1)[1][::-1]
+            #lineage = r[6].split("g__")[1]
+            lineage = r[6].split("g__")[1].split(";")[0]
+        except:
+            #print("Lineage: =" + r[6] + ".")
+            skipped_n += 1
+
+            
+        if len(lineage) == 0:
+            linege = "Unknown"
+        
+        try:
+            contigs[contig_id].append(lineage)
+        except:
+            contigs[contig_id] = []
+            contigs[contig_id].append(lineage)
+    
+    print("Processed=" + str(processed_n))
+    print("Skipped=" + str(skipped_n))
+
+
+    contig_ids = sorted(contigs, key=lambda k: len(contigs[k]), reverse=True)
+    
+    # Export
+    OUT = open(assign_ofn, "w")
+    OUT.write("#Contig_ID\tLineage\tTotal_Count\tLineage_Prob\n")
+    for contig_id in contig_ids:
+        #unique_lineages = list(set(contigs[contig_id]))
+        (lineage, lineage_n) = Counter(contigs[contig_id]).most_common(1)[0]
+        OUT.write(contig_id + "\t" + lineage + "\t" + str(len(contigs[contig_id])) + "\t" + str(lineage_n / len(contigs[contig_id])) + "\n")
+        
+    OUT.close()
+    
+
+
+"""
+This function extracts contig sequences and group them together based on their assigned taxonomic identity.
+
+Usage:
+import process_m8
+
+sample_ids = ["SWH-Cell_Y2"]
+for sample_id in sample_ids:
+    bla_fn = sample_id + "+nr.renamed.m8.gi2go+map+lineage.contig_tax"
+    fa_fn = "/home/siukinng/MG/scaffolds_2000/" + sample_id + ".fa"
+    process_m8.extract_contig_by_taxonomic_lineage(bla_fn, fa_fn, group_n_threshold=300)
+
+
+"""
+def extract_contig_by_taxonomic_lineage(contig_tax_fn, contig_fa_fn, group_fa_ofn=None, p_value=0.8, group_n_threshold=500, unassigned_label="Unassigned", unknown_label="Unknown"):
+    print("Importing from " + contig_tax_fn)
+    with open(contig_tax_fn) as IN:
+        flush = IN.readline()
+        contig_tax_map = IN.read().splitlines()
+    contig_tax_map = {c.split("\t")[0]:c.split("\t")[1:] for c in contig_tax_map}
+    
+    tax_group = {}
+    tax_group_size = {}
+    
+    #print(contig_tax_map[contig_tax_map.keys()[0]])
+            
+    # 
+    for contig_id in contig_tax_map.keys():
+        tax = contig_tax_map[contig_id][0]
+        #print(tax)
+        if len(tax) == 0:
+            tax = unknown_label
+            
+        try:
+            tax_group[tax].append(contig_id)
+            tax_group_size[tax] += len(contig_id)
+        except:
+            tax_group[tax] = []
+            tax_group[tax].append(contig_id)
+            tax_group_size[tax] = 0
+            tax_group_size[tax] += len(contig_id)
+    
+    #print(",".join(tax_group_size.keys()))
+    
+    tax_group_ids = sorted(tax_group_size, key=lambda x:tax_group_size[x])
+    
+    print("Number of tax group: " + str(len(tax_group)))
+    print("Number of tax group larger than " +str(group_n_threshold) + ": " +str(len([1 for t in tax_group_size.keys() if tax_group_size[t] > group_n_threshold])))
+     
+    for tax_group_id in tax_group_ids:
+        #tax_id = tax_group_size.keys()[tax_group_id]
+        if tax_group_size[tax_group_id] > group_n_threshold:
+            print(tax_group_id + ": " + str(tax_group_size[tax_group_id]))
+    
+
 
 """
 # Metagenome normalization
