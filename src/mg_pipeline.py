@@ -1916,9 +1916,18 @@ def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_
 """
  This routine processes output files from HMMER3 scan
  cat contig.fa.prodigal-dbCAN.hmm.dom.tbl | grep -v "^#" | sed 's/\s\s*/ /g' | cut -d ' ' -f22
+ 
+#usage:
+import mg_pipeline
+import glob
+
+hmm_tc_fn = "/home/siukinng/db/Markers/Pfam/Pfam.tc"
+fns = glob.glob("*Pfam.dom.tbl") 
+hmm_orf_dict = mg_pipeline.postprocess_HMMER_search_by_fn(fns[0], hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc")
+ 
 """
 #def postprocess_HMMER_search(hmm_dir=HMMER_OUTDIR, mean_posterior_prob=0.8, hmm_score_threshold=60.0, dom_overlapping_threshold=20):
-def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_threshold=100.0, hmm_tc_fn=None, dom_overlapping_threshold=20):
+def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, check_overlapping=False, hmm_score_threshold=10.0, hmm_tc_fn=None, dom_overlapping_threshold=20):
 
     print_status("Parsing HMMER3 hmmsearch outfile, " + file)
     print_status("  mean_posterior_prob=" + str(mean_posterior_prob))
@@ -1951,7 +1960,8 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
             hmm_tcs = IN.read().splitlines()
         hmm_tcs = {h.split("\t")[0]:float(h.split("\t")[1]) for h in hmm_tcs}
         print_status("  " + str(len(hmm_tcs.keys())) + " cutoff values imported." )
-    
+
+        
     
     # ORF with HMM hits
     tc_score_skipped = 0
@@ -2013,30 +2023,32 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, hmm_score_thre
                     #print dom[0], hmm_id, "=", dom[7], "skipped"
                     skipped_dom_n += 1
     
-    # Check if there are overlapping HMM domains, keep the one with highest score    
-    for k,v_arr in hmm_orf_dict.items():
-        if len(v_arr) > 0:
-            # Sorted by HMM dom score
-            sorted_a = sorted(v_arr, key=lambda v: v[9], reverse=True)
-            
-            flags = [0 for i in range(len(sorted_a))]
-            for idx, v in enumerate(sorted_a):
-                if flags[idx] == 1:
-                    continue
+    # Check if there are overlapping HMM domains, keep the one with highest score 
+    if check_overlapping:
+        for k,v_arr in hmm_orf_dict.items():
+            if len(v_arr) > 0:
+                # Sorted by HMM dom score
+                sorted_a = sorted(v_arr, key=lambda v: v[9], reverse=True)
                 
-                for idx2, v2 in enumerate(sorted_a):
-                    if idx2 > idx:
-                        if getOverlap(v[2:4], v2[2:4]) > dom_overlapping_threshold:
-                            flags[idx2] = 1
-                            discard_dom_n += 1
-                            #print v2, "discarded by", v, " overlap_len=", getOverlap(v[2:4], v[2:4])
-            
-            # Discard tagged items             
-            sorted_a = [sorted_a[idx] for idx, flag in enumerate(flags) if flag == 0]
-            # Sorted by position
-            sorted_a = sorted(v_arr, key=lambda v: v[1], reverse=False)
-            
-            hmm_orf_dict[k] = sorted_a
+                flags = [0 for i in range(len(sorted_a))]
+                for idx, v in enumerate(sorted_a):
+                    if flags[idx] == 1:
+                        continue
+                    
+                    for idx2, v2 in enumerate(sorted_a):
+                        if idx2 > idx:
+                            if getOverlap(v[2:4], v2[2:4]) > dom_overlapping_threshold:
+                                flags[idx2] = 1
+                                discard_dom_n += 1
+                                #print v2, "discarded by", v, " overlap_len=", getOverlap(v[2:4], v[2:4])
+                
+                # Discard tagged items             
+                sorted_a = [sorted_a[idx] for idx, flag in enumerate(flags) if flag == 0]
+                # Sorted by position
+                sorted_a = sorted(v_arr, key=lambda v: v[1], reverse=False)
+                
+                hmm_orf_dict[k] = sorted_a
+
     
     if hmm_tcs is not None:
         print_status("HMM domains escaped from TC checking = " + str(tc_score_skipped))
@@ -2145,6 +2157,45 @@ def generate_attendance_tbl(dom_tbl_fns, pfam_ids, pfam_dom_attendance_ofn=None,
     
 
 
+"""
+Usage:
+
+
+import mg_pipeline
+import glob
+
+fns = glob.glob("*Pfam.dom.tbl")
+mg_pipeline.generate_protein2Pfam_tbl(fns[0])
+
+"""
+def generate_protein2Pfam_tbl(dom_tbl_fn, protein2Pfam_tbl_ofn=None, protein_ids=None, separator="|", hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc"):
+    print_status("Import Dom table from " + dom_tbl_fn)
+    
+    hmm_orf_dict = postprocess_HMMER_search_by_fn(dom_tbl_fn, hmm_tc_fn=hmm_tc_fn)
+
+    if protein2Pfam_tbl_ofn is None:
+        protein2Pfam_tbl_ofn = dom_tbl_fn + ".protein2Pfam_tbl"
+    
+    if protein_ids is None:
+        protein_ids = hmm_orf_dict.keys()
+    
+    protein_ids = sorted(protein_ids)
+    
+    print_status("Exporting results to " + protein2Pfam_tbl_ofn)
+    
+    exported_n = 0
+    OUT = open(protein2Pfam_tbl_ofn, "w")
+    
+    # Print header
+    OUT.write("#ProteinID\tPfam_domain_n\tPfam_Accession\tPfam_Name\n")        
+    #for protein_id in hmm_orf_dict.keys():
+    for protein_id in protein_ids:
+        exported_n += 1
+        OUT.write(protein_id + "\t" + str(len(hmm_orf_dict[protein_id])) + "\t" + separator.join([pfam[10] for pfam in hmm_orf_dict[protein_id]]) + "\t" + separator.join([pfam[5] for pfam in hmm_orf_dict[protein_id]]) + "\n")
+        
+    OUT.close()
+    print_status("Number of exported: " + str(exported_n))
+    
 
 """
 """
@@ -2360,6 +2411,17 @@ def map_hmm2maxbin(hmm_orf_dict, maxbin_dir):
 
 """
 Export the hmm_dom_tbl to an out file.
+
+Usage:
+import mg_pipeline
+import glob
+
+fns = glob.glob("*Pfam.dom.tbl")
+for fn in fns:
+    hmm_orf_dict = mg_pipeline.postprocess_HMMER_search_by_fn(fn, hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc")
+    hmm_dom_tbl = mg_pipeline.generate_dom_tbl(hmm_orf_dict)
+    mg_pipeline.export_dom_tbl(hmm_dom_tbl, fn + ".summary")
+
 
 """
 def export_dom_tbl(hmm_dom_tbl, outfn, hmm_info_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm.info"):

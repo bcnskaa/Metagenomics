@@ -1,8 +1,4 @@
-##
-# KEGG REST API:
-# http://www.kegg.jp/kegg/docs/keggapi.html
-#
-##
+
 from __future__ import print_function
 from __future__ import division
 
@@ -13,7 +9,12 @@ import os
 from collections import Counter
 import operator
 
+
+
+
 """
+# Usage:
+
 import process_m8
 import glob
 import gc
@@ -71,8 +72,8 @@ for mapped2SEED_fn in mapped2SEED_fns:
 gi2go_fns = glob.glob("*+nr.m8.gi2go+map+lineage")
 for gi2go_fn in gi2go_fns:
     print("Processing " + gi2go_fn)
-    #SEED_dir = "../SEED/"
-    SEED_dir = "./"
+    SEED_dir = "../SEED/"
+    #SEED_dir = "./"
     read_1_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "+SEED.m8.mapped2SEED.filtered")
     #read_2_fn = gi2go_fn.replace("_1+nr.m8.gi2go+map+lineage", "_2+SEED.m8.mapped2SEED.filtered")
     #read_1_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "_1.trimmed+SEED.m8.mapped2SEED.filtered")
@@ -1173,6 +1174,12 @@ def import_seed_data(assigned_function_fn="/home/siukinng/db/Markers/SEED/Releas
 
 
 """
+
+This function 
+
+
+#Usage:
+
 import process_m8
 import glob
 
@@ -1249,6 +1256,16 @@ with open("process_m8.py") as fp:
     for i, line in enumerate(fp):
         if "\xe2" in line:
             print i, repr(line)
+
+"""
+
+
+"""
+
+
+
+
+#Usage: 
 
 import glob
 import process_m8
@@ -1370,9 +1387,13 @@ def summarize_lineage_summary(summary_fn, missing="Unassigned"):
     return df
 
 
+
+
 """
 
 # data is created by calling summarize_lineage_summary2() 
+
+
 subsystems = ["Monosaccharides", "DNA repair", "Fermentation", "Glycoside hydrolase", "DNA replication", "Central carbohydrate metabolism", "One-carbon metabolism"]
 for subsystem in subsystems:
     process_m8.export_functional_summary(data, subsystem)
@@ -1415,11 +1436,84 @@ def export_functional_summary(df, functional_label, out_fn=None):
     OUT.write("#HEADER\t" +"\t".join(mtx["HEADER"]) + "\n")
     del mtx["HEADER"]
     species_ids = list(mtx.keys())
-    for sample_id in sample_ids:
-        for species_id in species_ids:
-            OUT.write(species_id + "\t" + "\t".join(map(str, mtx[species_id])) + "\n")  
+    #for sample_id in sample_ids:
+    for species_id in species_ids:
+        OUT.write(species_id + "\t" + "\t".join(map(str, mtx[species_id])) + "\n")  
     OUT.close()
 
+
+
+
+
+"""
+
+This function summarises the read statistics of each lineage.
+
+#Usage:
+import process_m8
+import glob
+
+fns = glob.glob("*.trimmed+nr.m8.gi2go+map+lineage")
+sample_ids = [fn.replace(".trimmed+nr.m8.gi2go+map+lineage", "") for fn in fns]
+out_fn = "all_samples.lineage.summary"
+
+process_m8.export_lineage_summary(fns, sample_ids, out_fn)
+
+"""         
+def export_lineage_summary(fns, sample_ids, out_fn, tax_level="g__", tax_col=6, missing_label="Unknown", delimiter='\t'):
+    processed_n = 0
+    exported_n = 0
+    
+    if len(fns) != len(sample_ids):
+        print("The number of input files is not consistent with the number of sample ids, abort now.")
+        return None
+    
+    lineage_tbl = {}
+    for i, fn in enumerate(fns):
+        print("Processing " + sample_ids[i] + " from " + fn)
+        IN = open(fn)
+        
+        sample_process_n = 0
+        
+        header = IN.readline()
+        for line in IN:
+            processed_n += 1
+            sample_process_n += 1
+            
+            lineage = line.split(delimiter)[tax_col]
+            
+            try:
+                lineage = lineage.split("g__")[1].split(";")[0]
+            except:
+                lineage = missing_label
+                
+            if len(lineage) == 0:
+                lineage = missing_label
+
+            try:
+                lineage_tbl[lineage][i] += 1
+            except:
+                #print("Adding " + lineage + " from " + line.split(delimiter)[tax_col])
+                lineage_tbl[lineage] = [0 for j in fns]
+                lineage_tbl[lineage][i] += 1
+        print("Number of processed for " + sample_ids[i] + ": " + str(sample_process_n))
+        IN.close()
+    
+    
+    print("Exporting results to " + out_fn)
+    
+    OUT = open(out_fn, "w")
+    # Export header
+    OUT.write("#" + "\t".join(sample_ids) + "\n")
+    for lineage in lineage_tbl.keys():
+        OUT.write(lineage + "\t" + "\t".join(map(str, lineage_tbl[lineage])) + "\n")
+        exported_n += 1
+    OUT.close()
+    
+    print("Number of processed: " + str(processed_n))
+    print("Number of exported: " + str(exported_n))
+   
+    
 
 
 """
@@ -1488,6 +1582,7 @@ def assign_contig_taxonomic_lineage(gi2go_map_lineage_fn, assign_ofn=None):
     
 
 
+
 """
 This function extracts contig sequences and group them together based on their assigned taxonomic identity.
 
@@ -1541,8 +1636,17 @@ def extract_contig_by_taxonomic_lineage(contig_tax_fn, contig_fa_fn, group_fa_of
         #tax_id = tax_group_size.keys()[tax_group_id]
         if tax_group_size[tax_group_id] > group_n_threshold:
             print(tax_group_id + ": " + str(tax_group_size[tax_group_id]))
-    
+            
+            
+            
 
+
+
+
+
+
+
+           
 
 """
 # Metagenome normalization
@@ -1559,7 +1663,9 @@ hmm_dom_tbl = mg_pipeline.generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=Fa
 
 
 
-subsystems = read.table("all_samples.mapped2SEED.filtered+gi2go+map+lineage.subsystem.summary", sep="\t", header=T, row.name=1, stringsAsFactors=F)
+wk_fn <- "all_samples.mapped2SEED.filtered+gi2go+map+lineage.subsystem.summary"
+
+subsystems = read.table(wk_fn, sep="\t", header=T, row.name=1, stringsAsFactors=F)
 subsystems <- subsystems[, -1]
 
 # Normalize
@@ -1573,12 +1679,12 @@ p_vals <- rep(-1, nrow(subsystems))
 changes <- rep(0, nrow(subsystems))
 for(i in 1 : nrow(subsystems))
 {
-    v <- wilcox.test(as.numeric(subsystems[i,]) ~ grouping, alternative = "less")
+    v <- wilcox.test(as.numeric(subsystems[i,]) ~ grouping, alternative = "greater")
     p_vals[i] <- v$p.value
     changes[i] <- mean(as.numeric(subsystems[i,!grouping])) / mean(as.numeric(subsystems[i,grouping]))
 }
 selected_idx <- which(p_vals < 0.05)
-paste(rownames(subsystems)[selected_idx], "=", p_vals[selected_idx], ", change=", changes[selected_idx], sep="")
+#selected_subsystems <- paste(rownames(subsystems)[selected_idx], p_vals[selected_idx], changes[selected_idx], sep="\t")
 
 
 
@@ -1590,6 +1696,14 @@ for(i in 1 : nrow(subsystems))
     p_vals[i] <- v$p.value
     changes[i] <- mean(as.numeric(subsystems[i,!grouping])) / mean(as.numeric(subsystems[i,grouping]))
 }
-selected_idx <- which(p_vals < 0.05)
-paste(rownames(subsystems)[selected_idx], "=", p_vals[selected_idx], ", change=", changes[selected_idx], sep="")
+selected_idx <- c(selected_idx, which(p_vals < 0.05))
+paste(rownames(subsystems)[selected_idx], p_vals[selected_idx], changes[selected_idx], sep="\t")
+#selected_subsystems <- c(selected_subsystems, paste(rownames(subsystems)[selected_idx], p_vals[selected_idx], changes[selected_idx], sep="\t"))
+selected_subsystems <- paste(rownames(subsystems)[selected_idx], p_vals[selected_idx], changes[selected_idx], sep="\t")
+
+
+
+write.table(selected_subsystems, paste(wk_fn, ".selected_subsystems", sep=""), quote=F, sep="\t", row.names=F, col.names=F)
+
+
 """
