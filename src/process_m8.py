@@ -72,8 +72,8 @@ for mapped2SEED_fn in mapped2SEED_fns:
 gi2go_fns = glob.glob("*+nr.m8.gi2go+map+lineage")
 for gi2go_fn in gi2go_fns:
     print("Processing " + gi2go_fn)
-    SEED_dir = "../SEED/"
-    #SEED_dir = "./"
+    #SEED_dir = "../SEED/"
+    SEED_dir = "./"
     read_1_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "+SEED.m8.mapped2SEED.filtered")
     #read_2_fn = gi2go_fn.replace("_1+nr.m8.gi2go+map+lineage", "_2+SEED.m8.mapped2SEED.filtered")
     #read_1_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "_1.trimmed+SEED.m8.mapped2SEED.filtered")

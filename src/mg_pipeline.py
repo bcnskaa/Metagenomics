@@ -2006,25 +2006,33 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, check_overlapp
                     hmm_len = int(dom[5])
                     hmm_spos = int(dom[15])
                     hmm_epos = int(dom[16])
-                                  
-                    # 
-                    if tid not in hmm_orf_dict.keys():
-                        #hmm_orf_dict[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
-                        #hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score]]
-                        hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score, hmm_accession]]
-                                                
-                        #hmm_orf_dict[dom[0]] = [hmm_id]
-                    else:
-                        #hmm_orf_dict[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
-                        #hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score])
+                      
+                    try:
                         hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score, hmm_accession])
+                    except:
+                        hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score, hmm_accession]]
+#            
+                    # 
+#                     if tid not in hmm_orf_dict.keys():
+#                         #hmm_orf_dict[dom[0]] = ["".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]])]
+#                         #hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score]]
+#                         hmm_orf_dict[tid] = [[tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score, hmm_accession]]
+#                                                 
+#                         #hmm_orf_dict[dom[0]] = [hmm_id]
+#                     else:
+#                         #hmm_orf_dict[dom[0]].append("".join([hmm_id, "@", aln_spos, "-", aln_epos, "=", dom[7]]))
+#                         #hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score])
+#                         hmm_orf_dict[tid].append([tid, tlen, aln_spos, aln_epos, hmm_score, hmm_id, hmm_len, hmm_spos, hmm_epos, hmm_dom_score, hmm_accession])
 
                 else:
                     #print dom[0], hmm_id, "=", dom[7], "skipped"
                     skipped_dom_n += 1
     
+    print_status(str(skipped_dom_n) + " skipped.")
+    
     # Check if there are overlapping HMM domains, keep the one with highest score 
     if check_overlapping:
+        print_status("Checking for overlapping HMM domains")
         for k,v_arr in hmm_orf_dict.items():
             if len(v_arr) > 0:
                 # Sorted by HMM dom score
@@ -2048,6 +2056,8 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, check_overlapp
                 sorted_a = sorted(v_arr, key=lambda v: v[1], reverse=False)
                 
                 hmm_orf_dict[k] = sorted_a
+    else:
+        print_status("Checking overlapping HMM domains skipped.")   
 
     
     if hmm_tcs is not None:
@@ -2064,20 +2074,38 @@ def postprocess_HMMER_search_by_fn(file, mean_posterior_prob=0.8, check_overlapp
  Given hmm_orf_dict, this function will construct a dom table using pfam name (hmm_accession_as_key=False) 
  or pfam accession (hmm_accession_as_key=True) as keys.
 """
-def generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=False):
+def generate_dom_tbl(hmm_orf_dict, hmm_accession_as_key=False, is_multiple_sample=False):
     hmm_dom_tbl = {}
-    for id in hmm_orf_dict.keys():
-        for elm in hmm_orf_dict[id]:
-            hmm_id = elm[5]
-            if hmm_accession_as_key:
-                hmm_id = elm[10].split(".")[0]
-            if hmm_id not in hmm_dom_tbl.keys():
-                hmm_dom_tbl[hmm_id] = []
-            hmm_dom_tbl[hmm_id].append(elm)
-        
+    if not is_multiple_sample:
+        for id in hmm_orf_dict.keys():
+            for elm in hmm_orf_dict[id]:
+                hmm_id = elm[5]
+                if hmm_accession_as_key:
+                    hmm_id = elm[10].split(".")[0]
+                try:
+                    hmm_dom_tbl[hmm_id].append(elm)
+                except:
+                    hmm_dom_tbl[hmm_id] = []
+                    hmm_dom_tbl[hmm_id].append(elm)
+                    
+    #             if hmm_id not in hmm_dom_tbl.keys():
+    #                 hmm_dom_tbl[hmm_id] = []
+    #             hmm_dom_tbl[hmm_id].append(elm)
+    else:
+        for sample_id in hmm_orf_dict.keys():
+            hmm_dom_tbl[sample_id] = {}
+            for id in hmm_orf_dict[sample_id].keys():
+                for elm in hmm_orf_dict[sample_id][id]:
+                    hmm_id = elm[5]
+                    if hmm_accession_as_key:
+                        hmm_id = elm[10].split(".")[0]
+                    try:
+                        hmm_dom_tbl[sample_id][hmm_id].append(elm)
+                    except:
+                        hmm_dom_tbl[sample_id][hmm_id] = []
+                        hmm_dom_tbl[sample_id][hmm_id].append(elm)      
+
     return hmm_dom_tbl
-
-
 
 
 
@@ -2160,7 +2188,6 @@ def generate_attendance_tbl(dom_tbl_fns, pfam_ids, pfam_dom_attendance_ofn=None,
 """
 Usage:
 
-
 import mg_pipeline
 import glob
 
@@ -2195,7 +2222,8 @@ def generate_protein2Pfam_tbl(dom_tbl_fn, protein2Pfam_tbl_ofn=None, protein_ids
         
     OUT.close()
     print_status("Number of exported: " + str(exported_n))
-    
+
+
 
 """
 """
@@ -2408,11 +2436,45 @@ def map_hmm2maxbin(hmm_orf_dict, maxbin_dir):
         return bin_groups
 
 
+"""
+This function splits the items of dictionary object into groups defined by
+matching keys to grouping_rule. Grouping rule is a dict object containing 
+keys for new group ids and values for matching dict item's keys.
+
+"""
+def demultiplex_by_key(dict, groupping_rule, fixed=False, drop_not_groupped=True):
+    groups = {rule[0]:[] for rule in groupping_rule}
+    rules = {rule[1]:rule[0] for rule in groupping_rule}
+
+
+"""
+Usage:
+
+"""
+def demultiplex_by_key_prefix(dict, prefix_len=3):
+    new_dict = {}
+    
+    processed_n = 0
+    for id in dict.keys():
+        prefix = id[0:prefix_len]
+        processed_n += 1
+        try:
+            new_dict[prefix][id] = dict[id]
+        except:
+            new_dict[prefix] = {}
+            new_dict[prefix][id] = dict[id]
+            
+                
+    print_status("Number of processed: " + str(processed_n))
+    print_status("Number of groups: " + str(len(new_dict)))
+    return new_dict              
+
+
 
 """
 Export the hmm_dom_tbl to an out file.
 
-Usage:
+#Usage:
 import mg_pipeline
 import glob
 
@@ -2423,6 +2485,22 @@ for fn in fns:
     mg_pipeline.export_dom_tbl(hmm_dom_tbl, fn + ".summary")
 
 
+#Usage for all_samples.renamed+Pfam.dom.tbl
+import mg_pipeline
+import glob
+
+fn = "all_samples.renamed+Pfam.dom.tbl"
+hmm_orf_dict = mg_pipeline.postprocess_HMMER_search_by_fn(fn, hmm_tc_fn="/home/siukinng/db/Markers/Pfam/Pfam.tc")
+# Demultiplex
+hmm_orf_dict = mg_pipeline.demultiplex_by_key_prefix(hmm_orf_dict)
+hmm_dom_tbl = mg_pipeline.generate_dom_tbl(hmm_orf_dict,is_multiple_sample=True)
+
+mg_pipeline.export_dom_tbl(hmm_dom_tbl, fn + ".summary")
+
+
+
+
+
 """
 def export_dom_tbl(hmm_dom_tbl, outfn, hmm_info_fn="/home/siukinng/db/Markers/Pfam/Pfam.hmm.info"):
     # Just for rewiring
@@ -2430,15 +2508,19 @@ def export_dom_tbl(hmm_dom_tbl, outfn, hmm_info_fn="/home/siukinng/db/Markers/Pf
     
     sample_ids = dom_tbl.keys()
     
-    print("Number of sample ids from the dom_tbl: " + str(len(sample_ids)))
-    print("Sample IDs:\n")
-    print(", ".join(sample_ids) + "\n")
-    print("Constructing a dom_ids catalog")
+    print_status("Number of sample ids from the dom_tbl: " + str(len(sample_ids)))
+    print_status("Sample IDs:\n")
+    print_status(", ".join(sample_ids) + "\n")
+    
+    print_status("Constructing a dom_ids catalog")
     
     dom_ids = []
-    for k in dom_tbl.keys():
-        dom_ids.extend(dom_tbl[k].keys())
-    
+    for sample_id in sample_ids:
+        dom_ids.extend(dom_tbl[sample_id].keys())    
+#    for k in dom_tbl.keys():
+#        dom_ids.extend(dom_tbl[k].keys())
+        #dom_ids.extend(dom_id)
+           
     # Unique dom_ids   
     dom_ids = list(set(dom_ids))
     
@@ -2448,27 +2530,27 @@ def export_dom_tbl(hmm_dom_tbl, outfn, hmm_info_fn="/home/siukinng/db/Markers/Pf
     for dom_id in dom_ids:
         dom_list[dom_id] = [0 for i in xrange(len(sample_ids))]
     
-    # Process the data
-    for idx, id in enumerate(sample_ids):
-        dom_list["header"][idx] = id
-        print("Processing " + id)
+    # Process the data: calculate the number of sequences carrying the specific HMM domain
+    for i, sample_id in enumerate(sample_ids):
+        dom_list["header"][i] = sample_id
+        print_status("Processing " + sample_id)
         for dom_id in dom_ids:
-            if dom_id in dom_tbl[id].keys():
-                #print("Dom=" + dom_id)
-                seq_ids = [d[0] for d in dom_tbl[id][dom_id]]
-                seq_ids = list(set(seq_ids))
-                #dom_list[dom_id][idx] = len(dom_tbl[id][dom_id])
-                dom_list[dom_id][idx] = len(seq_ids)
+             if dom_id in dom_tbl[sample_id].keys():
+                 #print("Dom=" + dom_id)
+                 seq_ids = [d[0] for d in dom_tbl[sample_id][dom_id]]
+                 seq_ids = list(set(seq_ids))
+                 #dom_list[dom_id][i] = len(dom_tbl[id][dom_id])
+                 dom_list[dom_id][i] = len(seq_ids)
     
     
-    print("Obtaining hmm info from " + hmm_info_fn)
+    print_status("Obtaining hmm info from " + hmm_info_fn)
     with open(hmm_info_fn) as IN:
         hmm_info = IN.read().splitlines()
     hmm_info = {v.split("\t")[0]:v.split("\t")[1] for v in hmm_info}
-    print("Number of hmm info: " +str(len(hmm_info)))
+    print_status("Number of hmm info: " +str(len(hmm_info)))
     
     
-    print("Exporting dom tbl to " + outfn)
+    print_status("Exporting dom tbl to " + outfn)
     export_n = 0
     with open(outfn, "w") as OUT:
         OUT.write("#HEADER\tDESC\t" + "\t".join(dom_list["header"]) + "\n")
@@ -2479,7 +2561,7 @@ def export_dom_tbl(hmm_dom_tbl, outfn, hmm_info_fn="/home/siukinng/db/Markers/Pf
                 info = dom_id
             OUT.write(dom_id + "\t" + info + "\t" + "\t".join(str(v) for v in dom_list[dom_id]) + "\n")
             export_n += 1
-    print(str(export_n) + " doms exported.")
+    print_status(str(export_n) + " doms exported.")
 
 
 
