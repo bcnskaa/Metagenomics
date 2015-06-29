@@ -11,7 +11,8 @@ pfam_fn <- "/home/bcnskaa/projects/Metagenomics_WD/FunctionalDiversity/all_sampl
 trait_fn <- "samples-clustered-tax_id+go.traits"
 tx_fn_s <- "samples-tax_id+go.samples"
 
-tx_fn_g <- "samples-tax_id+go.samples.g.clustered"
+tx_fn_g <- "all_samples.lineage.summary"
+#tx_fn_g <- "samples-tax_id+go.samples.g.clustered"
 tx_fn_g_meta <- "samples-tax_id+go.samples.g.clustered.meta"
 
 tx_fn <- "samples-clustered-tax_id+go.samples"
@@ -25,6 +26,8 @@ wk_fn <- tx_fn_g
 
 # Read counts assigned to SEED subsystems
 fd <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+
+
 if(wk_fn == tx_fn_g)
 {
 	fd_meta <- read.table(tx_fn_g_meta, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
@@ -58,7 +61,7 @@ if(wk_fn == "samples-clustered-tax_id+go.samples" ) {
 if(grep(".clustered", wk_fn)) {
 	###################
 	# Min-count
-	min_count <- 5000
+	min_count <- 1000
 	species_counts <- colSums(fd)
 	
 	excluded_species <- names(which(species_counts < min_count))
@@ -738,4 +741,125 @@ extract_tax_name <- function(lineages, missing="Others")
 	#tax_names <- gsub(tax_level, "", tax_names, fixed=T)
 	
 	return(tax_names)
+}
+
+
+
+# process_all_sample_lineage(tx_fn_g="all_external_metagenenomes+scaffolds.lineage.summary")
+process_all_sample_lineage <- function(tx_fn_g="all_samples.lineage.summary", log_scale=FALSE, filtering_by_col_sum=FALSE)
+{	
+	#log_scale <- FALSE;
+	#log_scale <- TRUE;
+	#filtering_by_col_sum <- FALSE; # if false, filtering by maximum col count
+	
+	min_colsum <- 5000;
+	min_count <- 100;
+	selected_genus_n <- 50;
+
+	wk_fn <- tx_fn_g
+	
+	# Read counts assigned to SEED subsystems
+	diversity <- read.table(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1)
+
+	diversity <- t(diversity)
+	
+	###################
+	# Min-count
+	if(filtering_by_col_sum)
+	{
+		species_counts <- colSums(diversity)
+		excluded_species <- colnames(diversity)[which(species_counts < min_colsum)]
+	} else {
+		species_counts <- sapply(1:ncol(diversity), function(i) { max(diversity[,i])})
+		excluded_species <- colnames(diversity)[which(species_counts < min_colsum)]
+	}
+	
+	# Remove species without kingdom assignment
+	excluded_species <- c(excluded_species, "Unknown")
+	excluded_species <- c(excluded_species, "")
+	
+	excluded_diversity <- diversity[, which((colnames(diversity) %in% excluded_species))]
+	diversity <- diversity[, which(! (colnames(diversity) %in% excluded_species))]
+
+	# Sort the diversity by row sum
+	if(filtering_by_col_sum)
+	{
+		sorted_diversity <- sort(colSums(diversity), decreasing=T)
+	} else {
+		max_counts <- sapply(1:ncol(diversity), function(i) { max(diversity[,i])})
+		names(max_counts) <- colnames(diversity);
+		sorted_diversity <- sort(max_counts, decreasing=T)	
+	}
+	
+	selected_genus_level <- min(selected_genus_n, ncol(diversity))
+	sorted_diversity <- diversity[, names(sorted_diversity)[1:selected_genus_level]]
+	
+	
+	# Normalize the data
+	sample_total_counts <- rowSums(sorted_diversity)
+	
+	# Percentage
+	sorted_diversity_normalized <- (as.data.frame(sorted_diversity / sample_total_counts)) * 100
+	
+	# http://www.statsblogs.com/2014/07/14/a-log-transformation-of-positive-and-negative-values/
+	if(log_scale)
+	{
+		sorted_diversity_normalized <- log10(sorted_diversity_normalized + 1)
+	}
+	
+	
+	# Do hierachical clustering, and extract the labels
+	library(vegan)
+	
+	
+	diversity_dist <- vegdist(sorted_diversity_normalized, "bray")
+	
+	hc <- hclust(diversity_dist)
+	
+	# Export the hierchical clustering results
+	pdf(paste(wk_fn, "hclust", "pdf", sep="."), w=14, h=5)
+	plot(hc)
+	dev.off()
+	
+
+	
+	library(ape)
+	# Do PCoA
+	diversity_dist.pcoa <- pcoa(diversity_dist)
+	biplot(diversity_dist.pcoa, scaling=T)
+	
+	
+	
+	# Plot the heatmap
+
+	hc_label_ids <- rev(hc$labels[hc$order])
+	selected_sorted_diversity_normalized <- t(sorted_diversity_normalized[hc_label_ids,])
+	if(filtering_by_col_sum)
+	{
+		sorted_genus_ids <- names(sort(rowSums(selected_sorted_diversity_normalized), decreasing=T))
+	} else {
+		max_counts <- sapply(1:nrow(selected_sorted_diversity_normalized), function(i) { max(selected_sorted_diversity_normalized[i,])})
+		names(max_counts) <- rownames(selected_sorted_diversity_normalized);
+		sorted_genus_ids <- names(sort(max_counts, decreasing=T))
+	}
+	
+	# Estimate the size of pdf file
+	cell_height <- 0.3
+	cell_width <- 0.4
+	pdf_width <- 3 + (cell_width * ncol(selected_sorted_diversity_normalized))
+	pdf_height <- cell_height * nrow(selected_sorted_diversity_normalized)
+	
+	
+	if(log_scale)
+	{
+		pdf(paste(wk_fn,"log", "mtx","pdf",sep="."), w=pdf_width, h=pdf_height)	
+	} else {
+		pdf(paste(wk_fn,"mtx","pdf",sep="."), w=pdf_width, h=pdf_height)
+	}
+	plot_mtx <- as.matrix(selected_sorted_diversity_normalized)
+	#plot_heatmap_mtx(plot_mtx, plot_label=T, midpoint=(max(plot_mtx) - min(plot_mtx)) / 2, x_axis_labels=rev(rownames(selected_sorted_diversity_normalized)), xtitle="Sample", ytitle="Genus", colorbar_scheme=c("steelblue", "yellow", "darkred"), label_size=3, value_decimal_len=2)
+	plot_heatmap_mtx(plot_mtx, plot_label=T, midpoint=(max(plot_mtx) - min(plot_mtx)) / 2, x_axis_labels=rev(sorted_genus_ids), xtitle="Sample", ytitle="Genus", colorbar_scheme=c("steelblue", "yellow", "darkred"), label_size=3, value_decimal_len=2)
+	dev.off()
+	
+
 }

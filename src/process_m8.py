@@ -86,6 +86,7 @@ for gi2go_fn in gi2go_fns:
     #%reset
 
 
+
 """
 
 
@@ -1057,9 +1058,10 @@ import process_m8
 import glob
 import gc
 
+# Pair-end data
 cd ~/MG/m8/scaffolds/NR
 # inside the directory: ~/MG/m8/scaffolds/NR
-gi2go_fns = glob.glob("S*.gi2go+map+lineage")
+gi2go_fns = glob.glob("*.gi2go+map+lineage")
 for gi2go_fn in gi2go_fns:
     print("Processing " + gi2go_fn)
     SEED_dir = "../SEED/"
@@ -1071,6 +1073,17 @@ for gi2go_fn in gi2go_fns:
     gc.collect()
     #%reset  
 
+
+# Combined data
+gi2go_fns = glob.glob("*.gi2go+map+lineage")
+for gi2go_fn in gi2go_fns:
+    print("Processing " + gi2go_fn)
+    SEED_dir = "../SEED/"
+    read_fn = gi2go_fn.replace("+nr.m8.gi2go+map+lineage", "+SEED.m8.mapped2SEED.filtered")
+    print(read_fn)
+    process_m8.merge_mapped2SEED_gi2go_map(SEED_dir + read_fn, gi2go_fn, "../" + read_fn + "+gi2go+map+lineage") 
+    gc.collect()
+    #%reset  
 """
 def merge_mapped2SEED_gi2go_map(mapped2SEED_fn, gi2go_map_fn, merge_ofn, operation="intersect"):
     merge_data = {}
@@ -1112,6 +1125,7 @@ def merge_mapped2SEED_gi2go_map(mapped2SEED_fn, gi2go_map_fn, merge_ofn, operati
     # Print header
     OUT.write(gi2go_header+"\t"+"\t".join(mapped2SEED_header.split("\t")[1:])+"\n")
     for read_id in merge_data.keys():
+        # Only export rows from merge_data with two elements
         if len(merge_data[read_id]) == 2:
             OUT.write("\t".join(merge_data[read_id][0] + merge_data[read_id][1]) + "\n")
             exported_n += 1
@@ -1123,8 +1137,8 @@ def merge_mapped2SEED_gi2go_map(mapped2SEED_fn, gi2go_map_fn, merge_ofn, operati
     print("Number of exported: " + str(exported_n))
     print("Number of skipped: " + str(skipped_n))
     
-    del merge_data
-    gc.collect()
+    #del merge_data
+    #gc.collect()
     
 
 
@@ -1183,15 +1197,36 @@ This function
 import process_m8
 import glob
 
-cd ~/MG/m8/scaffolds
+#cd ~/MG/m8/scaffolds
 
 fns = glob.glob("*.mapped2SEED.filtered+gi2go+map+lineage")
 
 merge_list = ["SWH-Cell55_Y2", "GZ-Seed", "SWH-Seed", "GZ-Xyl_Y1", "GZ-Xyl_Y2", "SWH-Xyl_Y1", "SWH-Xyl_Y2", "GZ-Cell_Y1", "GZ-Cell_Y2", "SWH-Cell_Y1", "SWH-Cell_Y2", ]
 
-#process_m8.summary_SEED(fns, "all_samples.mapped2SEED.filtered+gi2go+map+lineage.func_role.summary", merge_list, col_idx=9)
+#merge_list = sample_lst.keys()
 
+#process_m8.summary_SEED(fns, "all_samples.mapped2SEED.filtered+gi2go+map+lineage.func_role.summary", merge_list, col_idx=9)
 process_m8.summary_SEED(fns, "all_samples.mapped2SEED.filtered+gi2go+map+lineage.subsystem.summary", merge_list,col_idx=10)
+
+
+# External metagenomes
+fns = glob.glob("*.mapped2SEED.filtered+gi2go+map+lineage")
+merge_list = [f.replace("+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage", "") for f in fns]
+process_m8.summary_SEED(fns, "all_external_metagenomes.mapped2SEED.filtered+gi2go+map+lineage.subsystem.summary", merge_list,col_idx=10)
+
+
+# External metagenomes + scaffolds
+fns = glob.glob("GZ*.mapped2SEED.filtered+gi2go+map+lineage")
+fns = fns + glob.glob("SWH*.mapped2SEED.filtered+gi2go+map+lineage")
+fns = fns + glob.glob("cow*.mapped2SEED.filtered+gi2go+map+lineage")
+fns = fns + glob.glob("termite*.mapped2SEED.filtered+gi2go+map+lineage")
+fns = fns + glob.glob("soil*.mapped2SEED.filtered+gi2go+map+lineage")
+fns = fns + glob.glob("slud*.mapped2SEED.filtered+gi2go+map+lineage")
+
+merge_list = [f.replace("+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage", "") for f in fns]
+process_m8.summary_SEED(fns, "all_external_metagenomes+scaffolds.mapped2SEED.filtered+gi2go+map+lineage.subsystem.summary", merge_list,col_idx=10)
+process_m8.summary_SEED(fns, "all_external_metagenomes+scaffolds.mapped2SEED.filtered+gi2go+map+lineage.roles.summary", merge_list, col_idx=9)
+
 
 """
 def summary_SEED(fns, summary_ofn, merge_list=None, col_idx=10): # col_idx=10 :subsystem, col_idx=9: functional role
@@ -1259,6 +1294,58 @@ with open("process_m8.py") as fp:
 
 """
 
+"""
+
+# The following codes are used to merge all runs of a sample together.
+import glob
+import process_m8
+import os
+
+
+sample_lst = {}
+sample_lst["termite_gut_soldier"] = ["SRR797683", "SRR797686"]
+sample_lst["termite_gut_worker"] = ["SRR797682", "SRR797685"]
+sample_lst["termite_gut_queen"] = ["SRR797681", "SRR797684"]
+sample_lst["cow_rumen_1"] = ["SRR094166", "SRR094403", "SRR094405", "SRR094415", "SRR094416", "SRR094417", "SRR094418"]
+sample_lst["cow_rumen_2"] = ["SRR094419", "SRR094424"]
+sample_lst["cow_rumen_3"] = ["SRR094427", "SRR094428"]
+sample_lst["cow_rumen_4"] = ["SRR1725612"]
+sample_lst["soil_cellulose_degrading"] = ["SRR650839"]
+sample_lst["sludge_cellulose"] = ["SRR554367"]
+sample_lst["sludge_ad"] = ["SRR1022352"]
+sample_lst["sludge_cas"] = ["SRR1145849"]
+sample_lst["sludge_terrestial"] = ["SRR1022351"]
+sample_lst["sludeg_membrane"] = ["SRR1145888"]
+sample_lst["sludge_waste_water"] = ["SRR1144841"]
+
+
+# Merge *+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage
+for sample_id in sample_lst.keys():
+    out_fn = sample_id + "+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage"
+    if os.path.isfile(out_fn):
+        os.remove(out_fn)
+    for run_id in sample_lst[sample_id]:
+        fn_1 = run_id + "_1+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage"
+        fn_2 = run_id + "_2+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage"
+        cmd = "cat " + fn_1 + " | grep -v '#' >> " + out_fn
+        os.system(cmd)
+        cmd = "cat " + fn_2 + " | grep -v '#' >> " + out_fn
+        os.system(cmd)
+
+# Merge *+nr.m8.gi2go+map+lineage
+for sample_id in sample_lst.keys():
+    out_fn = sample_id + "+nr.m8.gi2go+map+lineage"
+    if os.path.isfile(out_fn):
+        os.remove(out_fn)
+    for run_id in sample_lst[sample_id]:
+        fn_1 = run_id + "_1+nr.m8.gi2go+map+lineage"
+        fn_2 = run_id + "_2+nr.m8.gi2go+map+lineage"
+        cmd = "cat " + fn_1 + "| grep -v '#' >> " + out_fn
+        os.system(cmd)
+        cmd = "cat " + fn_2 + "| grep -v '#' >> " + out_fn
+        os.system(cmd)
+
+"""
 
 """
 
@@ -1278,79 +1365,124 @@ for summary_fn in summary_fns:
     data[sample_id] = process_m8.summarize_lineage_summary2(summary_1_fn, summary_2_fn)
 
 
-"""
-def summarize_lineage_summary2(summary_1_fn, summary_2_fn, missing="Unassigned"):
-    print("Reading from " + summary_1_fn + " and " + summary_2_fn)
+
+
+
+# Usage2:
+
+import glob
+import process_m8
+
+
+sample_lst = {}
+sample_lst["termite_gut_soldier"] = ["SRR797683", "SRR797686"]
+sample_lst["termite_gut_worker"] = ["SRR797682", "SRR797685"]
+sample_lst["termite_gut_queen"] = ["SRR797681", "SRR797684"]
+sample_lst["cow_rumen_1"] = ["SRR094166", "SRR094403", "SRR094405", "SRR094415", "SRR094416", "SRR094417", "SRR094418"]
+sample_lst["cow_rumen_2"] = ["SRR094419", "SRR094424"]
+sample_lst["cow_rumen_3"] = ["SRR094427", "SRR094428"]
+sample_lst["cow_rumen_4"] = ["SRR1725612"]
+sample_lst["soil_cellulose_degrading"] = ["SRR650839"]
+sample_lst["sludge_cellulose"] = ["SRR554367"]
+sample_lst["sludge_ad"] = ["SRR1022352"]
+sample_lst["sludge_cas"] = ["SRR1145849"]
+sample_lst["sludge_terrestial"] = ["SRR1022351"]
+sample_lst["sludeg_membrane"] = ["SRR1145888"]
+sample_lst["sludge_waste_water"] = ["SRR1144841"]
+#sample_lst[""] = ["", "", "", "", "", "", ""]
+
+
+data = {}    
+for sample_id in sample_lst.keys():
     df = {}
-    
-    # Read_1
-    IN = open(summary_1_fn)
-    IN2 = open(summary_2_fn)
-    l = IN.readline()
-    l = IN2.readline()
-    
-    for l, l2 in izip(IN, IN2):
-        #[lineage, functional_role, subsystem] = l.rstrip().split("\t")
-        try:
-            l = l.rstrip().split("\t")
-            
-            lineage = l[6].split("g__",1)[1].split(";",1)[0]
-            functional_role = l[9]
-            subsystem = l[10]
-        #print(lineage + "xxx, " + functional_role + "xxx, " + subsystem)
-        except:
-            continue
-
-        if len(lineage) == 0:
-            lineage = missing
-            
-        #print(lineage)
-        try:
-            df[lineage][subsystem] += 1
-        except:
-            try:
-                df[lineage][subsystem] = 1
-            except:
-                df[lineage] = {}
-                df[lineage][subsystem] = 1
-        
-        #
-        l = l2        
-        try:
-            l = l.rstrip().split("\t")
-            
-            lineage = l[6].split("g__",1)[1].split(";",1)[0]
-            functional_role = l[9]
-            subsystem = l[10]
-        #print(lineage + "xxx, " + functional_role + "xxx, " + subsystem)
-        except:
-            continue
-
-        if len(lineage) == 0:
-            lineage = missing
-            
-        #print(lineage)
-        try:
-            df[lineage][subsystem] += 1
-        except:
-            try:
-                df[lineage][subsystem] = 1
-            except:
-                df[lineage] = {}
-                df[lineage][subsystem] = 1 
+    for run_id in sample_lst[sample_id]:
+        fn_1 = run_id + "_1+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage"
+        fn_2 = run_id + "_2+SEED.m8.mapped2SEED.filtered+gi2go+map+lineage"
+        df = process_m8.summarize_lineage_summary2(fn_1, fn_2, df)
+    data[sample_id] = df
                         
-    IN2.close()
-    IN.close()
+"""
+def summarize_lineage_summary2(summary_1_fn, summary_2_fn, df=None, missing="Unassigned"):
+    print("Reading from " + summary_1_fn + " and " + summary_2_fn)
+    
+    if df is None:
+        df = {}
+    
+    df = summarize_lineage_summary(summary_1_fn, df)
+    df = summarize_lineage_summary(summary_2_fn, df)
+#     
+#     # Read_1
+#     IN = open(summary_1_fn)
+#     IN2 = open(summary_2_fn)
+#     l = IN.readline()
+#     l = IN2.readline()
+#     
+#     for l, l2 in izip(IN, IN2):
+#         #[lineage, functional_role, subsystem] = l.rstrip().split("\t")
+#         try:
+#             l = l.rstrip().split("\t")
+#             
+#             lineage = l[6].split("g__",1)[1].split(";",1)[0]
+#             functional_role = l[9]
+#             subsystem = l[10]
+#         #print(lineage + "xxx, " + functional_role + "xxx, " + subsystem)
+#         except:
+#             continue
+# 
+#         if len(lineage) == 0:
+#             lineage = missing
+#             
+#         #print(lineage)
+#         try:
+#             df[lineage][subsystem] += 1
+#         except:
+#             try:
+#                 df[lineage][subsystem] = 1
+#             except:
+#                 df[lineage] = {}
+#                 df[lineage][subsystem] = 1
+#         
+#         #
+#         l = l2        
+#         try:
+#             l = l.rstrip().split("\t")
+#             
+#             lineage = l[6].split("g__",1)[1].split(";",1)[0]
+#             functional_role = l[9]
+#             subsystem = l[10]
+#         #print(lineage + "xxx, " + functional_role + "xxx, " + subsystem)
+#         except:
+#             continue
+# 
+#         if len(lineage) == 0:
+#             lineage = missing
+#             
+#         #print(lineage)
+#         try:
+#             df[lineage][subsystem] += 1
+#         except:
+#             try:
+#                 df[lineage][subsystem] = 1
+#             except:
+#                 df[lineage] = {}
+#                 df[lineage][subsystem] = 1 
+#                         
+#     IN2.close()
+#     IN.close()
     
     return df
 
 
 
-def summarize_lineage_summary(summary_fn, missing="Unassigned"):
+def summarize_lineage_summary(summary_fn, df=None, missing="Unassigned"):
     print("Reading from " + summary_fn)
-    df = {}
     
-    # Read_1
+    if df is None:
+        df = {}
+    else:
+        print("Results will be appended to the given dataset.")
+    
+    # 
     IN = open(summary_fn)
     l = IN.readline()
     
@@ -1383,7 +1515,6 @@ def summarize_lineage_summary(summary_fn, missing="Unassigned"):
                 df[lineage][subsystem] = 1
     IN.close()
     
-    
     return df
 
 
@@ -1392,7 +1523,7 @@ def summarize_lineage_summary(summary_fn, missing="Unassigned"):
 """
 
 # data is created by calling summarize_lineage_summary2() 
-
+subsystems = 
 
 subsystems = ["Monosaccharides", "DNA repair", "Fermentation", "Glycoside hydrolase", "DNA replication", "Central carbohydrate metabolism", "One-carbon metabolism"]
 for subsystem in subsystems:
@@ -1459,6 +1590,34 @@ out_fn = "all_samples.lineage.summary"
 
 process_m8.export_lineage_summary(fns, sample_ids, out_fn)
 
+
+# External_metagenomes
+import process_m8
+import glob
+
+fns = glob.glob("*+nr.m8.gi2go+map+lineage")
+out_fn = "all_external_metagenenomes.lineage.summary"
+sample_ids = [fn.replace("+nr.m8.gi2go+map+lineage", "") for fn in fns]
+process_m8.export_lineage_summary(fns, sample_ids, out_fn)
+
+
+
+# External metagenomes + scaffolds
+import process_m8
+import glob
+
+fns = glob.glob("GZ*.gi2go+map+lineage")
+fns = fns + glob.glob("SWH*.gi2go+map+lineage")
+fns = fns + glob.glob("cow*.gi2go+map+lineage")
+fns = fns + glob.glob("termite*.gi2go+map+lineage")
+fns = fns + glob.glob("soil*.gi2go+map+lineage")
+fns = fns + glob.glob("slud*.gi2go+map+lineage")
+sample_ids = [f.replace(".trimmed", "").replace("+nr.m8.gi2go+map+lineage", "") for f in fns]
+out_fn = "all_external_metagenenomes+scaffolds.lineage.summary"
+process_m8.export_lineage_summary(fns, sample_ids, out_fn)
+
+
+
 """         
 def export_lineage_summary(fns, sample_ids, out_fn, tax_level="g__", tax_col=6, missing_label="Unknown", delimiter='\t'):
     processed_n = 0
@@ -1474,14 +1633,20 @@ def export_lineage_summary(fns, sample_ids, out_fn, tax_level="g__", tax_col=6, 
         IN = open(fn)
         
         sample_process_n = 0
-        
+        line_n = 0
         header = IN.readline()
         for line in IN:
             processed_n += 1
             sample_process_n += 1
+            line_n += 1
             
-            lineage = line.split(delimiter)[tax_col]
-            
+            try:
+                lineage = line.split(delimiter)[tax_col]
+            except:
+                print("Problem at Line: " + str(line_n))
+                print("Line: " + line)
+                raise
+                
             try:
                 lineage = lineage.split("g__")[1].split(";")[0]
             except:
@@ -1504,7 +1669,7 @@ def export_lineage_summary(fns, sample_ids, out_fn, tax_level="g__", tax_col=6, 
     
     OUT = open(out_fn, "w")
     # Export header
-    OUT.write("#" + "\t".join(sample_ids) + "\n")
+    OUT.write("#Lineage\t" + "\t".join(sample_ids) + "\n")
     for lineage in lineage_tbl.keys():
         OUT.write(lineage + "\t" + "\t".join(map(str, lineage_tbl[lineage])) + "\n")
         exported_n += 1
@@ -1580,6 +1745,37 @@ def assign_contig_taxonomic_lineage(gi2go_map_lineage_fn, assign_ofn=None):
         
     OUT.close()
     
+
+"""
+After manually selecting the contigs based on the lineage probabilities, this function just
+splits the contigs into sample files based on their first three letters.
+
+Usage:
+import process_m8
+contig_fn = "filtered_contig.list"
+process_m8.select_contig_by_lineage(contig_fn)
+"""
+def select_contig_by_lineage(contig_fn):
+    with open(contig_fn) as IN:
+        contigs = IN.read().splitlines()
+    contigs = {c.split("\t")[0] : c.split("\t") for c in contigs}
+
+    # Get unique sample ids    
+    sample_ids = [k[0:3] for k in contigs.keys()]
+    sample_ids = list(set(sample_ids))
+    
+    # Assign sample_id to contigs
+    sample_id2contigs_map = {sample_id: [] for sample_id in sample_ids}
+    for contig_id in contigs.keys():
+        sample_id = contig_id[0:3]
+        sample_id2contigs_map[sample_id].append(contig_id)
+
+    # Export contig ids    
+    for sample_id in sample_ids:
+        sample_contigs = list(set(sample_id2contigs_map[sample_id]))
+        OUT = open(sample_id + ".selected_contig", "w")
+        OUT.write("\n".join(sample_contigs))
+        OUT.close()
 
 
 
@@ -1705,5 +1901,18 @@ selected_subsystems <- paste(rownames(subsystems)[selected_idx], p_vals[selected
 
 write.table(selected_subsystems, paste(wk_fn, ".selected_subsystems", sep=""), quote=F, sep="\t", row.names=F, col.names=F)
 
+
+"""
+
+
+"""
+for f in ../../SWH-Xyl*.fasta;do ln -s $f;done
+for f in *.fasta;do ~/tools/blast/bin/makeblastdb -in $f -dbtype nucl;done
+mkdir out
+ln -s ../GZ-Xyl/run_blast.sh
+bash run_blast.sh > run.batch
+
+# delete files in zero size
+find *.bla -size  0 -print0 |xargs -0 rm
 
 """

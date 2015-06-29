@@ -52,9 +52,119 @@ def main():
             OUT.write(k + "\t" + k.replace(".", "\t") + "\t" + str(mtx[k]) + "\n")
 
 
+
+
+
+
+
 """
 bla_fn = "SWH-Seed_Y0.GZ-Seed_Y0.bla.b1000.0p80.0.bla"
+
+#Usage:
+import os
+import glob
+import calculate_mtx
+
+
+sample_id="SWH-Xyl"
+bla_fns = glob.glob("*.bla")
+query_ids = sorted(list(set([b.replace(".bla", "").split("+")[0] for b in bla_fns])))
+subject_ids = sorted(list(set([b.replace(".bla", "").split("+")[1] for b in bla_fns])))
+min_alignment_len=5000
+# score_mtx[i][j]: i=query_id (row), j=subject_id (column)
+score_mtx_q = [[0.0 for s in subject_ids] for q in query_ids]
+score_mtx_s = [[0.0 for s in subject_ids] for q in query_ids]
+for i, query_id in enumerate(query_ids):
+    for j, subject_id in enumerate(subject_ids):
+        bla_fn = query_id + "+" + subject_id +".bla"
+        if os.path.isfile(bla_fn):
+            score = calculate_mtx.calculate_hit_coverage(bla_fn, query_fa_fn="../" + query_id + ".fasta", subject_fa_fn="../" + subject_id + ".fasta", query_id=query_id, subject_id=subject_id, min_alignment_len=min_alignment_len)
+            score_mtx_q[i][j] = score[0]
+            score_mtx_s[i][j] = score[1]
+
+# Export the matrix
+calculate_mtx.export_mtx(query_ids, subject_ids, score_mtx_q, sample_id+"."+ str(min_alignment_len)+".query.mtx")
+calculate_mtx.export_mtx(query_ids, subject_ids, score_mtx_s, sample_id+"."+ str(min_alignment_len)+".subject.mtx")
+
 """
+def calculate_hit_coverage(bla_fn, query_fa_fn, subject_fa_fn, query_fa_fn, query_id=None, subject_id=None, min_alignment_len=0, silent=False):
+    import os
+
+    if query_id is None:
+        query_id = "query"
+    if subject_id is None:
+        subject_id = "subject"
+
+    with open(bla_fn) as IN:
+        bla = IN.read().splitlines()
+    bla = [b.split("\t") for b in bla]
+    
+    
+    # Nothing inside the bla file
+    if len(bla) == 0:
+        return score
+
+    # Calculate the total size of query sequences
+    bin_lens = {}
+    fa_fn = query_fa_fn
+        
+    if not silent:
+        print("Getting length from " + fa_fn + " for "+query_id)
+    
+    seqs = SeqIO.index(fa_fn, "fasta")
+    # Calculate the total bin size
+    bin_lens[query_id] = sum([len(str(seqs[sid].seq)) for sid in seqs.keys()]) 
+    
+    
+    # Calculate the total size of subject sequences
+    fa_fn = subject_fa_fn
+    if not silent:    
+        print("Getting length from " + fa_fn + " for "+subject_id)
+    seqs = SeqIO.index(fa_fn, "fasta")
+    # Calculate the total bin size
+    bin_lens[subject_id] = sum([len(str(seqs[sid].seq)) for sid in seqs.keys()]) 
+
+    
+    discard_bla_n = 0
+    raw_data = []
+    s_bla_sum = 0.0
+    q_bla_sum = 0.0
+    for b in bla:
+        q_id = b[0]
+        s_id = b[1]
+        
+        # Calculate  
+        #s = (int(b[3]) - ( int(b[5]) + int(b[4]) ))
+        s = int(b[3])
+        if s >= min_alignment_len:
+            s_bla_sum = s_bla_sum + s
+            q_bla_sum = q_bla_sum + s
+        else:
+           discard_bla_n = discard_bla_n + 1      
+        
+    # Create a blank sheet
+    score = [0, 0]
+    
+    score[0] = q_bla_sum / bin_lens[query_id]
+    score[1] = s_bla_sum / bin_lens[subject_id]
+
+    if not silent:
+        print("query_score=" +str(score[0]) + ", subject_score=" + str(score[1]) + ", dicard_bla_n=" + str(discard_bla_n))
+          
+    return score
+
+
+
+def export_mtx(row_ids, col_ids, mtx, mtx_ofn):
+    with open(mtx_ofn, "w") as OUT:
+        OUT.write("#Score_Mtx\t" + "\t".join(col_ids) + "\n")
+        for i, row_id in enumerate(row_ids):
+            row = [row_id] + map(str, mtx[i])
+            OUT.write("\t".join(row) + "\n")  
+
+
+
+
 from Bio import SeqIO
 
 cache = {}
@@ -70,12 +180,16 @@ def calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fa", subject_meta
     
 #    if query_metagenome_name not in cache.keys():
         
-    
-    if query_metagenome_abund_fn is None:
+    if query_metagenome_abund_fn is None or subject_metagenome_abund_fn is None:
         query_metagenome_abund_fn = path_to_abund_dir + "/" + query_metagenome_name + abund_dir_suffix + "/" + query_metagenome_name + ".abund"
-    if subject_metagenome_abund_fn is None:
         subject_metagenome_abund_fn = path_to_abund_dir + "/" + subject_metagenome_name + abund_dir_suffix + "/" + subject_metagenome_name + ".abund"
- 
+        relative_abund = False
+    
+#     if query_metagenome_abund_fn is None:
+#         query_metagenome_abund_fn = path_to_abund_dir + "/" + query_metagenome_name + abund_dir_suffix + "/" + query_metagenome_name + ".abund"
+#     if subject_metagenome_abund_fn is None:
+#         subject_metagenome_abund_fn = path_to_abund_dir + "/" + subject_metagenome_name + abund_dir_suffix + "/" + subject_metagenome_name + ".abund"
+#  
  
     score = {query_metagenome_name:0.0, subject_metagenome_name:0.0}
 
@@ -187,6 +301,9 @@ def calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fa", subject_meta
     #mtx[id] = sum([int(b.split("\t")[3]) - (int(b.split("\t")[5]) + int(b.split("\t")[4])) for b in bla_res]) / ((bin_lens[qid] + bin_lens[sid]) / 2)
             
     return score
+
+
+
 # def calculate_mtx_with_coverage(bla_fn, metagenome_fa_fn_ext=".fa", subject_metagenome_fa_fn=None, query_metagenome_fa_fn=None, subject_metagenome_abund_fn=None, query_metagenome_abund_fn=None, raw_ofn=None, relative_abund=True, path_to_abund_dir="/home/siukinng/MG/scaffolds_5000", path_to_seq_dir="/home/siukinng/MG/scaffolds_5000/CrossValidation/db/combined", abund_dir_suffix="_5000", id_separator='.'):
 #     import os
 #     
@@ -610,7 +727,7 @@ def calculate_weighted_score_mtx(weighted_score_mtx_fn="weighted_score_mtx", fn_
 
 
 
-   
+
 def calculate_score_mtx(score_mtx_fn="score_mtx", fn_suffix = ".bla.b1000.0.bla", id_separator="."):
     import calculate_mtx
     import os
