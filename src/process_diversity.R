@@ -752,9 +752,9 @@ process_all_sample_lineage <- function(tx_fn_g="all_samples.lineage.summary", lo
 	#log_scale <- TRUE;
 	#filtering_by_col_sum <- FALSE; # if false, filtering by maximum col count
 	
-	min_colsum <- 5000;
+	min_colsum <- 10000;
 	min_count <- 100;
-	selected_genus_n <- 50;
+	selected_genus_n <- 100;
 
 	wk_fn <- tx_fn_g
 	
@@ -826,8 +826,13 @@ process_all_sample_lineage <- function(tx_fn_g="all_samples.lineage.summary", lo
 	library(ape)
 	# Do PCoA
 	diversity_dist.pcoa <- pcoa(diversity_dist)
-	biplot(diversity_dist.pcoa, scaling=T)
-	
+	#pdf()
+	#biplot(diversity_dist.pcoa, scaling=T)
+	#plot_mtx.pca <- princomp(plot_mtx)
+	pdf(paste(wk_fn,"pca_biplot","pdf",sep="."), w=8, h=8)
+	#biplot(plot_mtx.pca, scale=T, type = c("text", "points"))
+	biplot(diversity_dist.pcoa, scale=T)
+	dev.off()
 	
 	
 	# Plot the heatmap
@@ -862,4 +867,23 @@ process_all_sample_lineage <- function(tx_fn_g="all_samples.lineage.summary", lo
 	dev.off()
 	
 
+}
+
+#
+process_all_sample_functional <- function(func_fn="all_external_metagenomes+scaffolds.roles.summary", log_scale=FALSE, filtering_by_col_sum=FALSE)
+{	
+	wk_fn <- func_fn
+	# Read counts assigned to SEED subsystems
+	functional_diversity <- read.csv(wk_fn, sep="\t", header=T, stringsAsFactors=F, comment.char="@", row.names=1, quote="")
+	
+	functional_diversity <- t(functional_diversity)
+	
+	library(vegan)
+	library(ape)
+	
+	functional_diversity.dist <- vegdist(functional_diversity)
+
+	functional_diversity.pcoa <- pcoa(functional_diversity.dist)
+
+	
 }

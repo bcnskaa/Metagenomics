@@ -66,7 +66,7 @@ import glob
 import calculate_mtx
 
 
-sample_id="SWH-Xyl"
+sample_id="GZ-Cell_vs_GZ-Xyl"
 bla_fns = glob.glob("*.bla")
 query_ids = sorted(list(set([b.replace(".bla", "").split("+")[0] for b in bla_fns])))
 subject_ids = sorted(list(set([b.replace(".bla", "").split("+")[1] for b in bla_fns])))
@@ -87,7 +87,7 @@ calculate_mtx.export_mtx(query_ids, subject_ids, score_mtx_q, sample_id+"."+ str
 calculate_mtx.export_mtx(query_ids, subject_ids, score_mtx_s, sample_id+"."+ str(min_alignment_len)+".subject.mtx")
 
 """
-def calculate_hit_coverage(bla_fn, query_fa_fn, subject_fa_fn, query_fa_fn, query_id=None, subject_id=None, min_alignment_len=0, silent=False):
+def calculate_hit_coverage(bla_fn, query_fa_fn, subject_fa_fn, query_id=None, subject_id=None, min_alignment_len=0, silent=False):
     import os
 
     if query_id is None:
@@ -98,7 +98,9 @@ def calculate_hit_coverage(bla_fn, query_fa_fn, subject_fa_fn, query_fa_fn, quer
     with open(bla_fn) as IN:
         bla = IN.read().splitlines()
     bla = [b.split("\t") for b in bla]
-    
+   
+    # Create a blank sheet
+    score = [0, 0]
     
     # Nothing inside the bla file
     if len(bla) == 0:
@@ -142,8 +144,7 @@ def calculate_hit_coverage(bla_fn, query_fa_fn, subject_fa_fn, query_fa_fn, quer
         else:
            discard_bla_n = discard_bla_n + 1      
         
-    # Create a blank sheet
-    score = [0, 0]
+
     
     score[0] = q_bla_sum / bin_lens[query_id]
     score[1] = s_bla_sum / bin_lens[subject_id]
